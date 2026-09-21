@@ -1,13 +1,12 @@
 export type Priority = 'normal' | 'urgent';
-export type TaskState = 'active' | 'overdue' | 'completed' | 'error';
+export type TaskBucket = 'active' | 'completed' | 'error';
 
 export interface Settings {
   userName: string;
   activeWorkspaceId: string;
   launchAtStartup: boolean;
-  /** Full greeting line shown on the Today view. Use the token {name} to insert
-   *  the display name (e.g. "Good morning, {name}."), or write a static line
-   *  with no token at all, e.g. "Failure is the stepping stone to success." */
+  /** Full greeting shown on Today. Use {name} token, e.g. "Good morning, {name}."
+   *  or write a static tagline with no token at all. */
   greeting: string;
 }
 

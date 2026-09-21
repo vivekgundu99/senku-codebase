@@ -42,6 +42,7 @@ button { border: 0; color: inherit; cursor: pointer; }
 .main-area { flex: 1; min-width: 0; padding: 45px 5vw 55px; }
 .topbar { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 42px; }
 .breadcrumb { margin: 0 0 20px; color: #9ca49d; font: 500 10px 'DM Mono', monospace; }
+.active-view-label { display: block; margin-bottom: 6px; color: var(--green); font: 700 10px 'DM Mono', monospace; letter-spacing: .12em; text-transform: uppercase; }
 .breadcrumb span { padding: 0 8px; color: #c6ccc4; }
 .topbar h1 { margin: 0 0 9px; font-size: clamp(28px, 3vw, 44px); line-height: 1; letter-spacing: -.07em; }
 .date-line { margin: 0; color: var(--muted); font-size: 12px; }
