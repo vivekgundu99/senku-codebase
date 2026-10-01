@@ -1,4 +1,4 @@
-import type { FlexibleHorizon, Task, TaskInput, TaskType } from '../electron/types';
+import type { Task, TaskInput, TaskType } from '../electron/types';
 import { setState, state } from './state';
 import { escapeHtml, toLocalDatetimeInput, DEFAULT_GREETING } from './utils';
 
@@ -31,10 +31,9 @@ function localEndOfDay(date: Date): string {
   return end.toISOString();
 }
 
-function readTaskInput(form: HTMLFormElement, original?: Task): TaskInput {
+function readTaskInput(form: HTMLFormElement): TaskInput {
   const data = new FormData(form);
   const taskType = data.get('taskType') as TaskType;
-  const horizon = taskType === 'flexible' ? data.get('horizon') as FlexibleHorizon : undefined;
   let startAt: string | undefined;
   let endAt: string | undefined;
 
@@ -44,15 +43,11 @@ function readTaskInput(form: HTMLFormElement, original?: Task): TaskInput {
     startAt = start.toISOString();
     const endRaw = String(data.get('endAt') ?? '').trim();
     endAt = endRaw ? new Date(endRaw).toISOString() : localEndOfDay(start);
-  } else if (original?.taskType === 'flexible' && original.horizon === horizon) {
-    startAt = original.startAt;
-    endAt = original.endAt;
   }
 
   return {
     title: String(data.get('title') ?? '').trim(),
     taskType,
-    horizon,
     startAt,
     endAt,
     linkedPaths: String(data.get('linkedPaths') ?? '')
@@ -78,7 +73,6 @@ function taskFieldsMarkup(defaults?: {
   startAt?: Date;
   endAt?: Date;
   taskType?: TaskType;
-  horizon?: FlexibleHorizon;
   linkedPaths?: string[];
 }): string {
   const now = new Date();
@@ -90,7 +84,7 @@ function taskFieldsMarkup(defaults?: {
   return `
     <label>Task name
       <input name="title" required
-        placeholder="Finish operating systems notes"
+        placeholder="Read a chapter, practise a problem, sketch an idea"
         value="${escapeHtml(defaults?.title ?? '')}" />
     </label>
     <label>Task type</label>
@@ -111,14 +105,7 @@ function taskFieldsMarkup(defaults?: {
       </div>
     </div>
     <div data-schedule-panel="flexible" ${taskType === 'scheduled' ? 'hidden' : ''}>
-      <label>Reminder window</label>
-      <div class="horizon-options">
-        <label><input type="radio" name="horizon" value="day" ${defaults?.horizon === 'day' ? 'checked' : ''}><span>In a day</span></label>
-        <label><input type="radio" name="horizon" value="week" ${defaults?.horizon === 'week' || !defaults?.horizon ? 'checked' : ''}><span>In a week</span></label>
-        <label><input type="radio" name="horizon" value="month" ${defaults?.horizon === 'month' ? 'checked' : ''}><span>In a month</span></label>
-        <label><input type="radio" name="horizon" value="year" ${defaults?.horizon === 'year' ? 'checked' : ''}><span>In a year</span></label>
-      </div>
-      <p class="horizon-help">Senku will choose a day in this window and remind you at noon.</p>
+      <p class="horizon-help">No deadline or automatic reminder. It stays in Today and Upcoming until you plan it or complete it.</p>
     </div>
     <label>Linked paths <span class="hint">optional · one per line</span>
       <textarea name="linkedPaths" rows="3"
@@ -134,7 +121,7 @@ export function openNewTaskModal(load: () => Promise<void>): void {
       <button type="button" class="modal-close" id="close-modal">×</button>
       <span class="section-kicker">NEW TASK</span>
       <h2>Create a task</h2>
-      <p class="modal-copy">Choose when to work or let Senku surprise you with a reminder.</p>
+      <p class="modal-copy">Schedule work for today, or keep it Flexible for whenever you have room.</p>
       ${taskFieldsMarkup()}
       <p class="form-error" id="task-error"></p>
       <button class="primary-button" type="submit">Save task <span>→</span></button>
@@ -212,10 +199,9 @@ export function openEditTaskModal(
       <p class="modal-copy">${escapeHtml(task.title)}</p>
       ${taskFieldsMarkup({
         title: task.title,
-        startAt: new Date(task.startAt),
-        endAt: new Date(task.endAt),
+        startAt: task.startAt ? new Date(task.startAt) : undefined,
+        endAt: task.endAt ? new Date(task.endAt) : undefined,
         taskType: task.taskType,
-        horizon: task.horizon,
         linkedPaths: task.linkedPaths,
       })}
       <p class="form-error" id="task-error"></p>
@@ -226,7 +212,7 @@ export function openEditTaskModal(
 
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const input = readTaskInput(e.currentTarget as HTMLFormElement, task);
+    const input = readTaskInput(e.currentTarget as HTMLFormElement);
     if (!input.title || (input.taskType === 'scheduled' && (!input.startAt || !input.endAt || Date.parse(input.startAt) >= Date.parse(input.endAt))) || (input.startAt && input.endAt && Date.parse(input.startAt) >= Date.parse(input.endAt))) {
       showFormError(overlay, '#task-error', 'Enter a title and an end time after the reminder time.');
       return;
@@ -341,7 +327,7 @@ export function openProfileModal(render: () => void): void {
       <button type="button" class="modal-close" id="close-modal">×</button>
       <span class="section-kicker">PROFILE</span>
       <h2>Your Senku profile</h2>
-      <p class="modal-copy">Choose the name and behavior that feel right for you.</p>
+      <p class="modal-copy">Set the personal details Senku uses across all your Spaces.</p>
 
       <label>Display name
         <input name="userName" required value="${escapeHtml(state.settings.userName)}" />
@@ -358,38 +344,10 @@ export function openProfileModal(render: () => void): void {
         </small>
       </label>
 
-      <div class="profile-setting">
-        <div>
-          <strong>Strict mode</strong>
-          <small>Open all linked resources when tasks start.</small>
-        </div>
-        <button type="button" id="profile-strict-toggle"
-          class="toggle ${state.workspace?.strictMode ? 'on' : ''}"
-          aria-label="Toggle strict mode"><span></span></button>
-      </div>
-
-      <div class="profile-setting">
-        <div>
-          <strong>Launch at Windows startup</strong>
-          <small>Start Senku minimized to the tray when Windows starts.</small>
-        </div>
-        <button type="button" id="profile-startup-toggle"
-          class="toggle ${state.settings.launchAtStartup ? 'on' : ''}"
-          aria-label="Toggle launch at startup"><span></span></button>
-      </div>
-
       <p class="form-error" id="profile-error"></p>
       <button class="primary-button" type="submit">Save profile <span>→</span></button>
       <button id="user-guide" class="guide-button" type="button">Read the Senku guide</button>
     </form>`);
-
-  // Toggle buttons
-  overlay.querySelector('#profile-strict-toggle')?.addEventListener('click', () =>
-    overlay.querySelector('#profile-strict-toggle')?.classList.toggle('on'),
-  );
-  overlay.querySelector('#profile-startup-toggle')?.addEventListener('click', () =>
-    overlay.querySelector('#profile-startup-toggle')?.classList.toggle('on'),
-  );
 
   // User guide
   overlay.querySelector('#user-guide')?.addEventListener('click', async () => {
@@ -406,20 +364,38 @@ export function openProfileModal(render: () => void): void {
       return;
     }
     const greeting = String(data.get('greeting') ?? '').trim() || DEFAULT_GREETING;
-    const strictMode = overlay.querySelector('#profile-strict-toggle')!.classList.contains('on');
-    const launchAtStartup = overlay
-      .querySelector('#profile-startup-toggle')!
-      .classList.contains('on');
-
-    let snapshot = await window.senku.saveSettings({
+    const snapshot = await window.senku.saveSettings({
       ...state.settings,
       userName: name,
-      launchAtStartup,
       greeting,
     });
-    if (state.workspace) {
-      snapshot = await window.senku.setStrictMode(state.workspace.id, strictMode);
-    }
+    setState(snapshot);
+    overlay.remove();
+    render();
+  });
+}
+
+export function openAppSettingsModal(render: () => void): void {
+  if (!state) return;
+  const overlay = createOverlay(`
+    <form class="modal-card">
+      <button type="button" class="modal-close" id="close-modal">×</button>
+      <span class="section-kicker">APP SETTINGS</span>
+      <h2>Senku settings</h2>
+      <p class="modal-copy">These preferences apply across all your Spaces.</p>
+      <div class="profile-setting">
+        <div><strong>Launch when Windows starts</strong><small>Open Senku when you sign in.</small></div>
+        <button type="button" id="app-startup-toggle" class="toggle ${state.settings.launchAtStartup ? 'on' : ''}" aria-label="Toggle launch at startup"><span></span></button>
+      </div>
+      <button class="primary-button" type="submit">Save app settings <span>→</span></button>
+    </form>`);
+  overlay.querySelector('#app-startup-toggle')?.addEventListener('click', () =>
+    overlay.querySelector('#app-startup-toggle')?.classList.toggle('on'),
+  );
+  overlay.querySelector('form')!.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const launchAtStartup = overlay.querySelector('#app-startup-toggle')!.classList.contains('on');
+    const snapshot = await window.senku.saveSettings({ ...state.settings, launchAtStartup });
     setState(snapshot);
     overlay.remove();
     render();
@@ -434,9 +410,9 @@ export function openWorkspaceMenuModal(load: () => Promise<void>): void {
   const overlay = createOverlay(`
     <section class="modal-card">
       <button class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">WORKSPACES</span>
-      <h2>Choose your space</h2>
-      <p class="modal-copy">Each workspace has its own master folder and task history.</p>
+      <span class="section-kicker">SPACES</span>
+      <h2>Choose a Space</h2>
+      <p class="modal-copy">Each Space has its own main folder and tasks.</p>
       <div class="workspace-list">
         ${state.workspaces
           .map(
@@ -446,15 +422,15 @@ export function openWorkspaceMenuModal(load: () => Promise<void>): void {
             <span class="workspace-dot"></span>
             <span>
               <strong>${escapeHtml(ws.name)}</strong>
-              <small>${escapeHtml(ws.masterFolder)}</small>
+              <small>Main folder · ${escapeHtml(ws.masterFolder)}</small>
             </span>
             <span>→</span>
           </button>`,
           )
           .join('')}
       </div>
-      <button class="primary-button" id="new-workspace">+ Create another workspace</button>
-      <button class="danger-button" id="delete-workspace">Delete current workspace</button>
+      <button class="primary-button" id="new-workspace">+ Add a Space</button>
+      <button class="danger-button" id="delete-workspace">Delete this Space</button>
     </section>`);
 
   overlay.querySelectorAll<HTMLElement>('[data-workspace-id]').forEach((btn) =>
@@ -495,20 +471,20 @@ export function openWorkspaceFormModal(load: () => Promise<void>): void {
   const overlay = createOverlay(`
     <form class="modal-card">
       <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">NEW WORKSPACE</span>
-      <h2>Give a folder its own space.</h2>
-      <p class="modal-copy">Tasks from this workspace will never mix with another one.</p>
-      <label>Workspace name
-        <input name="name" required placeholder="Workspace 2" />
+      <span class="section-kicker">NEW SPACE</span>
+      <h2>Give a folder its own Space.</h2>
+      <p class="modal-copy">Tasks and settings in this Space stay separate.</p>
+      <label>Space name
+        <input name="name" required placeholder="e.g. College, Personal, Projects" />
       </label>
-      <label>Master folder
+      <label>Main folder
         <div class="path-input">
           <input name="folder" required placeholder="C:\\Users\\you\\projects" />
           <button type="button" id="browse-folder" class="ghost-button">Browse</button>
         </div>
       </label>
       <p class="form-error" id="workspace-error"></p>
-      <button class="primary-button" type="submit">Create workspace <span>→</span></button>
+      <button class="primary-button" type="submit">Create Space <span>→</span></button>
     </form>`);
 
   overlay.querySelector('#browse-folder')?.addEventListener('click', async () => {
@@ -532,44 +508,87 @@ export function openWorkspaceFormModal(load: () => Promise<void>): void {
       showFormError(
         overlay,
         '#workspace-error',
-        err instanceof Error ? err.message : 'Could not create workspace.',
+        err instanceof Error ? err.message : 'Could not create Space.',
       );
     }
   });
 }
 
 // ---------------------------------------------------------------------------
-// Workspace settings modal (rename)
+// Space settings — applies only to the selected Space
 // ---------------------------------------------------------------------------
 
-export function openWorkspaceSettingsModal(render: () => void): void {
+export function openWorkspaceSettingsModal(load: () => Promise<void>, render: () => void): void {
   if (!state?.workspace) return;
   const ws = state.workspace;
 
   const overlay = createOverlay(`
     <form class="modal-card">
       <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">WORKSPACE SETTINGS</span>
-      <h2>Edit this workspace</h2>
-      <p class="modal-copy">${escapeHtml(ws.masterFolder)}</p>
-      <label>Workspace name
+      <span class="section-kicker">SPACE SETTINGS</span>
+      <h2>Settings for ${escapeHtml(ws.name)}</h2>
+      <p class="modal-copy">Main folder: ${escapeHtml(ws.masterFolder)}. These settings affect this Space only.</p>
+      <label>Space name
         <input name="name" required value="${escapeHtml(ws.name)}" />
       </label>
+      <label>Main folder
+        <div class="path-input">
+          <input name="folder" required value="${escapeHtml(ws.masterFolder)}" />
+          <button type="button" id="browse-space-folder" class="ghost-button">Browse</button>
+        </div>
+      </label>
+      <div class="profile-setting">
+        <div><strong>Open linked resources automatically</strong><small>When on, files and links open when Scheduled tasks start. This applies only to ${escapeHtml(ws.name)}.</small></div>
+        <button type="button" id="space-auto-open" class="toggle ${ws.strictMode ? 'on' : ''}" aria-label="Toggle automatic resource opening"><span></span></button>
+      </div>
       <p class="form-error" id="workspace-settings-error"></p>
-      <button class="primary-button" type="submit">Save changes <span>→</span></button>
+      <button class="primary-button" type="submit">Save Space settings <span>→</span></button>
+      <button type="button" class="danger-button" id="delete-workspace">Delete this Space</button>
     </form>`);
+
+  overlay.querySelector('#browse-space-folder')?.addEventListener('click', async () => {
+    const folder = await window.senku.chooseMasterFolder();
+    if (folder) (overlay.querySelector('[name="folder"]') as HTMLInputElement).value = folder;
+  });
+
+  overlay.querySelector('#delete-workspace')?.addEventListener('click', async () => {
+    if (!confirm(`Delete ${ws.name} and its Senku tasks? The Windows folder will not be touched.`)) return;
+    const result = await window.senku.deleteWorkspace(ws.id);
+    if (!result.ok) {
+      showFormError(overlay, '#workspace-settings-error', result.error ?? 'Could not delete Space.');
+      return;
+    }
+    overlay.remove();
+    await load();
+  });
+
+  overlay.querySelector('#space-auto-open')?.addEventListener('click', () =>
+    overlay.querySelector('#space-auto-open')?.classList.toggle('on'),
+  );
 
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = String(new FormData(e.currentTarget as HTMLFormElement).get('name')).trim();
+    const folder = String(new FormData(e.currentTarget as HTMLFormElement).get('folder')).trim();
     if (!name) {
-      showFormError(overlay, '#workspace-settings-error', 'Workspace name is required.');
+      showFormError(overlay, '#workspace-settings-error', 'Space name is required.');
       return;
     }
-    const snapshot = await window.senku.renameWorkspace(ws.id, name);
-    setState(snapshot);
-    overlay.remove();
-    render();
+    if (!folder) {
+      showFormError(overlay, '#workspace-settings-error', 'Choose a main folder.');
+      return;
+    }
+    try {
+      let snapshot = await window.senku.setMasterFolder(ws.id, folder);
+      snapshot = await window.senku.renameWorkspace(ws.id, name);
+      const autoOpen = overlay.querySelector('#space-auto-open')!.classList.contains('on');
+      snapshot = await window.senku.setStrictMode(ws.id, autoOpen);
+      setState(snapshot);
+      overlay.remove();
+      render();
+    } catch (err) {
+      showFormError(overlay, '#workspace-settings-error', err instanceof Error ? err.message : 'Could not save Space settings.');
+    }
   });
 }
 

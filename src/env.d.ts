@@ -11,7 +11,9 @@ declare global {
       switchWorkspace(id: string): Promise<AppSnapshot>;
       deleteWorkspace(id: string): Promise<{ ok: boolean; error?: string }>;
       renameWorkspace(id: string, name: string): Promise<AppSnapshot>;
+      setMasterFolder(id: string, folder: string): Promise<AppSnapshot>;
       setStrictMode(id: string, enabled: boolean): Promise<AppSnapshot>;
+      setTaskPinned(id: string, isPinned: boolean): Promise<Task>;
       openPath(path: string): Promise<{ ok: boolean; error?: string }>;
       openUserGuide(): Promise<{ ok: boolean; error?: string }>;
       copyPath(path: string): Promise<boolean>;

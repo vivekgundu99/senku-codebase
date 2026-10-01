@@ -5,7 +5,9 @@ import {
   openSnoozeModal,
   openReassignModal,
   openProfileModal,
+  openAppSettingsModal,
   openWorkspaceMenuModal,
+  openWorkspaceFormModal,
   openWorkspaceSettingsModal,
   openRenameFileModal,
 } from './modals';
@@ -160,7 +162,18 @@ function bindSidebarButtons(load: LoadFn, render: RenderFn): void {
 
   document
     .querySelector('#workspace-settings')
-    ?.addEventListener('click', () => openWorkspaceSettingsModal(render));
+    ?.addEventListener('click', () => openWorkspaceSettingsModal(load, render));
+
+  document.querySelector('#add-space')?.addEventListener('click', () => openWorkspaceFormModal(load));
+
+  document.querySelector('#app-settings')?.addEventListener('click', () => openAppSettingsModal(render));
+
+  document.querySelectorAll<HTMLElement>('[data-switch-space]').forEach((button) =>
+    button.addEventListener('click', async () => {
+      await window.senku.switchWorkspace(button.dataset.switchSpace!);
+      await load();
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -249,6 +262,15 @@ function bindFileActions(load: LoadFn): void {
 // ---------------------------------------------------------------------------
 
 function bindTaskRowActions(load: LoadFn): void {
+  document.querySelectorAll<HTMLElement>('[data-action="pin"]').forEach((button) =>
+    button.addEventListener('click', async () => {
+      const task = state.activeTasks.find((item) => item.id === button.dataset.id);
+      if (!task) return;
+      await window.senku.setTaskPinned(task.id, !task.isPinned);
+      await load(state.currentPath);
+    }),
+  );
+
   // Snooze
   document.querySelectorAll<HTMLElement>('[data-action="snooze"]').forEach((btn) =>
     btn.addEventListener('click', () => {
@@ -307,7 +329,7 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       }
 
       // Add task
-      if (target.closest('#new-task, #add-task')) {
+      if (target.closest('#new-task, #add-task, #home-add-task')) {
         e.preventDefault();
         e.stopImmediatePropagation();
         openNewTaskModal(load);
@@ -391,11 +413,6 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
 // ---------------------------------------------------------------------------
 
 export function bindSetupScreen(load: LoadFn): void {
-  void window.senku.getDesktopPath().then((desktopPath) => {
-    const masterFolder = document.querySelector<HTMLInputElement>('#master-path');
-    if (masterFolder && !masterFolder.value) masterFolder.value = desktopPath;
-  });
-
   document.querySelector('#browse-folder')?.addEventListener('click', async () => {
     const selected = await window.senku.chooseMasterFolder();
     if (selected) {
@@ -410,7 +427,7 @@ export function bindSetupScreen(load: LoadFn): void {
     const errorEl = document.querySelector('#setup-error')!;
 
     if (!name || !wsName || !folder) {
-      errorEl.textContent = 'Enter your name, workspace name, and master folder.';
+      errorEl.textContent = 'Enter your name, Space name, and main folder.';
       return;
     }
 
@@ -426,7 +443,7 @@ export function bindSetupScreen(load: LoadFn): void {
       await load();
     } catch (err) {
       errorEl.textContent =
-        err instanceof Error ? err.message : 'Could not create workspace.';
+        err instanceof Error ? err.message : 'Could not create Space.';
     }
   });
 }

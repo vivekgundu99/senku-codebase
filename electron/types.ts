@@ -1,5 +1,4 @@
 export type TaskType = 'scheduled' | 'flexible';
-export type FlexibleHorizon = 'day' | 'week' | 'month' | 'year';
 export type TaskBucket = 'active' | 'completed' | 'error';
 
 export interface Settings {
@@ -36,10 +35,10 @@ export interface Task {
   id: string;
   title: string;
   taskType: TaskType;
-  horizon?: FlexibleHorizon;
-  startAt: string;
-  endAt: string;
+  startAt?: string;
+  endAt?: string;
   linkedPaths: string[];
+  isPinned?: boolean;
   startEventHandled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -50,7 +49,6 @@ export interface Task {
 export interface TaskInput {
   title: string;
   taskType: TaskType;
-  horizon?: FlexibleHorizon;
   startAt?: string;
   endAt?: string;
   linkedPaths: string[];

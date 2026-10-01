@@ -14,10 +14,10 @@ import {
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import type {
   AppSnapshot,
   DailyNote,
-  FlexibleHorizon,
   FileEntry,
   Settings,
   Task,
@@ -43,23 +43,10 @@ let wakeTimer: NodeJS.Timeout | null = null;
 const MAX_WAKE_DELAY_MS = 6 * 60 * 60 * 1000;
 const MIN_WAKE_DELAY_MS = 1_000;
 
-type NormalizedTaskInput = Omit<TaskInput, 'startAt' | 'endAt'> & { startAt: string; endAt: string };
-
-const horizonDays: Record<FlexibleHorizon, number> = { day: 1, week: 7, month: 30, year: 365 };
+type NormalizedTaskInput = TaskInput;
 
 function endOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-}
-
-function randomFlexibleSchedule(horizon: FlexibleHorizon, now = new Date()): { startAt: string; endAt: string } {
-  const days = horizonDays[horizon];
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const reminder = new Date(today);
-  reminder.setDate(reminder.getDate() + 1 + Math.floor(Math.random() * days));
-  reminder.setHours(12, 0, 0, 0);
-  const deadline = new Date(today);
-  deadline.setDate(deadline.getDate() + days);
-  return { startAt: reminder.toISOString(), endAt: endOfLocalDay(deadline).toISOString() };
 }
 
 function normalizeTaskInput(input: TaskInput, existing?: Task): NormalizedTaskInput {
@@ -68,15 +55,7 @@ function normalizeTaskInput(input: TaskInput, existing?: Task): NormalizedTaskIn
   if (!title) throw new Error('Task name is required.');
 
   if (taskType === 'flexible') {
-    const horizon = (input.horizon ?? existing?.horizon ?? 'week') as FlexibleHorizon;
-    if (!horizonDays[horizon]) throw new Error('Choose a valid reminder window.');
-    const schedule = existing?.taskType === 'flexible' && existing.horizon === horizon
-      ? { startAt: existing.startAt, endAt: existing.endAt }
-      : randomFlexibleSchedule(horizon);
-    if (Date.parse(schedule.startAt) >= Date.parse(schedule.endAt)) {
-      throw new Error('Flexible reminder must occur before its horizon ends.');
-    }
-    return { ...input, title, taskType: 'flexible', horizon, ...schedule, linkedPaths: input.linkedPaths ?? [] };
+    return { ...input, title, taskType: 'flexible', startAt: undefined, endAt: undefined, linkedPaths: input.linkedPaths ?? [] };
   }
 
   const rawStart = input.startAt ? new Date(input.startAt) : new Date();
@@ -92,7 +71,6 @@ function normalizeTaskInput(input: TaskInput, existing?: Task): NormalizedTaskIn
     ...input,
     title,
     taskType: 'scheduled',
-    horizon: undefined,
     startAt: rawStart.toISOString(),
     endAt: rawEnd.toISOString(),
     linkedPaths: input.linkedPaths ?? [],
@@ -299,6 +277,10 @@ async function runTaskEngine(): Promise<void> {
     let changed = false;
 
     for (const task of active) {
+      if (task.taskType === 'flexible' || !task.startAt) {
+        remaining.push(task);
+        continue;
+      }
       const shouldFire = !task.startEventHandled && Date.now() >= Date.parse(task.startAt);
 
       if (shouldFire) {
@@ -307,7 +289,7 @@ async function runTaskEngine(): Promise<void> {
         changed = true;
 
         new Notification({
-          title: `${task.taskType === 'flexible' ? 'Flexible reminder' : 'Scheduled reminder'} · ${workspace.name}`,
+          title: `Scheduled reminder · ${workspace.name}`,
           body: task.title,
         }).show();
 
@@ -341,7 +323,7 @@ async function computeNextWakeAt(): Promise<number | null> {
   let earliest: number | null = null;
   for (const workspace of await getWorkspaces()) {
     for (const task of await getTasks(workspace.id, 'active')) {
-      if (task.startEventHandled) continue;
+      if (task.taskType !== 'scheduled' || !task.startAt || task.startEventHandled) continue;
       const startMs = Date.parse(task.startAt);
       if (Number.isNaN(startMs)) continue;
       if (earliest === null || startMs < earliest) earliest = startMs;
@@ -450,7 +432,7 @@ async function createWindow(): Promise<void> {
   });
 
   mainWindow.once('ready-to-show', () => {
-    if (!app.isPackaged) showMainWindow();
+    showMainWindow();
   });
 }
 
@@ -464,7 +446,7 @@ app.whenReady().then(async () => {
   const startupSettings = await getSettings();
   app.setLoginItemSettings({
     openAtLogin: startupSettings.launchAtStartup,
-    openAsHidden: true,
+    openAsHidden: false,
   });
 
   await createWindow();
@@ -516,7 +498,7 @@ ipcMain.handle('app:get-snapshot', (_event, requestedPath?: string) =>
 
 ipcMain.handle('settings:save', async (_event, settings: Settings) => {
   await writeJson(settingsFile(), settings);
-  app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup, openAsHidden: true });
+  app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup, openAsHidden: false });
   return snapshot();
 });
 
@@ -547,16 +529,28 @@ ipcMain.handle('workspace:switch', async (_event, id: string) => {
 ipcMain.handle('workspace:rename', async (_event, id: string, name: string) => {
   const workspaces = await getWorkspaces();
   const workspace = getWorkspace(workspaces, id);
-  if (!workspace || !name.trim()) throw new Error('Workspace name is required.');
+  if (!workspace || !name.trim()) throw new Error('Space name is required.');
   workspace.name = name.trim();
   await writeJson(workspacesFile(), workspaces);
   return snapshot();
 });
 
+ipcMain.handle('workspace:set-master-folder', async (_event, id: string, folder: string) => {
+  const stats = await fs.stat(folder).catch(() => null);
+  if (!stats?.isDirectory()) throw new Error('Main folder does not exist.');
+  const workspaces = await getWorkspaces();
+  const workspace = getWorkspace(workspaces, id);
+  if (!workspace) throw new Error('Space not found.');
+  workspace.masterFolder = path.resolve(folder);
+  workspace.lastSubfolder = workspace.masterFolder;
+  await writeJson(workspacesFile(), workspaces);
+  return snapshot(workspace.masterFolder);
+});
+
 ipcMain.handle('workspace:strict-mode', async (_event, id: string, enabled: boolean) => {
   const workspaces = await getWorkspaces();
   const workspace = getWorkspace(workspaces, id);
-  if (!workspace) throw new Error('Workspace not found.');
+  if (!workspace) throw new Error('Space not found.');
   workspace.strictMode = enabled;
   await writeJson(workspacesFile(), workspaces);
   return snapshot();
@@ -565,7 +559,7 @@ ipcMain.handle('workspace:strict-mode', async (_event, id: string, enabled: bool
 ipcMain.handle('workspace:delete', async (_event, id: string) => {
   const workspaces = await getWorkspaces();
   const next = workspaces.filter((ws) => ws.id !== id);
-  if (next.length === workspaces.length) return { ok: false, error: 'Workspace not found.' };
+  if (next.length === workspaces.length) return { ok: false, error: 'Space not found.' };
 
   await writeJson(workspacesFile(), next);
   await fs.rm(workspaceDir(id), { recursive: true, force: true });
@@ -584,9 +578,16 @@ ipcMain.handle('path:open', async (_event, target: string) => ({
 }));
 
 ipcMain.handle('guide:open', async () => {
-  const guidePath = path.join(app.getAppPath(), 'assets', 'Senku-User-Guide.pdf');
-  const error = await shell.openPath(guidePath);
-  return error ? { ok: false, error } : { ok: true };
+  const guidePath = app.isPackaged
+    ? path.join(process.resourcesPath, 'guide', 'index.html')
+    : path.join(app.getAppPath(), 'guide', 'index.html');
+  try {
+    await fs.access(guidePath);
+    await shell.openExternal(pathToFileURL(guidePath).toString());
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Guide not found.' };
+  }
 });
 
 ipcMain.handle('path:copy', async (_event, target: string) => {
@@ -670,6 +671,7 @@ ipcMain.handle('task:create', async (_event, input: TaskInput) => {
   const task: Task = {
     ...normalizeTaskInput(input),
     id: randomUUID(),
+    isPinned: false,
     startEventHandled: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -710,6 +712,7 @@ ipcMain.handle('task:complete', async (_event, id: string, reschedule?: TaskInpu
     next = {
       ...normalized,
       id: randomUUID(),
+      isPinned: task.isPinned ?? false,
       startEventHandled: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -729,6 +732,9 @@ ipcMain.handle('task:snooze', async (_event, id: string, durationMinutes: number
   const active = await getTasks(settings.activeWorkspaceId, 'active');
   const task = active.find((t) => t.id === id);
   if (!task) throw new Error('Task not found');
+  if (task.taskType !== 'scheduled' || !task.startAt) {
+    throw new Error('Plan this Flexible task for today before snoozing it.');
+  }
 
   task.startAt = new Date(Date.parse(task.startAt) + durationMinutes * 60_000).toISOString();
   task.startEventHandled = false;
@@ -755,7 +761,9 @@ ipcMain.handle(
       ...normalized,
       updatedAt: new Date().toISOString(),
       startEventHandled:
-        bucket === 'active' && !startTimeChanged ? existing.startEventHandled : false,
+        bucket === 'active' && normalized.taskType === 'scheduled' && !startTimeChanged
+          ? existing.startEventHandled
+          : false,
     };
 
     tasks[index] = updated;
@@ -802,6 +810,20 @@ ipcMain.handle(
     return true;
   },
 );
+
+ipcMain.handle('task:pin', async (_event, id: string, isPinned: boolean) => {
+  const settings = await getSettings();
+  const active = await getTasks(settings.activeWorkspaceId, 'active');
+  const index = active.findIndex((task) => task.id === id);
+  if (index < 0) throw new Error('Active task not found.');
+  active[index] = {
+    ...active[index],
+    isPinned,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveTasks(settings.activeWorkspaceId, 'active', active);
+  return active[index];
+});
 
 // ---------------------------------------------------------------------------
 // IPC — bulk task operations (multiselect)

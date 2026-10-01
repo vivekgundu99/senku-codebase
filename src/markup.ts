@@ -16,10 +16,6 @@ import { escapeHtml, formatDate, renderGreeting } from './utils';
 
 export function sidebarMarkup(): string {
   const ws = state.workspace!;
-  const todayCount = state.activeTasks.filter(
-    (t) => new Date(t.startAt).toDateString() === new Date().toDateString() && Date.parse(t.endAt) >= Date.now(),
-  ).length;
-
   const navItem = (view: string, icon: string, label: string, badge?: number) => `
     <button class="nav-item ${currentView === view ? 'selected' : ''}" data-view="${view}">
       <span class="nav-icon">${icon}</span>
@@ -34,21 +30,22 @@ export function sidebarMarkup(): string {
         <span>senku</span>
       </div>
 
-      <div class="workspace-label">WORKSPACES</div>
-      <button class="workspace-switcher" id="workspace-switcher">
-        <span class="workspace-dot"></span>
-        <span>${escapeHtml(ws.name)}</span>
-        <span class="chevron">⌄</span>
-      </button>
-
       <nav class="nav-list">
-        ${navItem('Today', '◷', 'Today', todayCount)}
-        ${navItem('Upcoming', '→', 'Upcoming')}
-        ${navItem('Overdue', '!', 'Overdue', overdueCount())}
-        ${navItem('Completed', '✓', 'Completed', state.completedTasks.length)}
+        ${navItem('Home', '⌂', 'Home')}
         ${navItem('Note', '✎', 'Rough Note')}
       </nav>
 
+      <div class="sidebar-divider"></div>
+      <div class="workspace-label">SPACES</div>
+      <div class="space-list">
+        ${state.workspaces.map((space) => `
+          <button class="space-item ${space.id === ws.id ? 'current' : ''}" data-switch-space="${space.id}" title="${escapeHtml(space.masterFolder)}">
+            <span class="workspace-dot"></span><span>${escapeHtml(space.name)}</span>
+          </button>`).join('')}
+      </div>
+      <button class="settings-link" id="add-space">＋ Add a Space</button>
+      <button class="settings-link" id="workspace-settings">⚙ Current space settings</button>
+      <button class="settings-link" id="app-settings">⚙ App settings</button>
       <p class="creator-note">Made by a Navodayan</p>
     </aside>`;
 }
@@ -184,8 +181,8 @@ export function filePanelMarkup(): string {
     <section class="files-panel">
       <div class="section-heading">
         <div>
-          <span class="section-kicker">MASTER FOLDER</span>
-          <h2>Keep moving forward</h2>
+          <span class="section-kicker">MAIN FOLDER</span>
+          <h2>Files and folders</h2>
         </div>
         <button class="text-button" id="open-folder">Open in Explorer ↗</button>
       </div>
@@ -201,8 +198,8 @@ export function filePanelMarkup(): string {
 // Task panel
 // ---------------------------------------------------------------------------
 
-export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'error'): string {
-  const overdue = bucket === 'active' && Date.now() > Date.parse(task.endAt);
+export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'error', selectable = true): string {
+  const overdue = bucket === 'active' && task.taskType === 'scheduled' && Boolean(task.endAt && Date.now() > Date.parse(task.endAt));
   const status =
     bucket === 'completed'
       ? 'Completed'
@@ -215,10 +212,15 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
   const chipClass = status.toLowerCase().replaceAll(' ', '-');
 
   let actions = '';
-  if (bucket === 'active') {
+  if (bucket === 'active' && task.taskType === 'flexible') {
     actions = `
-      <button data-action="snooze"     data-id="${task.id}">Snooze</button>
+      <button data-action="pin" data-id="${task.id}">${task.isPinned ? 'Unpin' : 'Pin'}</button>
+      <button data-action="edit" data-bucket="active" data-id="${task.id}">Edit</button>`;
+  } else if (bucket === 'active') {
+    actions = `
+      <button data-action="snooze" data-id="${task.id}">Snooze</button>
       <button data-action="reschedule" data-id="${task.id}">Reassign</button>
+      <button data-action="pin" data-id="${task.id}">${task.isPinned ? 'Unpin' : 'Pin'}</button>
       <button data-action="edit" data-bucket="active" data-id="${task.id}">Edit</button>`;
   } else if (bucket === 'error') {
     actions = `
@@ -232,7 +234,7 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
 
   const isSelected = selectedTaskIds.has(task.id);
   const checkbox =
-    bucket === 'active'
+    bucket === 'active' && selectable
       ? `<button class="task-check ${isSelected ? 'checked' : ''}"
            data-action="select" data-id="${task.id}" aria-label="Select task">
            ${isSelected ? '✓' : ''}
@@ -258,23 +260,22 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
       ? `<p class="error-reason">${escapeHtml(task.errorMessage)}</p>`
       : '';
 
-      const horizonLabels: Record<NonNullable<Task['horizon']>, string> = { day: 'Tomorrow', week: 'This week', month: 'This month', year: 'This year' };
-  const scheduleLabel = task.taskType === 'flexible'
-    ? `Horizon: ${horizonLabels[task.horizon ?? 'week']}`
-    : scheduledTimeLabel(task.startAt, task.endAt);
+      const scheduleLabel = task.taskType === 'flexible'
+        ? 'Whenever it fits'
+        : task.startAt && task.endAt ? scheduledTimeLabel(task.startAt, task.endAt) : '';
   const completionLabel = bucket === 'completed'
     ? `Completed ${formatDate(task.completedAt ?? task.updatedAt)}`
     : scheduleLabel;
 
   return `
-    <article class="task-row">
+    <article class="task-row" title="Added ${escapeHtml(formatDate(task.createdAt))} · Last updated ${escapeHtml(formatDate(task.updatedAt))}">
       <div>${checkbox}</div>
       <div class="task-body">
         <div class="task-title-line">
           <h3>${escapeHtml(task.title)}</h3>
           <span class="status-chip ${chipClass}">${status}</span>
         </div>
-        <div class="task-meta"><span class="task-type-chip ${task.taskType}">${task.taskType === 'flexible' ? 'Flexible' : 'Scheduled'}</span><span class="schedule-chip">${escapeHtml(completionLabel)}</span></div>
+        <div class="task-meta"><span class="task-type-chip ${task.taskType}">${task.taskType === 'flexible' ? 'Flexible' : 'Scheduled'}</span><span class="schedule-chip">${escapeHtml(completionLabel)}</span>${task.isPinned ? '<span class="task-pin-badge">Pinned</span>' : ''}</div>
         ${errorReason}
         ${completedLinks}
       </div>
@@ -339,6 +340,44 @@ function scheduledTimeLabel(startValue: string, endValue: string): string {
   return `${startDate} · ${time(start)} – ${endDateTime}`;
 }
 
+export function homePanelMarkup(): string {
+  const active = state.activeTasks;
+  const scheduledToday = active.filter((task) =>
+    task.taskType === 'scheduled' && task.startAt &&
+    new Date(task.startAt).toDateString() === new Date().toDateString() &&
+    task.endAt && Date.parse(task.endAt) >= Date.now(),
+  ).length;
+  const flexibleCount = active.filter((task) => task.taskType === 'flexible').length;
+  const upcomingCount = active.filter((task) => task.taskType === 'flexible' || Boolean(
+    task.startAt && task.endAt && Date.parse(task.startAt) > Date.now() && Date.parse(task.endAt) >= Date.now(),
+  )).length;
+  return `
+    <section class="home-panel">
+      <div class="home-welcome">
+        <span class="section-kicker">HOME</span>
+        <h2>Your space, at a glance.</h2>
+        <p>Pick up where you left off, or decide what to work on today.</p>
+        <button class="primary-button" id="home-add-task">Add a task <span>→</span></button>
+      </div>
+      <div class="home-stats">
+        <button data-view="Today"><strong>${scheduledToday}</strong><span>Scheduled today</span></button>
+        <button data-view="Flexible"><strong>${flexibleCount}</strong><span>Flexible</span></button>
+        <button data-view="Overdue"><strong>${overdueCount()}</strong><span>Overdue</span></button>
+      </div>
+      <section class="home-tools">
+        <div>
+          <span class="section-kicker">TASK VIEWS</span>
+          <div class="home-shortcuts">
+            <button data-view="Today"><strong>Today</strong><span>${scheduledToday} scheduled</span></button>
+            <button data-view="Upcoming"><strong>Upcoming</strong><span>${upcomingCount} tasks</span></button>
+            <button data-view="Overdue"><strong>Overdue</strong><span>${overdueCount()} tasks</span></button>
+            <button data-view="Completed"><strong>Completed</strong><span>${state.completedTasks.length} tasks</span></button>
+          </div>
+        </div>
+      </section>
+    </section>`;
+}
+
 // dailyNotePanelMarkup removed — note now lives inside the sidebar when Note view is active.
 // ---------------------------------------------------------------------------
 // Daily note panel — renders in the task-panel slot when Note view is active
@@ -374,27 +413,27 @@ export function setupScreenMarkup(): string {
       <p class="eyebrow">YOUR FILES, YOUR FLOW</p>
       <h1>A space for<br><em>what matters.</em></h1>
       <p class="setup-copy">
-        Choose a folder to make your workspace. Senku keeps your files in place
+        Choose a folder to make a Space. Senku keeps your files in place
         and helps you return to the work, notes, and resources you care about.
       </p>
       <section class="setup-card">
         <label for="user-name">Your name</label>
         <input id="user-name" placeholder="Your name or nickname" />
 
-        <label for="workspace-name">Workspace name</label>
+        <label for="workspace-name">Space name</label>
         <input id="workspace-name" placeholder="e.g. Personal, College, Projects" />
 
-        <label for="master-path">Master folder location</label>
+        <label for="master-path">Main folder</label>
         <div class="path-input">
-          <input id="master-path" placeholder="Desktop folder suggested" />
+          <input id="master-path" placeholder="C:\\Users\\you\\3rd year" />
           <button id="browse-folder" class="ghost-button">Browse</button>
         </div>
 
         <button id="save-folder" class="primary-button">
-          Create workspace <span>→</span>
+          Create Space <span>→</span>
         </button>
         <p id="setup-error" class="form-error"></p>
       </section>
-      <p class="setup-footnote">Desktop is suggested to get started. You can choose any folder.</p>
+      <p class="setup-footnote">Choose any folder, or create a new one from Browse.</p>
     </main>`;
 }

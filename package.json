@@ -31,7 +31,11 @@
     },
     "files": [
       "dist/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "guide/**/*"
+    ],
+    "extraResources": [
+      { "from": "guide", "to": "guide" }
     ],
     "win": {
       "target": "nsis",

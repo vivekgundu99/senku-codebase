@@ -27,6 +27,9 @@ const api = {
   renameWorkspace: (id: string, name: string) =>
     ipcRenderer.invoke('workspace:rename', id, name) as Promise<AppSnapshot>,
 
+  setMasterFolder: (id: string, folder: string) =>
+    ipcRenderer.invoke('workspace:set-master-folder', id, folder) as Promise<AppSnapshot>,
+
   setStrictMode: (id: string, enabled: boolean) =>
     ipcRenderer.invoke('workspace:strict-mode', id, enabled) as Promise<AppSnapshot>,
 
@@ -62,6 +65,9 @@ const api = {
 
   snoozeTask: (id: string, durationMinutes: number) =>
     ipcRenderer.invoke('task:snooze', id, durationMinutes) as Promise<Task>,
+
+  setTaskPinned: (id: string, isPinned: boolean) =>
+    ipcRenderer.invoke('task:pin', id, isPinned) as Promise<Task>,
 
   updateTask: (id: string, input: TaskInput, bucket: 'active' | 'error' = 'active') =>
     ipcRenderer.invoke('task:update', id, input, bucket) as Promise<Task>,

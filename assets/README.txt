@@ -1,5 +1,5 @@
-Place the Senku user guide PDF here as:
-Senku-User-Guide.pdf
+Senku's updateable browser guide is in:
+guide/index.html
 
 Place the Windows application icon here as:
 senku.ico

@@ -6,6 +6,7 @@ import {
   errorBannerMarkup,
   filePanelMarkup,
   taskPanelMarkup,
+  homePanelMarkup,
   dailyNotePanelMarkup,
 } from './markup';
 import {
@@ -42,6 +43,11 @@ function render(): void {
          <div class="right-column">
            ${filePanelMarkup()}
          </div>
+       </div>`
+    : currentView === 'Home'
+    ? `<div class="content-grid">
+         ${homePanelMarkup()}
+         <div class="right-column">${filePanelMarkup()}</div>
        </div>`
     : `${errorBannerMarkup()}
        <div class="content-grid">

@@ -5,7 +5,7 @@ import type { AppSnapshot, Task } from '../electron/types';
 // ---------------------------------------------------------------------------
 
 export let state = {} as AppSnapshot;
-export let currentView = 'Today';
+export let currentView = 'Home';
 export let currentPath = '';
 export let completedFilter: 'today' | 'last-week' | 'all' = 'last-week';
 export let dailyNote = '';
@@ -21,6 +21,7 @@ export function setState(snapshot: AppSnapshot): void {
 
 export function setView(view: string): void {
   currentView = view;
+  selectedTaskIds.clear();
 }
 
 export function setCompletedFilter(filter: 'today' | 'last-week' | 'all'): void {
@@ -39,9 +40,12 @@ export function visibleTasks(): Task[] {
   if (!state) return [];
 
   const now = Date.now();
-  const active = [...state.activeTasks].sort(
-    (a, b) => Date.parse(a.startAt) - Date.parse(b.startAt),
+  const sortTasks = (tasks: Task[]) => tasks.sort((a, b) =>
+    Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)) ||
+    Number(a.taskType === 'flexible') - Number(b.taskType === 'flexible') ||
+    (a.startAt && b.startAt ? Date.parse(a.startAt) - Date.parse(b.startAt) : 0),
   );
+  const active = sortTasks([...state.activeTasks]);
 
   if (currentView === 'Completed') {
     return state.completedTasks.filter((task) => {
@@ -55,16 +59,19 @@ export function visibleTasks(): Task[] {
     });
   }
 
-  if (currentView === 'Upcoming') return active.filter((t) => Date.parse(t.startAt) > now && Date.parse(t.endAt) >= now);
-  if (currentView === 'Overdue') return active.filter((t) => Date.parse(t.endAt) < now);
-
-  // Today includes started work that is still within its end time and tasks scheduled today.
-  return active.filter(
-    (t) =>
-      Date.parse(t.endAt) >= now &&
-      (Date.parse(t.startAt) <= now ||
-        new Date(t.startAt).toDateString() === new Date().toDateString()),
+  if (currentView === 'Upcoming') return sortTasks(active.filter((task) =>
+    task.taskType === 'flexible' || Boolean(task.startAt && task.endAt && Date.parse(task.startAt) > now && Date.parse(task.endAt) >= now),
+  ));
+  if (currentView === 'Flexible') return sortTasks(active.filter((task) => task.taskType === 'flexible'));
+  if (currentView === 'Overdue') return active.filter((task) =>
+    task.taskType === 'scheduled' && Boolean(task.endAt && Date.parse(task.endAt) < now),
   );
+
+  const today = active.filter((task) => task.taskType === 'scheduled' && Boolean(
+    task.startAt && task.endAt && Date.parse(task.endAt) >= now &&
+    (Date.parse(task.startAt) <= now || new Date(task.startAt).toDateString() === new Date().toDateString()),
+  ));
+  return sortTasks(today);
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +80,7 @@ export function visibleTasks(): Task[] {
 
 export function overdueCount(): number {
   if (!state?.activeTasks) return 0;
-  return state.activeTasks.filter((t) => Date.now() > Date.parse(t.endAt)).length;
+  return state.activeTasks.filter((task) => task.taskType === 'scheduled' && Boolean(task.endAt && Date.now() > Date.parse(task.endAt))).length;
 }
 
 export function errorCount(): number {

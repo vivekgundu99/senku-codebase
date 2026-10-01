@@ -3,14 +3,14 @@
 :root {
   font-family: 'Manrope', sans-serif;
   color: #26332d;
-  background: #f5f4ef;
+  background: #f4f1ea;
   font-synthesis: none;
   --ink: #26332d;
   --muted: #7d867f;
   --soft: #a9b0a9;
-  --line: #e1e3dc;
-  --paper: #fbfbf8;
-  --panel: #f1f2ec;
+  --line: #e0ddd4;
+  --paper: #fbfaf6;
+  --panel: #efede6;
   --green: #6b8b69;
   --green-pale: #e5eee2;
   --orange: #d97858;
@@ -20,7 +20,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; min-width: 1060px; background: radial-gradient(circle at 88% 4%, #e6eee2 0, transparent 28%), var(--paper); }
+body { margin: 0; min-width: 1060px; background: radial-gradient(circle at 88% 4%, #ebe8dc 0, transparent 28%), var(--paper); }
 button, input, textarea, select { font: inherit; }
 button { border: 0; color: inherit; cursor: pointer; }
 .app-shell { display: flex; min-height: 100vh; }
@@ -40,6 +40,10 @@ button { border: 0; color: inherit; cursor: pointer; }
 .nav-item .nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-item .nav-badge { margin-left: auto; color: #9ca59d; font-size: 10px; font-weight: 700; }
 .sidebar-divider { height: 1px; margin: 28px 12px 24px; background: var(--line); }
+.space-list { display: grid; gap: 3px; max-height: 34vh; margin: 0 0 10px; overflow: auto; }
+.space-item { display: flex; align-items: center; width: 100%; gap: 9px; padding: 9px 11px; overflow: hidden; border-radius: 6px; background: transparent; color: #778078; font-size: 11px; font-weight: 700; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.space-item:hover, .space-item.current { background: #dfe5dc; color: var(--ink); }
+.space-item .workspace-dot { flex: 0 0 8px; }
 .creator-note { margin: 18px 12px 0; color: #a2aaa1; font: 500 9px 'DM Mono', monospace; letter-spacing: .03em; }
 .main-area { flex: 1; min-width: 0; padding: 45px 5vw 55px; }
 .topbar { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 42px; }
@@ -123,6 +127,23 @@ button { border: 0; color: inherit; cursor: pointer; }
 .new-task-button { width: 100%; margin-top: 18px; padding: 12px; border: 1px dashed #cbd1c7; border-radius: 6px; background: transparent; color: #848d84; font-size: 10px; font-weight: 800; }
 .new-task-button:hover { border-color: var(--green); color: var(--green); }
 .files-panel { min-width: 0; }
+.home-panel { min-width: 0; }
+.home-welcome { padding: 23px 24px 25px; border: 1px solid var(--line); border-radius: 10px; background: linear-gradient(135deg, #f0ede4, #fbfaf6 72%); }
+.home-welcome h2 { margin: 9px 0 7px; font-size: 25px; letter-spacing: -.05em; }
+.home-welcome p { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
+.home-welcome .primary-button { width: auto; min-width: 160px; gap: 28px; }
+.home-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 14px 0 30px; }
+.home-stats button { display: grid; gap: 5px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fffefa; text-align: left; }
+.home-stats button:hover { border-color: var(--green); background: #f5f2e8; }
+.home-stats strong { font-size: 22px; letter-spacing: -.04em; }
+.home-stats span { color: var(--muted); font-size: 10px; }
+.home-tools { display: grid; grid-template-columns: 1fr; gap: 30px; }
+.home-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 11px; }
+.home-shortcuts button { display: grid; gap: 5px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,255,255,.55); text-align: left; }
+.home-shortcuts button:hover { border-color: var(--green); background: #f5f2e8; }
+.home-shortcuts strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.home-shortcuts span { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.home-tools > div > .section-kicker { display: block; }
 .folder-path { display: flex; align-items: center; gap: 8px; overflow: hidden; padding: 11px 0 14px; border-bottom: 1px solid var(--line); color: #a1a9a1; font: 500 10px 'DM Mono', monospace; white-space: nowrap; }
 .folder-path button { padding: 0; background: transparent; color: #707b72; font-size: 11px; }
 .file-list { padding-top: 7px; }
@@ -141,7 +162,7 @@ button { border: 0; color: inherit; cursor: pointer; }
 .empty-files span, .empty-tasks span { color: var(--green); font-size: 24px; }
 .empty-files p, .empty-tasks p { margin: 11px 0 4px; font-size: 12px; font-weight: 800; }
 .empty-files small, .empty-tasks small { font-size: 10px; }
-.setup-shell { display: grid; place-content: center; min-height: 100vh; padding: 40px; background: radial-gradient(circle at 70% 8%, #e4eee0 0, transparent 31%), #f5f4ef; }
+.setup-shell { display: grid; place-content: center; min-height: 100vh; padding: 40px; background: radial-gradient(circle at 70% 8%, #e9e5d9 0, transparent 31%), #f4f1ea; }
 .setup-shell > * { max-width: 520px; }
 .setup-mark { width: 44px; height: 44px; margin-bottom: 32px; font-size: 20px; }
 .setup-shell h1 { margin: 14px 0 22px; font-size: 58px; line-height: .98; letter-spacing: -.08em; }
@@ -191,6 +212,7 @@ button { border: 0; color: inherit; cursor: pointer; }
 .horizon-help { margin: -7px 0 18px; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
 .task-type-chip, .schedule-chip { display: inline-flex; align-items: center; min-height: 20px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; color: #778078; font: 500 9px 'DM Mono', monospace; }
+.task-pin-badge { padding: 3px 6px; border-radius: 4px; background: #f8f2df; color: #987632; font: 500 8px 'DM Mono', monospace; }
 .task-type-chip.scheduled { border-color: #dce8d8; background: #eef4eb; color: var(--green); }
 .task-type-chip.flexible { border-color: #e8dfc4; background: #f8f2df; color: #987632; }
 .schedule-chip { border-color: transparent; background: #f1f2ec; color: #727d73; }
