@@ -5,6 +5,7 @@ declare global {
     senku: {
       getSnapshot(path?: string): Promise<AppSnapshot>;
       chooseMasterFolder(): Promise<string | null>;
+      getDesktopPath(): Promise<string>;
       saveSettings(settings: Settings): Promise<AppSnapshot>;
       createWorkspace(name: string, masterFolder: string): Promise<AppSnapshot>;
       switchWorkspace(id: string): Promise<AppSnapshot>;

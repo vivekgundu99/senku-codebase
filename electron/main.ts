@@ -17,10 +17,12 @@ import { randomUUID } from 'node:crypto';
 import type {
   AppSnapshot,
   DailyNote,
+  FlexibleHorizon,
   FileEntry,
   Settings,
   Task,
   TaskInput,
+  TaskType,
   Workspace,
 } from './types';
 
@@ -40,6 +42,62 @@ let isQuitting = false;
 let wakeTimer: NodeJS.Timeout | null = null;
 const MAX_WAKE_DELAY_MS = 6 * 60 * 60 * 1000;
 const MIN_WAKE_DELAY_MS = 1_000;
+
+type NormalizedTaskInput = Omit<TaskInput, 'startAt' | 'endAt'> & { startAt: string; endAt: string };
+
+const horizonDays: Record<FlexibleHorizon, number> = { day: 1, week: 7, month: 30, year: 365 };
+
+function endOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+}
+
+function randomFlexibleSchedule(horizon: FlexibleHorizon, now = new Date()): { startAt: string; endAt: string } {
+  const days = horizonDays[horizon];
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const reminder = new Date(today);
+  reminder.setDate(reminder.getDate() + 1 + Math.floor(Math.random() * days));
+  reminder.setHours(12, 0, 0, 0);
+  const deadline = new Date(today);
+  deadline.setDate(deadline.getDate() + days);
+  return { startAt: reminder.toISOString(), endAt: endOfLocalDay(deadline).toISOString() };
+}
+
+function normalizeTaskInput(input: TaskInput, existing?: Task): NormalizedTaskInput {
+  const taskType = (input.taskType ?? existing?.taskType ?? 'scheduled') as TaskType;
+  const title = String(input.title ?? '').trim();
+  if (!title) throw new Error('Task name is required.');
+
+  if (taskType === 'flexible') {
+    const horizon = (input.horizon ?? existing?.horizon ?? 'week') as FlexibleHorizon;
+    if (!horizonDays[horizon]) throw new Error('Choose a valid reminder window.');
+    const schedule = existing?.taskType === 'flexible' && existing.horizon === horizon
+      ? { startAt: existing.startAt, endAt: existing.endAt }
+      : randomFlexibleSchedule(horizon);
+    if (Date.parse(schedule.startAt) >= Date.parse(schedule.endAt)) {
+      throw new Error('Flexible reminder must occur before its horizon ends.');
+    }
+    return { ...input, title, taskType: 'flexible', horizon, ...schedule, linkedPaths: input.linkedPaths ?? [] };
+  }
+
+  const rawStart = input.startAt ? new Date(input.startAt) : new Date();
+  if (Number.isNaN(rawStart.getTime())) throw new Error('Choose a valid start time.');
+  const rawEnd = input.endAt ? new Date(input.endAt) : endOfLocalDay(rawStart);
+  if (input.endAt && rawEnd.getHours() === 23 && rawEnd.getMinutes() === 59 && rawEnd.getSeconds() === 0) {
+    rawEnd.setSeconds(59, 999);
+  }
+  if (Number.isNaN(rawEnd.getTime()) || rawStart >= rawEnd) {
+    throw new Error('End time must be after the start time.');
+  }
+  return {
+    ...input,
+    title,
+    taskType: 'scheduled',
+    horizon: undefined,
+    startAt: rawStart.toISOString(),
+    endAt: rawEnd.toISOString(),
+    linkedPaths: input.linkedPaths ?? [],
+  };
+}
 
 // ---------------------------------------------------------------------------
 // File paths
@@ -249,10 +307,7 @@ async function runTaskEngine(): Promise<void> {
         changed = true;
 
         new Notification({
-          title:
-            task.priority === 'urgent'
-              ? `Urgent · ${workspace.name}`
-              : `Reminder · ${workspace.name}`,
+          title: `${task.taskType === 'flexible' ? 'Flexible reminder' : 'Scheduled reminder'} · ${workspace.name}`,
           body: task.title,
         }).show();
 
@@ -449,9 +504,11 @@ app.on('window-all-closed', () => {
 // ---------------------------------------------------------------------------
 
 ipcMain.handle('folder:choose', async () => {
-  const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+  const result = await dialog.showOpenDialog({ defaultPath: app.getPath('desktop'), properties: ['openDirectory'] });
   return result.canceled ? null : result.filePaths[0];
 });
+
+ipcMain.handle('folder:desktop-path', () => app.getPath('desktop'));
 
 ipcMain.handle('app:get-snapshot', (_event, requestedPath?: string) =>
   snapshot(requestedPath),
@@ -611,7 +668,7 @@ ipcMain.handle('task:create', async (_event, input: TaskInput) => {
   if (!settings.activeWorkspaceId) throw new Error('No workspace selected.');
 
   const task: Task = {
-    ...input,
+    ...normalizeTaskInput(input),
     id: randomUUID(),
     startEventHandled: false,
     createdAt: new Date().toISOString(),
@@ -649,8 +706,9 @@ ipcMain.handle('task:complete', async (_event, id: string, reschedule?: TaskInpu
 
   let next: Task | undefined;
   if (reschedule) {
+    const normalized = normalizeTaskInput(reschedule);
     next = {
-      ...reschedule,
+      ...normalized,
       id: randomUUID(),
       startEventHandled: false,
       createdAt: new Date().toISOString(),
@@ -690,10 +748,11 @@ ipcMain.handle(
     if (index < 0) throw new Error('Task not found.');
 
     const existing = tasks[index];
-    const startTimeChanged = input.startAt !== existing.startAt;
+    const normalized = normalizeTaskInput(input, existing);
+    const startTimeChanged = normalized.startAt !== existing.startAt;
     const updated: Task = {
       ...existing,
-      ...input,
+      ...normalized,
       updatedAt: new Date().toISOString(),
       startEventHandled:
         bucket === 'active' && !startTimeChanged ? existing.startEventHandled : false,
@@ -712,9 +771,10 @@ ipcMain.handle('task:recover', async (_event, id: string, input: TaskInput) => {
   const task = errors.find((t) => t.id === id);
   if (!task) throw new Error('Error task not found.');
 
+  const normalized = normalizeTaskInput(input, task);
   const recovered: Task = {
     ...task,
-    ...input,
+    ...normalized,
     errorMessage: undefined,
     startEventHandled: false,
     updatedAt: new Date().toISOString(),

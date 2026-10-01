@@ -8,6 +8,9 @@ const api = {
   chooseMasterFolder: () =>
     ipcRenderer.invoke('folder:choose') as Promise<string | null>,
 
+  getDesktopPath: () =>
+    ipcRenderer.invoke('folder:desktop-path') as Promise<string>,
+
   saveSettings: (settings: Settings) =>
     ipcRenderer.invoke('settings:save', settings) as Promise<AppSnapshot>,
 

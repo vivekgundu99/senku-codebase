@@ -40,9 +40,7 @@ export function visibleTasks(): Task[] {
 
   const now = Date.now();
   const active = [...state.activeTasks].sort(
-    (a, b) =>
-      Number(b.priority === 'urgent') - Number(a.priority === 'urgent') ||
-      Date.parse(a.startAt) - Date.parse(b.startAt),
+    (a, b) => Date.parse(a.startAt) - Date.parse(b.startAt),
   );
 
   if (currentView === 'Completed') {
@@ -57,14 +55,15 @@ export function visibleTasks(): Task[] {
     });
   }
 
-  if (currentView === 'Upcoming') return active.filter((t) => Date.parse(t.startAt) > now);
+  if (currentView === 'Upcoming') return active.filter((t) => Date.parse(t.startAt) > now && Date.parse(t.endAt) >= now);
+  if (currentView === 'Overdue') return active.filter((t) => Date.parse(t.endAt) < now);
 
-  // Today: tasks that have started OR start today — sorted urgent first, then by time.
-  // Overdue tasks naturally appear here too (started in the past, not completed).
+  // Today includes started work that is still within its end time and tasks scheduled today.
   return active.filter(
     (t) =>
-      Date.parse(t.startAt) <= now ||
-      new Date(t.startAt).toDateString() === new Date().toDateString(),
+      Date.parse(t.endAt) >= now &&
+      (Date.parse(t.startAt) <= now ||
+        new Date(t.startAt).toDateString() === new Date().toDateString()),
   );
 }
 

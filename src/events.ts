@@ -45,6 +45,7 @@ export function addResourceButtons(): void {
 /** Inject Complete + Delete selection action bar above the task list in active views. */
 export function addCompleteSelectedBar(): void {
   if (currentView === 'Completed' || currentView === 'Error') return;
+  if (selectedTaskIds.size === 0) return;
   const list = document.querySelector('.task-list');
   if (!list || list.previousElementSibling?.classList.contains('selection-actions')) return;
 
@@ -52,13 +53,13 @@ export function addCompleteSelectedBar(): void {
   const bar = document.createElement('div');
   bar.className = 'selection-actions';
   bar.innerHTML = `
-    <span class="selection-count">${count > 0 ? `${count} selected` : 'Select tasks below'}</span>
+    <span class="selection-count">${count} selected</span>
     <button class="selection-btn complete" data-action="complete-selected"
-      ${count === 0 ? 'disabled' : ''}>
+      >
       ✓ Complete
     </button>
     <button class="selection-btn delete" data-action="delete-selected"
-      ${count === 0 ? 'disabled' : ''}>
+      >
       ✕ Delete
     </button>`;
   list.before(bar);
@@ -142,6 +143,7 @@ function bindNavigation(render: RenderFn): void {
   document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) =>
     btn.addEventListener('click', () => {
       setView(btn.dataset.view ?? 'Today');
+      selectedTaskIds.clear();
       render();
     }),
   );
@@ -389,6 +391,11 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
 // ---------------------------------------------------------------------------
 
 export function bindSetupScreen(load: LoadFn): void {
+  void window.senku.getDesktopPath().then((desktopPath) => {
+    const masterFolder = document.querySelector<HTMLInputElement>('#master-path');
+    if (masterFolder && !masterFolder.value) masterFolder.value = desktopPath;
+  });
+
   document.querySelector('#browse-folder')?.addEventListener('click', async () => {
     const selected = await window.senku.chooseMasterFolder();
     if (selected) {

@@ -19,6 +19,7 @@
   --shadow: 0 20px 60px rgba(45, 60, 48, .08);
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; min-width: 1060px; background: radial-gradient(circle at 88% 4%, #e6eee2 0, transparent 28%), var(--paper); }
 button, input, textarea, select { font: inherit; }
 button { border: 0; color: inherit; cursor: pointer; }
@@ -97,7 +98,11 @@ button { border: 0; color: inherit; cursor: pointer; }
 .task-body h3 { overflow: hidden; margin: 0; font-size: 12px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .task-body p { margin: 6px 0 0; color: #9aa39a; font: 500 9px/1.5 'DM Mono', monospace; }
 .status-chip { padding: 3px 6px; border-radius: 4px; background: var(--green-pale); color: var(--green); font: 500 8px 'DM Mono', monospace; text-transform: uppercase; }
-.status-chip.urgent { background: var(--orange-pale); color: var(--orange); }
+.task-type-chip, .schedule-chip { display: inline-flex; align-items: center; min-height: 20px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; color: #778078; font: 500 9px 'DM Mono', monospace; }
+.task-type-chip.scheduled { border-color: #dce8d8; background: #eef4eb; color: var(--green); }
+.task-type-chip.flexible { border-color: #e8dfc4; background: #f8f2df; color: #987632; }
+.schedule-chip { border-color: transparent; background: #f1f2ec; color: #727d73; }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
 .status-chip.overdue, .status-chip.needs-attention { background: var(--yellow-pale); color: #a17424; }
 .status-chip.completed { background: #e8eae5; color: #7b837b; }
 .task-actions { display: flex; align-items: center; gap: 4px; }
@@ -106,6 +111,13 @@ button { border: 0; color: inherit; cursor: pointer; }
 .completed-links { display: grid; gap: 4px; margin-top: 8px; }
 .completed-links button { overflow: hidden; padding: 0; background: transparent; color: var(--green); font: 500 9px 'DM Mono', monospace; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .completed-links button:hover { text-decoration: underline; }
+.task-type-options, .horizon-options { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 17px; }
+.task-type-options label, .horizon-options label { display: block; margin: 0; cursor: pointer; }
+.task-type-options input, .horizon-options input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.task-type-options span, .horizon-options span { display: block; padding: 8px 11px; border: 1px solid var(--line); border-radius: 6px; background: #f8f8f4; color: var(--muted); font-size: 10px; font-weight: 800; }
+.task-type-options input:checked + span, .horizon-options input:checked + span { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+.task-type-options input:focus-visible + span, .horizon-options input:focus-visible + span { outline: 2px solid var(--green); outline-offset: 2px; }
+.horizon-help { margin: -7px 0 18px; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .open-resources-button { display: block; margin-top: 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--green); font-size: 9px; font-weight: 800; }
 .open-resources-button:hover { border-color: var(--green); background: var(--green-pale); }
 .new-task-button { width: 100%; margin-top: 18px; padding: 12px; border: 1px dashed #cbd1c7; border-radius: 6px; background: transparent; color: #848d84; font-size: 10px; font-weight: 800; }
@@ -170,7 +182,29 @@ button { border: 0; color: inherit; cursor: pointer; }
 .workspace-option strong { font-size: 11px; }
 .workspace-option small { margin-top: 4px; overflow: hidden; color: var(--muted); font: 500 8px 'DM Mono', monospace; text-overflow: ellipsis; white-space: nowrap; }
 .danger-button { width: 100%; margin-top: 10px; padding: 10px; border: 1px solid #e5b9ae; border-radius: 6px; background: transparent; color: #b96758; font-size: 10px; font-weight: 800; }
+.task-type-options, .horizon-options { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 17px; }
+.task-type-options label, .horizon-options label { margin: 0; cursor: pointer; }
+.task-type-options input, .horizon-options input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.task-type-options span, .horizon-options span { display: block; padding: 8px 11px; border: 1px solid var(--line); border-radius: 6px; background: #f8f8f4; color: var(--muted); font-size: 10px; font-weight: 800; }
+.task-type-options input:checked + span, .horizon-options input:checked + span { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+.task-type-options input:focus-visible + span, .horizon-options input:focus-visible + span { outline: 2px solid var(--green); outline-offset: 2px; }
+.horizon-help { margin: -7px 0 18px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
+.task-type-chip, .schedule-chip { display: inline-flex; align-items: center; min-height: 20px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; color: #778078; font: 500 9px 'DM Mono', monospace; }
+.task-type-chip.scheduled { border-color: #dce8d8; background: #eef4eb; color: var(--green); }
+.task-type-chip.flexible { border-color: #e8dfc4; background: #f8f2df; color: #987632; }
+.schedule-chip { border-color: transparent; background: #f1f2ec; color: #727d73; }
+.quick-type { align-self: center; padding: 9px 10px; color: #7b897d; font-size: 10px; font-weight: 700; }
 @media (max-width: 1180px) { .main-area { padding-right: 34px; padding-left: 34px; } .content-grid { gap: 28px; } .tasks-panel { padding-right: 26px; } }
+
+.modal-card .task-type-options input,
+.modal-card .horizon-options input { position: absolute; width: 1px; min-width: 1px; height: 1px; margin: 0; padding: 0; border: 0; opacity: 0; }
+.modal-card .task-type-options label,
+.modal-card .horizon-options label { display: block; margin: 0; }
+.modal-card .task-type-options input:checked + span,
+.modal-card .horizon-options input:checked + span { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+.modal-card .task-type-options input:focus-visible + span,
+.modal-card .horizon-options input:focus-visible + span { outline: 2px solid var(--green); outline-offset: 2px; }
 
 /* Restore the original quiet file-manager treatment. */
 .files-panel { padding-top: 0; }

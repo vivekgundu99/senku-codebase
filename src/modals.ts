@@ -1,4 +1,4 @@
-import type { Priority, Task, TaskInput } from '../electron/types';
+import type { FlexibleHorizon, Task, TaskInput, TaskType } from '../electron/types';
 import { setState, state } from './state';
 import { escapeHtml, toLocalDatetimeInput, DEFAULT_GREETING } from './utils';
 
@@ -25,13 +25,36 @@ function createOverlay(innerHtml: string): HTMLDivElement {
 }
 
 /** Read a TaskInput from a modal form element. */
-function readTaskInput(form: HTMLFormElement): TaskInput {
+function localEndOfDay(date: Date): string {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return end.toISOString();
+}
+
+function readTaskInput(form: HTMLFormElement, original?: Task): TaskInput {
   const data = new FormData(form);
+  const taskType = data.get('taskType') as TaskType;
+  const horizon = taskType === 'flexible' ? data.get('horizon') as FlexibleHorizon : undefined;
+  let startAt: string | undefined;
+  let endAt: string | undefined;
+
+  if (taskType === 'scheduled') {
+    const startRaw = String(data.get('startAt') ?? '').trim();
+    const start = startRaw ? new Date(startRaw) : new Date();
+    startAt = start.toISOString();
+    const endRaw = String(data.get('endAt') ?? '').trim();
+    endAt = endRaw ? new Date(endRaw).toISOString() : localEndOfDay(start);
+  } else if (original?.taskType === 'flexible' && original.horizon === horizon) {
+    startAt = original.startAt;
+    endAt = original.endAt;
+  }
+
   return {
     title: String(data.get('title') ?? '').trim(),
-    priority: data.get('priority') as Priority,
-    startAt: new Date(String(data.get('startAt'))).toISOString(),
-    endAt: new Date(String(data.get('endAt'))).toISOString(),
+    taskType,
+    horizon,
+    startAt,
+    endAt,
     linkedPaths: String(data.get('linkedPaths') ?? '')
       .split('\n')
       .map((s) => s.trim())
@@ -49,17 +72,20 @@ function showFormError(overlay: HTMLElement, selector: string, message: string):
 // Task form (new task)
 // ---------------------------------------------------------------------------
 
-/** The shared HTML body for date/priority/links fields. */
+/** Shared task fields with scheduling controls that adapt to the selected task type. */
 function taskFieldsMarkup(defaults?: {
   title?: string;
   startAt?: Date;
   endAt?: Date;
-  priority?: Priority;
+  taskType?: TaskType;
+  horizon?: FlexibleHorizon;
   linkedPaths?: string[];
 }): string {
   const now = new Date();
-  const farFuture = new Date(now);
-  farFuture.setFullYear(farFuture.getFullYear() + 10);
+  const startAt = defaults?.startAt ?? now;
+  const endAt = defaults?.endAt ?? new Date(startAt);
+  if (!defaults?.endAt) endAt.setHours(23, 59, 59, 999);
+  const taskType = defaults?.taskType ?? 'scheduled';
 
   return `
     <label>Task name
@@ -67,22 +93,33 @@ function taskFieldsMarkup(defaults?: {
         placeholder="Finish operating systems notes"
         value="${escapeHtml(defaults?.title ?? '')}" />
     </label>
-    <div class="form-grid">
-      <label>Start time
-        <input name="startAt" type="datetime-local" required
-          value="${toLocalDatetimeInput(defaults?.startAt ?? now)}" />
-      </label>
-      <label>End time
-        <input name="endAt" type="datetime-local" required
-          value="${toLocalDatetimeInput(defaults?.endAt ?? farFuture)}" />
-      </label>
+    <label>Task type</label>
+    <div class="task-type-options">
+      <label><input type="radio" name="taskType" value="scheduled" ${taskType === 'scheduled' ? 'checked' : ''}><span>Scheduled</span></label>
+      <label><input type="radio" name="taskType" value="flexible" ${taskType === 'flexible' ? 'checked' : ''}><span>Flexible</span></label>
     </div>
-    <label>Priority
-      <select name="priority">
-        <option value="normal" ${defaults?.priority !== 'urgent' ? 'selected' : ''}>Normal</option>
-        <option value="urgent" ${defaults?.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
-      </select>
-    </label>
+    <div data-schedule-panel="scheduled" ${taskType === 'flexible' ? 'hidden' : ''}>
+      <div class="form-grid">
+        <label>Start time <span class="hint">defaults to now</span>
+          <input name="startAt" type="datetime-local"
+            value="${toLocalDatetimeInput(startAt)}" />
+        </label>
+        <label>End time <span class="hint">defaults to 11:59 PM</span>
+          <input name="endAt" type="datetime-local"
+            value="${toLocalDatetimeInput(endAt)}" />
+        </label>
+      </div>
+    </div>
+    <div data-schedule-panel="flexible" ${taskType === 'scheduled' ? 'hidden' : ''}>
+      <label>Reminder window</label>
+      <div class="horizon-options">
+        <label><input type="radio" name="horizon" value="day" ${defaults?.horizon === 'day' ? 'checked' : ''}><span>In a day</span></label>
+        <label><input type="radio" name="horizon" value="week" ${defaults?.horizon === 'week' || !defaults?.horizon ? 'checked' : ''}><span>In a week</span></label>
+        <label><input type="radio" name="horizon" value="month" ${defaults?.horizon === 'month' ? 'checked' : ''}><span>In a month</span></label>
+        <label><input type="radio" name="horizon" value="year" ${defaults?.horizon === 'year' ? 'checked' : ''}><span>In a year</span></label>
+      </div>
+      <p class="horizon-help">Senku will choose a day in this window and remind you at noon.</p>
+    </div>
     <label>Linked paths <span class="hint">optional · one per line</span>
       <textarea name="linkedPaths" rows="3"
         placeholder="C:\\path\\to\\notes.pdf or https://...">${escapeHtml(
@@ -96,24 +133,61 @@ export function openNewTaskModal(load: () => Promise<void>): void {
     <form class="modal-card">
       <button type="button" class="modal-close" id="close-modal">×</button>
       <span class="section-kicker">NEW TASK</span>
-      <h2>Put it on your radar</h2>
-      <p class="modal-copy">Text first. Add documents, links, or playlists when useful.</p>
+      <h2>Create a task</h2>
+      <p class="modal-copy">Choose when to work or let Senku surprise you with a reminder.</p>
       ${taskFieldsMarkup()}
       <p class="form-error" id="task-error"></p>
       <button class="primary-button" type="submit">Save task <span>→</span></button>
     </form>`);
 
+  bindTaskScheduleForm(overlay);
+
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = readTaskInput(e.currentTarget as HTMLFormElement);
-    if (Date.parse(input.startAt) >= Date.parse(input.endAt)) {
-      showFormError(overlay, '#task-error', 'End time must be after start time.');
+    if (input.taskType === 'scheduled' && (!input.startAt || !input.endAt || Date.parse(input.startAt) >= Date.parse(input.endAt))) {
+      showFormError(overlay, '#task-error', 'End time must be after the reminder time.');
+      return;
+    }
+    if (input.startAt && input.endAt && Date.parse(input.startAt) >= Date.parse(input.endAt)) {
+      showFormError(overlay, '#task-error', 'End time must be after the reminder time.');
       return;
     }
     await window.senku.createTask(input);
     overlay.remove();
     await load();
   });
+}
+
+function bindTaskScheduleForm(overlay: HTMLElement): void {
+  const typeInputs = [...overlay.querySelectorAll<HTMLInputElement>('input[name="taskType"]')];
+  const scheduledPanel = overlay.querySelector<HTMLElement>('[data-schedule-panel="scheduled"]');
+  const flexiblePanel = overlay.querySelector<HTMLElement>('[data-schedule-panel="flexible"]');
+  const start = overlay.querySelector<HTMLInputElement>('[name="startAt"]');
+  const end = overlay.querySelector<HTMLInputElement>('[name="endAt"]');
+  if (!typeInputs.length || !scheduledPanel || !flexiblePanel) return;
+
+  let lastType = (typeInputs.find((input) => input.checked)?.value ?? 'scheduled');
+  let endEdited = Boolean(end?.value && (() => { const value = new Date(end.value); return value.getHours() !== 23 || value.getMinutes() !== 59; })());
+  end?.addEventListener('input', () => { endEdited = true; });
+  start?.addEventListener('change', () => {
+    if (!start.value || endEdited || !end) return;
+    const selectedStart = new Date(start.value);
+    end.value = toLocalDatetimeInput(new Date(selectedStart.getFullYear(), selectedStart.getMonth(), selectedStart.getDate(), 23, 59));
+  });
+
+  typeInputs.forEach((type) => type.addEventListener('change', () => {
+    const nextType = type.value;
+    scheduledPanel.hidden = nextType !== 'scheduled';
+    flexiblePanel.hidden = nextType !== 'flexible';
+    if (nextType === 'scheduled' && lastType === 'flexible' && start && end) {
+      const now = new Date();
+      start.value = toLocalDatetimeInput(now);
+      end.value = toLocalDatetimeInput(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59));
+      endEdited = false;
+    }
+    lastType = nextType;
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -140,18 +214,21 @@ export function openEditTaskModal(
         title: task.title,
         startAt: new Date(task.startAt),
         endAt: new Date(task.endAt),
-        priority: task.priority,
+        taskType: task.taskType,
+        horizon: task.horizon,
         linkedPaths: task.linkedPaths,
       })}
       <p class="form-error" id="task-error"></p>
       <button class="primary-button" type="submit">${submitLabel} <span>→</span></button>
     </form>`);
 
+  bindTaskScheduleForm(overlay);
+
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const input = readTaskInput(e.currentTarget as HTMLFormElement);
-    if (!input.title || Date.parse(input.startAt) >= Date.parse(input.endAt)) {
-      showFormError(overlay, '#task-error', 'Enter a title and an end time after the start time.');
+    const input = readTaskInput(e.currentTarget as HTMLFormElement, task);
+    if (!input.title || (input.taskType === 'scheduled' && (!input.startAt || !input.endAt || Date.parse(input.startAt) >= Date.parse(input.endAt))) || (input.startAt && input.endAt && Date.parse(input.startAt) >= Date.parse(input.endAt))) {
+      showFormError(overlay, '#task-error', 'Enter a title and an end time after the reminder time.');
       return;
     }
     if (isError) {
@@ -202,7 +279,7 @@ export function openSnoozeModal(task: Task, load: () => Promise<void>): void {
 
 export function openReassignModal(task: Task, load: () => Promise<void>): void {
   const now = new Date();
-  const farFuture = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000);
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59);
 
   const overlay = createOverlay(`
     <form class="modal-card">
@@ -211,16 +288,16 @@ export function openReassignModal(task: Task, load: () => Promise<void>): void {
       <h2>Reassign task</h2>
       <p class="modal-copy">
         Your current progress will be saved as completed.
-        Choose the next start and end time for the remaining work.
+        Choose when to continue. The end time defaults to 11:59 PM today.
       </p>
       <div class="form-grid">
         <label>Next start
-          <input name="startAt" type="datetime-local" required
+          <input name="startAt" type="datetime-local"
             value="${toLocalDatetimeInput(now)}" />
         </label>
         <label>Next end
-          <input name="endAt" type="datetime-local" required
-            value="${toLocalDatetimeInput(farFuture)}" />
+          <input name="endAt" type="datetime-local"
+            value="${toLocalDatetimeInput(endOfToday)}" />
         </label>
       </div>
       <p class="form-error" id="task-error"></p>
@@ -232,14 +309,17 @@ export function openReassignModal(task: Task, load: () => Promise<void>): void {
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget as HTMLFormElement);
+    const startRaw = String(data.get('startAt') ?? '').trim();
+    const start = startRaw ? new Date(startRaw) : new Date();
+    const endRaw = String(data.get('endAt') ?? '').trim();
     const input: TaskInput = {
       title: task.title,
-      priority: task.priority,
-      startAt: new Date(String(data.get('startAt'))).toISOString(),
-      endAt: new Date(String(data.get('endAt'))).toISOString(),
+      taskType: 'scheduled',
+      startAt: start.toISOString(),
+      endAt: endRaw ? new Date(endRaw).toISOString() : localEndOfDay(start),
       linkedPaths: task.linkedPaths,
     };
-    if (Date.parse(input.startAt) >= Date.parse(input.endAt)) {
+    if (!input.startAt || !input.endAt || Date.parse(input.startAt) >= Date.parse(input.endAt)) {
       showFormError(overlay, '#task-error', 'End time must be after start time.');
       return;
     }

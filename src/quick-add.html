@@ -46,6 +46,7 @@
       }
       input:focus, select:focus { border-color: #6b8b69; box-shadow: 0 0 0 3px rgba(107,139,105,.12); }
       .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .quick-type { align-self: center; color: #7b897d; font-size: 10px; font-weight: 700; }
       button.primary {
         -webkit-app-region: no-drag;
         display: flex;
@@ -73,10 +74,7 @@
     <input id="title" placeholder="What needs doing?" autofocus />
     <div class="row">
       <input id="start" type="datetime-local" title="Start time" />
-      <select id="priority">
-        <option value="normal">Normal</option>
-        <option value="urgent">Urgent</option>
-      </select>
+      <span class="quick-type">Scheduled · ends 11:59 PM</span>
     </div>
     <p class="err" id="err"></p>
     <button class="primary" id="save">Add task <span>→</span></button>
@@ -95,18 +93,17 @@
       document.querySelector('#save').addEventListener('click', async () => {
         const title = document.querySelector('#title').value.trim();
         const startRaw = document.querySelector('#start').value;
-        const priority = document.querySelector('#priority').value;
         const errEl = document.querySelector('#err');
 
         if (!title) { errEl.textContent = 'Enter a task name.'; return; }
         if (!startRaw) { errEl.textContent = 'Pick a start time.'; return; }
 
         const startAt = new Date(startRaw).toISOString();
-        // End time: 1 year out by default — user can edit properly in the main window
-        const endAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+        const selectedStart = new Date(startRaw);
+        const endAt = new Date(selectedStart.getFullYear(), selectedStart.getMonth(), selectedStart.getDate(), 23, 59, 59, 999).toISOString();
 
         try {
-          await window.senku.createTask({ title, priority, startAt, endAt, linkedPaths: [] });
+          await window.senku.createTask({ title, taskType: 'scheduled', startAt, endAt, linkedPaths: [] });
           await window.senku.closeQuickAdd();
         } catch (e) {
           errEl.textContent = e?.message ?? 'Could not save task.';

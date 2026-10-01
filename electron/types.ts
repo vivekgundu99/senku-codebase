@@ -1,4 +1,5 @@
-export type Priority = 'normal' | 'urgent';
+export type TaskType = 'scheduled' | 'flexible';
+export type FlexibleHorizon = 'day' | 'week' | 'month' | 'year';
 export type TaskBucket = 'active' | 'completed' | 'error';
 
 export interface Settings {
@@ -34,7 +35,8 @@ export interface FileEntry {
 export interface Task {
   id: string;
   title: string;
-  priority: Priority;
+  taskType: TaskType;
+  horizon?: FlexibleHorizon;
   startAt: string;
   endAt: string;
   linkedPaths: string[];
@@ -47,9 +49,10 @@ export interface Task {
 
 export interface TaskInput {
   title: string;
-  priority: Priority;
-  startAt: string;
-  endAt: string;
+  taskType: TaskType;
+  horizon?: FlexibleHorizon;
+  startAt?: string;
+  endAt?: string;
   linkedPaths: string[];
 }
 

@@ -5,6 +5,7 @@ import {
   dailyNote,
   selectedTaskIds,
   visibleTasks,
+  overdueCount,
   errorCount,
 } from './state';
 import { escapeHtml, formatDate, renderGreeting } from './utils';
@@ -16,7 +17,7 @@ import { escapeHtml, formatDate, renderGreeting } from './utils';
 export function sidebarMarkup(): string {
   const ws = state.workspace!;
   const todayCount = state.activeTasks.filter(
-    (t) => new Date(t.startAt).toDateString() === new Date().toDateString(),
+    (t) => new Date(t.startAt).toDateString() === new Date().toDateString() && Date.parse(t.endAt) >= Date.now(),
   ).length;
 
   const navItem = (view: string, icon: string, label: string, badge?: number) => `
@@ -43,16 +44,10 @@ export function sidebarMarkup(): string {
       <nav class="nav-list">
         ${navItem('Today', '◷', 'Today', todayCount)}
         ${navItem('Upcoming', '→', 'Upcoming')}
+        ${navItem('Overdue', '!', 'Overdue', overdueCount())}
         ${navItem('Completed', '✓', 'Completed', state.completedTasks.length)}
         ${navItem('Note', '✎', 'Rough Note')}
       </nav>
-
-      <div class="sidebar-divider"></div>
-      <div class="workspace-label">CURRENT MASTER FOLDER</div>
-      <button class="nav-item"><span class="nav-icon">⌂</span>
-        <span class="nav-label">${escapeHtml(ws.name)}</span>
-      </button>
-      <button class="settings-link" id="workspace-settings">⚙ Workspace settings</button>
 
       <p class="creator-note">Made by a Navodayan</p>
     </aside>`;
@@ -70,11 +65,6 @@ export function topbarMarkup(): string {
     .filter(Boolean);
 
   const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
-  const viewLabel =
-    currentView !== 'Today'
-      ? `<span class="active-view-label">${escapeHtml(currentView === 'Note' ? 'Daily Note' : currentView)}</span>`
-      : '';
-
   return `
     <header class="topbar">
       <div>
@@ -82,7 +72,6 @@ export function topbarMarkup(): string {
           ${escapeHtml(ws.name)} <span>/</span>
           ${relative.length ? escapeHtml(relative.join(' / ')) : 'Overview'}
         </p>
-        ${viewLabel}
         <h1>${greeting}</h1>
         <p class="date-line">
           ${new Intl.DateTimeFormat(undefined, {
@@ -221,9 +210,7 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
         ? 'Needs attention'
         : overdue
           ? 'Overdue'
-          : task.priority === 'urgent'
-            ? 'Urgent'
-            : 'Active';
+          : 'Active';
 
   const chipClass = status.toLowerCase().replaceAll(' ', '-');
 
@@ -271,10 +258,13 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
       ? `<p class="error-reason">${escapeHtml(task.errorMessage)}</p>`
       : '';
 
-  const timeLine =
-    bucket === 'completed'
-      ? `Completed ${formatDate(task.completedAt ?? task.updatedAt)}`
-      : `Starts ${formatDate(task.startAt)} · Ends ${formatDate(task.endAt)}`;
+      const horizonLabels: Record<NonNullable<Task['horizon']>, string> = { day: 'Tomorrow', week: 'This week', month: 'This month', year: 'This year' };
+  const scheduleLabel = task.taskType === 'flexible'
+    ? `Horizon: ${horizonLabels[task.horizon ?? 'week']}`
+    : scheduledTimeLabel(task.startAt, task.endAt);
+  const completionLabel = bucket === 'completed'
+    ? `Completed ${formatDate(task.completedAt ?? task.updatedAt)}`
+    : scheduleLabel;
 
   return `
     <article class="task-row">
@@ -284,7 +274,7 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
           <h3>${escapeHtml(task.title)}</h3>
           <span class="status-chip ${chipClass}">${status}</span>
         </div>
-        <p>${timeLine}</p>
+        <div class="task-meta"><span class="task-type-chip ${task.taskType}">${task.taskType === 'flexible' ? 'Flexible' : 'Scheduled'}</span><span class="schedule-chip">${escapeHtml(completionLabel)}</span></div>
         ${errorReason}
         ${completedLinks}
       </div>
@@ -309,7 +299,7 @@ export function taskPanelMarkup(): string {
        </div>`;
 
   const panelHeading = currentView === 'Today'
-    ? 'On your radar'
+    ? "Today's Focus"
     : currentView === 'Error'
       ? 'Needs attention'
       : currentView;
@@ -331,6 +321,22 @@ export function taskPanelMarkup(): string {
       <div class="task-list">${taskList}</div>
       ${bucket !== 'completed' ? `<button class="new-task-button" id="new-task"><span>+</span> Add a new task</button>` : ''}
     </aside>`;
+}
+
+function scheduledTimeLabel(startValue: string, endValue: string): string {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  const today = new Date();
+  const startDate = start.toDateString() === today.toDateString()
+    ? 'Today'
+    : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(start);
+  const time = (date: Date) => new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date);
+  const endOfDay = end.getHours() === 23 && end.getMinutes() === 59;
+  if (start.toDateString() === end.toDateString()) {
+    return endOfDay ? `${startDate} · ${time(start)}` : `${startDate} · ${time(start)} – ${time(end)}`;
+  }
+  const endDateTime = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(end);
+  return `${startDate} · ${time(start)} – ${endDateTime}`;
 }
 
 // dailyNotePanelMarkup removed — note now lives inside the sidebar when Note view is active.
@@ -365,22 +371,22 @@ export function setupScreenMarkup(): string {
   return `
     <main class="setup-shell">
       <div class="setup-mark">S</div>
-      <p class="eyebrow">A focused home for your degree</p>
-      <h1>Build your own<br><em>workspace.</em></h1>
+      <p class="eyebrow">YOUR FILES, YOUR FLOW</p>
+      <h1>A space for<br><em>what matters.</em></h1>
       <p class="setup-copy">
-        Create a private space for one master folder. Senku keeps your real files
-        exactly where they are and stores tasks separately.
+        Choose a folder to make your workspace. Senku keeps your files in place
+        and helps you return to the work, notes, and resources you care about.
       </p>
       <section class="setup-card">
         <label for="user-name">Your name</label>
-        <input id="user-name" placeholder="What should Senku call you?" />
+        <input id="user-name" placeholder="Your name or nickname" />
 
         <label for="workspace-name">Workspace name</label>
-        <input id="workspace-name" placeholder="Workspace 1" />
+        <input id="workspace-name" placeholder="e.g. Personal, College, Projects" />
 
         <label for="master-path">Master folder location</label>
         <div class="path-input">
-          <input id="master-path" placeholder="C:\\Users\\you\\btech24-28" />
+          <input id="master-path" placeholder="Desktop folder suggested" />
           <button id="browse-folder" class="ghost-button">Browse</button>
         </div>
 
@@ -389,6 +395,6 @@ export function setupScreenMarkup(): string {
         </button>
         <p id="setup-error" class="form-error"></p>
       </section>
-      <p class="setup-footnote">Your files stay local. Senku only remembers paths and tasks.</p>
+      <p class="setup-footnote">Desktop is suggested to get started. You can choose any folder.</p>
     </main>`;
 }
