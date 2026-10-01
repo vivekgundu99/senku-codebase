@@ -1,4 +1,4 @@
-import { state, currentView, selectedTaskIds, setCompletedFilter, setView } from './state';
+import { state, currentView, selectedTaskIds, setCompletedFilter, setView, setDailyNote, setState } from './state';
 import {
   openNewTaskModal,
   openEditTaskModal,
@@ -6,7 +6,6 @@ import {
   openReassignModal,
   openProfileModal,
   openWorkspaceMenuModal,
-  openWorkspaceFormModal,
   openWorkspaceSettingsModal,
   openRenameFileModal,
 } from './modals';
@@ -16,7 +15,6 @@ type RenderFn = () => void;
 
 // ---------------------------------------------------------------------------
 // Post-render DOM patches
-// (things easier to append after innerHTML is set than to embed in markup)
 // ---------------------------------------------------------------------------
 
 /** Append "Open resources" buttons to task rows that have linked paths. */
@@ -44,20 +42,25 @@ export function addResourceButtons(): void {
   });
 }
 
-/** Inject the "complete selected" bar above the task list when in active bucket. */
+/** Inject Complete + Delete selection action bar above the task list in active views. */
 export function addCompleteSelectedBar(): void {
   if (currentView === 'Completed' || currentView === 'Error') return;
   const list = document.querySelector('.task-list');
-  if (!list || list.previousElementSibling?.classList.contains('complete-selected')) return;
+  if (!list || list.previousElementSibling?.classList.contains('selection-actions')) return;
 
-  const bar = document.createElement('button');
-  bar.className = 'complete-selected';
-  bar.dataset.action = 'complete-selected';
-  bar.textContent =
-    selectedTaskIds.size > 0
-      ? `Complete selected (${selectedTaskIds.size})`
-      : 'Select tasks to complete';
-  bar.disabled = selectedTaskIds.size === 0;
+  const count = selectedTaskIds.size;
+  const bar = document.createElement('div');
+  bar.className = 'selection-actions';
+  bar.innerHTML = `
+    <span class="selection-count">${count > 0 ? `${count} selected` : 'Select tasks below'}</span>
+    <button class="selection-btn complete" data-action="complete-selected"
+      ${count === 0 ? 'disabled' : ''}>
+      ✓ Complete
+    </button>
+    <button class="selection-btn delete" data-action="delete-selected"
+      ${count === 0 ? 'disabled' : ''}>
+      ✕ Delete
+    </button>`;
   list.before(bar);
 }
 
@@ -83,31 +86,52 @@ export function addCompletedFilters(render: RenderFn): void {
   );
 }
 
-/** Appends the "Made by a Navodayan" creator note to the sidebar once. */
-export function addCreatorNote(): void {
-  const sidebar = document.querySelector('.sidebar');
-  if (!sidebar || sidebar.querySelector('.creator-note')) return;
-  const note = document.createElement('p');
-  note.className = 'creator-note';
-  note.textContent = 'Made by a Navodayan';
-  sidebar.append(note);
+// ---------------------------------------------------------------------------
+// Daily note autosave
+// ---------------------------------------------------------------------------
+
+let noteSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Bind autosave on the daily note textarea. Call after every render. */
+export function bindDailyNote(): void {
+  const textarea = document.querySelector<HTMLTextAreaElement>('#daily-note');
+  const savedEl = document.querySelector<HTMLElement>('#note-saved');
+  if (!textarea) return;
+
+  // Show "saved" indicator on boot, hide it until user types
+  if (savedEl) savedEl.style.opacity = '0';
+
+  textarea.addEventListener('input', () => {
+    const content = textarea.value;
+    setDailyNote(content);
+
+    // Debounce saves — write 1.5 s after the user stops typing
+    if (noteSaveTimer) clearTimeout(noteSaveTimer);
+    if (savedEl) {
+      savedEl.textContent = 'saving…';
+      savedEl.style.opacity = '1';
+    }
+    noteSaveTimer = setTimeout(async () => {
+      await window.senku.saveNote(content);
+      if (savedEl) {
+        savedEl.textContent = 'saved';
+        // Fade out after 2 s
+        setTimeout(() => { if (savedEl) savedEl.style.opacity = '0'; }, 2000);
+      }
+    }, 1500);
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Main event binding (runs after each render)
 // ---------------------------------------------------------------------------
 
-// bindAll is called after every render() — only bind listeners that attach to
-// freshly-created DOM nodes (querySelector results change each render).
-// Anything on a stable ancestor (document / appRoot) must be registered ONCE
-// at boot via initGlobalListeners() — NOT here — or listeners stack up.
 export function bindAll(load: LoadFn, render: RenderFn): void {
   bindNavigation(render);
   bindSidebarButtons(load, render);
   bindTopbarButtons(load);
   bindFileActions(load);
   bindTaskRowActions(load);
-  // ⚠️  Do NOT call bindDelegatedClicks here.
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +139,6 @@ export function bindAll(load: LoadFn, render: RenderFn): void {
 // ---------------------------------------------------------------------------
 
 function bindNavigation(render: RenderFn): void {
-  // nav-item and task-tab buttons share data-view
   document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) =>
     btn.addEventListener('click', () => {
       setView(btn.dataset.view ?? 'Today');
@@ -153,11 +176,8 @@ function bindTopbarButtons(load: LoadFn): void {
 
   document
     .querySelector('#go-root')
-    ?.addEventListener('click', () =>
-      void load(state.workspace?.masterFolder),
-    );
+    ?.addEventListener('click', () => void load(state.workspace?.masterFolder));
 
-  // Breadcrumb buttons inside the folder-path bar
   document.querySelectorAll<HTMLElement>('[data-breadcrumb]').forEach((btn) =>
     btn.addEventListener('click', () => void load(btn.dataset.breadcrumb)),
   );
@@ -168,7 +188,7 @@ function bindTopbarButtons(load: LoadFn): void {
 // ---------------------------------------------------------------------------
 
 function bindFileActions(load: LoadFn): void {
-  // Open file/folder on click of the file-open button
+  // Open file / navigate into folder
   document.querySelectorAll<HTMLElement>('[data-open-path]').forEach((btn) =>
     btn.addEventListener('click', async () => {
       const p = btn.dataset.openPath!;
@@ -177,8 +197,8 @@ function bindFileActions(load: LoadFn): void {
     }),
   );
 
-  // Double-click on the row itself also opens
-  document.querySelectorAll<HTMLElement>('[data-path]').forEach((row) =>
+  // Double-click row also opens
+  document.querySelectorAll<HTMLElement>('.file-row').forEach((row) =>
     row.addEventListener('dblclick', () => {
       const p = row.dataset.path!;
       if (row.dataset.kind === 'folder') void load(p);
@@ -186,9 +206,10 @@ function bindFileActions(load: LoadFn): void {
     }),
   );
 
-  // Copy path / rename
+  // Copy path / rename / pin / unpin
   document.querySelectorAll<HTMLElement>('[data-file-action]').forEach((btn) =>
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       const action = btn.dataset.fileAction!;
       const filePath = btn.dataset.path!;
 
@@ -196,30 +217,36 @@ function bindFileActions(load: LoadFn): void {
         await window.senku.copyPath(filePath);
         btn.textContent = 'Copied';
         setTimeout(() => { btn.textContent = 'Copy path'; }, 1200);
+        return;
       }
 
       if (action === 'rename') {
         openRenameFileModal(filePath, btn.dataset.name!, load, state.currentPath);
+        return;
+      }
+
+      if (action === 'pin') {
+        const snap = await window.senku.pinPath(filePath);
+        setState(snap);
+        await load(state.currentPath);
+        return;
+      }
+
+      if (action === 'unpin') {
+        const snap = await window.senku.unpinPath(filePath);
+        setState(snap);
+        await load(state.currentPath);
+        return;
       }
     }),
   );
 }
 
 // ---------------------------------------------------------------------------
-// Task row actions (buttons inside each task card)
+// Task row actions
 // ---------------------------------------------------------------------------
 
 function bindTaskRowActions(load: LoadFn): void {
-  // Select checkbox
-  document.querySelectorAll<HTMLElement>('[data-action="select"]').forEach((btn) =>
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id!;
-      if (selectedTaskIds.has(id)) selectedTaskIds.delete(id);
-      else selectedTaskIds.add(id);
-      // Re-render is handled via the delegated click handler below
-    }),
-  );
-
   // Snooze
   document.querySelectorAll<HTMLElement>('[data-action="snooze"]').forEach((btn) =>
     btn.addEventListener('click', () => {
@@ -237,14 +264,16 @@ function bindTaskRowActions(load: LoadFn): void {
   );
 
   // Edit / recover
-  document.querySelectorAll<HTMLElement>('[data-action="edit"], [data-action="recover"]').forEach((btn) =>
-    btn.addEventListener('click', () => {
-      const bucket = (btn.dataset.bucket as 'active' | 'error') ?? 'active';
-      const source = bucket === 'error' ? state.errorTasks : state.activeTasks;
-      const task = source.find((t) => t.id === btn.dataset.id);
-      if (task) openEditTaskModal(task, bucket, load);
-    }),
-  );
+  document
+    .querySelectorAll<HTMLElement>('[data-action="edit"], [data-action="recover"]')
+    .forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const bucket = (btn.dataset.bucket as 'active' | 'error') ?? 'active';
+        const source = bucket === 'error' ? state.errorTasks : state.activeTasks;
+        const task = source.find((t) => t.id === btn.dataset.id);
+        if (task) openEditTaskModal(task, bucket, load);
+      }),
+    );
 
   // Delete
   document.querySelectorAll<HTMLElement>('[data-action="delete"]').forEach((btn) =>
@@ -259,15 +288,8 @@ function bindTaskRowActions(load: LoadFn): void {
 }
 
 // ---------------------------------------------------------------------------
-// Delegated click handler on appRoot (catches dynamic / post-render elements)
+// Global listeners — registered ONCE at boot, never inside render
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Global listeners — call ONCE at app boot, never again
-// ---------------------------------------------------------------------------
-// These attach to `document` (a node that never gets replaced by render),
-// so they work regardless of which view is currently rendered and never
-// accumulate across re-renders.
 
 export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
   document.addEventListener(
@@ -275,14 +297,14 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
     async (e) => {
       const target = e.target as HTMLElement;
 
-      // --- Avatar / profile ---
+      // Avatar / profile
       if (target.closest('.avatar-button, #profile-sidebar-button')) {
         e.preventDefault();
         openProfileModal(render);
         return;
       }
 
-      // --- Add task buttons ---
+      // Add task
       if (target.closest('#new-task, #add-task')) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -290,7 +312,7 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
         return;
       }
 
-      // --- Open linked resources button (on task row) ---
+      // Open linked resources
       const resourceBtn = target.closest<HTMLElement>('[data-action="open-resources"]');
       if (resourceBtn) {
         e.preventDefault();
@@ -299,13 +321,11 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
           ? [...state.activeTasks, ...state.completedTasks, ...state.errorTasks]
           : [];
         const task = allTasks.find((t) => t.id === resourceBtn.dataset.taskId);
-        if (task) {
-          for (const p of task.linkedPaths) await window.senku.openPath(p);
-        }
+        if (task) for (const p of task.linkedPaths) await window.senku.openPath(p);
         return;
       }
 
-      // --- Open a completed task's linked path ---
+      // Completed task linked path
       const linkedPathBtn = target.closest<HTMLElement>('[data-task-path]');
       if (linkedPathBtn) {
         e.preventDefault();
@@ -313,31 +333,59 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
         return;
       }
 
-      // --- Select checkbox (re-render to update bar) ---
+      // Select checkbox → re-render to sync bar
       const selectBtn = target.closest<HTMLElement>('[data-action="select"]');
       if (selectBtn) {
-        // Toggle already happened in bindTaskRowActions; just sync the UI.
+        const id = selectBtn.dataset.id;
+        if (id) {
+          if (selectedTaskIds.has(id)) selectedTaskIds.delete(id);
+          else selectedTaskIds.add(id);
+        }
         render();
         return;
       }
 
-      // --- Complete selected bar ---
+      // Complete selected — single atomic IPC call, no file-race
       const completeBar = target.closest<HTMLElement>('[data-action="complete-selected"]');
-      if (completeBar) {
+      if (completeBar && !completeBar.hasAttribute('disabled')) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        for (const id of selectedTaskIds) await window.senku.completeTask(id);
+        const ids = [...selectedTaskIds];
         selectedTaskIds.clear();
+        await window.senku.completeManyTasks(ids);
         await load();
         return;
       }
+
+      // Delete selected — same atomic approach
+      const deleteBar = target.closest<HTMLElement>('[data-action="delete-selected"]');
+      if (deleteBar && !deleteBar.hasAttribute('disabled')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const ids = [...selectedTaskIds];
+        if (confirm(`Delete ${ids.length} task(s)? This cannot be undone.`)) {
+          selectedTaskIds.clear();
+          await window.senku.deleteManyTasks(ids, 'active');
+          await load();
+        }
+        return;
+      }
+
+      // Error banner "Review →" link — treated as a view switch
+      const bannerLink = target.closest<HTMLElement>('.error-banner-link');
+      if (bannerLink) {
+        e.preventDefault();
+        setView('Error');
+        render();
+        return;
+      }
     },
-    true, // capture phase so it fires before per-element listeners
+    true,
   );
 }
 
 // ---------------------------------------------------------------------------
-// Setup screen events
+// Setup screen
 // ---------------------------------------------------------------------------
 
 export function bindSetupScreen(load: LoadFn): void {

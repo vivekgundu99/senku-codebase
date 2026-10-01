@@ -1,5 +1,12 @@
 import type { FileEntry, Task } from '../electron/types';
-import { state, currentView, selectedTaskIds, visibleTasks } from './state';
+import {
+  state,
+  currentView,
+  dailyNote,
+  selectedTaskIds,
+  visibleTasks,
+  errorCount,
+} from './state';
 import { escapeHtml, formatDate, renderGreeting } from './utils';
 
 // ---------------------------------------------------------------------------
@@ -11,12 +18,12 @@ export function sidebarMarkup(): string {
   const todayCount = state.activeTasks.filter(
     (t) => new Date(t.startAt).toDateString() === new Date().toDateString(),
   ).length;
-  const overdueCount = state.activeTasks.filter((t) => Date.now() > Date.parse(t.endAt)).length;
 
   const navItem = (view: string, icon: string, label: string, badge?: number) => `
     <button class="nav-item ${currentView === view ? 'selected' : ''}" data-view="${view}">
-      <span>${icon}</span> ${label}
-      ${badge !== undefined && badge > 0 ? `<b>${badge}</b>` : ''}
+      <span class="nav-icon">${icon}</span>
+      <span class="nav-label">${label}</span>
+      ${badge !== undefined && badge > 0 ? `<b class="nav-badge">${badge}</b>` : ''}
     </button>`;
 
   return `
@@ -36,15 +43,18 @@ export function sidebarMarkup(): string {
       <nav class="nav-list">
         ${navItem('Today', '◷', 'Today', todayCount)}
         ${navItem('Upcoming', '→', 'Upcoming')}
-        ${navItem('Overdue', '!', 'Overdue', overdueCount)}
         ${navItem('Completed', '✓', 'Completed', state.completedTasks.length)}
-        ${navItem('Error', '△', 'Error', state.errorTasks.length)}
+        ${navItem('Note', '✎', 'Rough Note')}
       </nav>
 
       <div class="sidebar-divider"></div>
       <div class="workspace-label">CURRENT MASTER FOLDER</div>
-      <button class="nav-item selected"><span>⌂</span> ${escapeHtml(ws.name)}</button>
+      <button class="nav-item"><span class="nav-icon">⌂</span>
+        <span class="nav-label">${escapeHtml(ws.name)}</span>
+      </button>
       <button class="settings-link" id="workspace-settings">⚙ Workspace settings</button>
+
+      <p class="creator-note">Made by a Navodayan</p>
     </aside>`;
 }
 
@@ -59,21 +69,10 @@ export function topbarMarkup(): string {
     .split('\\')
     .filter(Boolean);
 
-  const breadcrumbParts = relative
-    .map(
-      (part, i) =>
-        `<span>/</span><button data-breadcrumb="${escapeHtml(
-          ws.masterFolder + '\\' + relative.slice(0, i + 1).join('\\'),
-        )}">${escapeHtml(part)}</button>`,
-    )
-    .join('');
-
-  // The greeting always shows in h1 so it doesn't vanish when switching views.
-  // When not on Today, the active view name appears as a small label above it.
   const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
   const viewLabel =
     currentView !== 'Today'
-      ? `<span class="active-view-label">${escapeHtml(currentView)}</span>`
+      ? `<span class="active-view-label">${escapeHtml(currentView === 'Note' ? 'Daily Note' : currentView)}</span>`
       : '';
 
   return `
@@ -95,11 +94,29 @@ export function topbarMarkup(): string {
       </div>
       <div class="top-actions">
         <button class="icon-button" id="refresh-button" title="Refresh">↻</button>
-        <button class="avatar-button">
+        <button class="avatar-button" title="Profile">
           ${escapeHtml(state.settings.userName.charAt(0).toUpperCase())}
         </button>
       </div>
     </header>`;
+}
+
+// ---------------------------------------------------------------------------
+// Error banner — shown at top of Today when strict-mode tasks failed
+// ---------------------------------------------------------------------------
+
+export function errorBannerMarkup(): string {
+  const count = errorCount();
+  if (count === 0) return '';
+  return `
+    <div class="error-banner">
+      <span class="error-banner-icon">△</span>
+      <span>
+        ${count} task${count > 1 ? 's' : ''} need${count === 1 ? 's' : ''} attention —
+        linked resources couldn't be opened.
+      </span>
+      <button class="error-banner-link" data-view="Error">Review →</button>
+    </div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,15 +134,26 @@ export function fileEntryMarkup(entry: FileEntry): string {
   const iconGlyph =
     entry.kind === 'folder' ? '◼' : entry.extension === 'PDF' ? 'P' : '—';
 
+  const pinAction = entry.pinned
+    ? `data-file-action="unpin" title="Unpin"`
+    : `data-file-action="pin" title="Pin to top"`;
+
+  const pinGlyph = entry.pinned ? '★' : '☆';
+
   return `
-    <div class="file-row" data-path="${escapeHtml(entry.path)}" data-kind="${entry.kind}">
+    <div class="file-row ${entry.pinned ? 'pinned' : ''}"
+      data-path="${escapeHtml(entry.path)}"
+      data-kind="${entry.kind}">
       <button class="file-open"
         data-open-path="${escapeHtml(entry.path)}"
         data-kind="${entry.kind}">
         <span class="file-icon ${iconClass}">${iconGlyph}</span>
         <span class="file-name">${escapeHtml(entry.name)}</span>
+        ${entry.pinned ? '<span class="pinned-indicator">pinned</span>' : ''}
       </button>
       <span class="file-actions">
+        <button data-path="${escapeHtml(entry.path)}" ${pinAction}
+          class="pin-button ${entry.pinned ? 'active' : ''}">${pinGlyph}</button>
         <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" title="Copy path">
           Copy path
         </button>
@@ -199,24 +227,22 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
 
   const chipClass = status.toLowerCase().replaceAll(' ', '-');
 
-  // Action buttons differ by bucket
   let actions = '';
   if (bucket === 'active') {
     actions = `
-      <button data-action="snooze"     data-id="${task.id}" title="Snooze">Snooze</button>
-      <button data-action="reschedule" data-id="${task.id}" title="Partially completed and reassign">Reassign</button>
-      <button data-action="edit"       data-bucket="active" data-id="${task.id}" title="Edit task">Edit</button>`;
+      <button data-action="snooze"     data-id="${task.id}">Snooze</button>
+      <button data-action="reschedule" data-id="${task.id}">Reassign</button>
+      <button data-action="edit" data-bucket="active" data-id="${task.id}">Edit</button>`;
   } else if (bucket === 'error') {
     actions = `
-      <button data-action="recover" data-id="${task.id}" title="Fix links and return to active">Recover</button>
-      <button data-action="edit"    data-bucket="error" data-id="${task.id}" title="Edit task">Edit</button>
-      <button data-action="delete"  data-bucket="error" data-id="${task.id}">Delete</button>`;
+      <button data-action="recover" data-id="${task.id}">Recover</button>
+      <button data-action="edit"   data-bucket="error" data-id="${task.id}">Edit</button>
+      <button data-action="delete" data-bucket="error" data-id="${task.id}">Delete</button>`;
   } else {
     actions = `
       <button data-action="delete" data-bucket="completed" data-id="${task.id}">Delete</button>`;
   }
 
-  // Checkbox / tick
   const isSelected = selectedTaskIds.has(task.id);
   const checkbox =
     bucket === 'active'
@@ -228,28 +254,23 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
            ${bucket === 'completed' ? '✓' : ''}
          </span>`;
 
-  // Linked-path buttons (completed view)
   const completedLinks =
     bucket === 'completed' && task.linkedPaths.length
       ? `<div class="completed-links">
           ${task.linkedPaths
             .map(
               (p) =>
-                `<button data-task-path="${escapeHtml(p)}" title="Open linked resource">
-                   ${escapeHtml(p)}
-                 </button>`,
+                `<button data-task-path="${escapeHtml(p)}">${escapeHtml(p)}</button>`,
             )
             .join('')}
          </div>`
       : '';
 
-  // Error message
   const errorReason =
     bucket === 'error' && task.errorMessage
       ? `<p class="error-reason">${escapeHtml(task.errorMessage)}</p>`
       : '';
 
-  // Timestamp line
   const timeLine =
     bucket === 'completed'
       ? `Completed ${formatDate(task.completedAt ?? task.updatedAt)}`
@@ -272,9 +293,12 @@ export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'erro
 }
 
 export function taskPanelMarkup(): string {
-  const tasks = visibleTasks();
-  const bucket =
-    currentView === 'Completed' ? 'completed' : currentView === 'Error' ? 'error' : 'active';
+  // The Error view is surfaced via the banner and a special error-tasks list,
+  // not as a top-level nav view. But we still need to render it if a link
+  // in the banner triggers data-view="Error".
+  const isError = currentView === 'Error';
+  const bucket = currentView === 'Completed' ? 'completed' : isError ? 'error' : 'active';
+  const tasks = isError ? state.errorTasks : visibleTasks();
 
   const taskList = tasks.length
     ? tasks.map((t) => taskRowMarkup(t, bucket)).join('')
@@ -284,24 +308,53 @@ export function taskPanelMarkup(): string {
         <small>Add a task when you are ready.</small>
        </div>`;
 
-  const heading = currentView === 'Today' ? 'On your radar' : currentView;
+  const panelHeading = currentView === 'Today'
+    ? 'On your radar'
+    : currentView === 'Error'
+      ? 'Needs attention'
+      : currentView;
+
+  // Add task button only makes sense for active/error views
+  const addButton = bucket !== 'completed'
+    ? `<button class="add-button" id="add-task">+</button>`
+    : '';
 
   return `
     <aside class="tasks-panel">
       <div class="section-heading">
         <div>
           <span class="section-kicker">TASKS</span>
-          <h2>${heading}</h2>
+          <h2>${panelHeading}</h2>
         </div>
-        <button class="add-button" id="add-task">+</button>
-      </div>
-      <div class="task-tabs">
-        <button class="${currentView === 'Today' ? 'active' : ''}" data-view="Today">Today</button>
-        <button class="${currentView === 'Upcoming' ? 'active' : ''}" data-view="Upcoming">Upcoming</button>
+        ${addButton}
       </div>
       <div class="task-list">${taskList}</div>
-      <button class="new-task-button" id="new-task"><span>+</span> Add a new task</button>
+      ${bucket !== 'completed' ? `<button class="new-task-button" id="new-task"><span>+</span> Add a new task</button>` : ''}
     </aside>`;
+}
+
+// dailyNotePanelMarkup removed — note now lives inside the sidebar when Note view is active.
+// ---------------------------------------------------------------------------
+// Daily note panel — renders in the task-panel slot when Note view is active
+// ---------------------------------------------------------------------------
+
+export function dailyNotePanelMarkup(): string {
+  return `
+    <section class="tasks-panel note-panel">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">DAILY NOTE</span>
+          <h2>Today's thoughts</h2>
+        </div>
+        <span class="note-saved-indicator" id="note-saved"></span>
+      </div>
+      <textarea
+        id="daily-note"
+        class="note-textarea"
+        placeholder="Dump thoughts, half-formed ideas, things to remember. This is only yours."
+        spellcheck="false"
+      >${escapeHtml(dailyNote)}</textarea>
+    </section>`;
 }
 
 // ---------------------------------------------------------------------------

@@ -15,12 +15,19 @@ declare global {
       openUserGuide(): Promise<{ ok: boolean; error?: string }>;
       copyPath(path: string): Promise<boolean>;
       renamePath(path: string, name: string): Promise<{ ok: boolean; error?: string }>;
+      pinPath(path: string): Promise<AppSnapshot>;
+      unpinPath(path: string): Promise<AppSnapshot>;
+      saveNote(content: string): Promise<void>;
       createTask(input: TaskInput): Promise<Task>;
       completeTask(id: string, reschedule?: TaskInput): Promise<{ task: Task; next?: Task }>;
       snoozeTask(id: string, durationMinutes: number): Promise<Task>;
       updateTask(id: string, input: TaskInput, bucket?: 'active' | 'error'): Promise<Task>;
       recoverTask(id: string, input: TaskInput): Promise<Task>;
       deleteTask(id: string, bucket: 'active' | 'completed' | 'error'): Promise<boolean>;
+      completeManyTasks(ids: string[]): Promise<number>;
+      deleteManyTasks(ids: string[], bucket: 'active' | 'completed' | 'error'): Promise<number>;
+      closeQuickAdd(): Promise<void>;
+      onTasksChanged(callback: () => void): () => void;
     };
   }
 }

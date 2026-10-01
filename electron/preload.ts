@@ -40,6 +40,16 @@ const api = {
   renamePath: (path: string, name: string) =>
     ipcRenderer.invoke('path:rename', path, name) as Promise<{ ok: boolean; error?: string }>,
 
+  pinPath: (path: string) =>
+    ipcRenderer.invoke('path:pin', path) as Promise<AppSnapshot>,
+
+  unpinPath: (path: string) =>
+    ipcRenderer.invoke('path:unpin', path) as Promise<AppSnapshot>,
+
+  // --- Daily note ---
+  saveNote: (content: string) =>
+    ipcRenderer.invoke('note:save', content) as Promise<void>,
+
   // --- Tasks ---
   createTask: (input: TaskInput) =>
     ipcRenderer.invoke('task:create', input) as Promise<Task>,
@@ -58,6 +68,22 @@ const api = {
 
   deleteTask: (id: string, bucket: 'active' | 'completed' | 'error') =>
     ipcRenderer.invoke('task:delete', id, bucket) as Promise<boolean>,
+
+  completeManyTasks: (ids: string[]) =>
+    ipcRenderer.invoke('task:complete-many', ids) as Promise<number>,
+
+  deleteManyTasks: (ids: string[], bucket: 'active' | 'completed' | 'error') =>
+    ipcRenderer.invoke('task:delete-many', ids, bucket) as Promise<number>,
+
+  // --- Quick-add window ---
+  closeQuickAdd: () =>
+    ipcRenderer.invoke('quickadd:close') as Promise<void>,
+
+  // Listen for tasks:changed pushed from main (after quick-add creates a task)
+  onTasksChanged: (callback: () => void) => {
+    ipcRenderer.on('tasks:changed', callback);
+    return () => ipcRenderer.removeListener('tasks:changed', callback);
+  },
 };
 
 contextBridge.exposeInMainWorld('senku', api);

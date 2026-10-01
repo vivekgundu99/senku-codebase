@@ -17,6 +17,8 @@ export interface Workspace {
   lastSubfolder: string;
   strictMode: boolean;
   createdAt: string;
+  /** Paths pinned to the top of the file browser for this workspace. */
+  pinnedPaths: string[];
 }
 
 export interface FileEntry {
@@ -26,6 +28,7 @@ export interface FileEntry {
   extension: string;
   size?: number;
   modifiedAt?: string;
+  pinned?: boolean;
 }
 
 export interface Task {
@@ -50,6 +53,12 @@ export interface TaskInput {
   linkedPaths: string[];
 }
 
+export interface DailyNote {
+  workspaceId: string;
+  content: string;
+  updatedAt: string;
+}
+
 export interface AppSnapshot {
   settings: Settings;
   workspaces: Workspace[];
@@ -59,4 +68,5 @@ export interface AppSnapshot {
   activeTasks: Task[];
   completedTasks: Task[];
   errorTasks: Task[];
+  dailyNote: string;
 }

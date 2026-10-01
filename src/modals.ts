@@ -1,5 +1,5 @@
 import type { Priority, Task, TaskInput } from '../electron/types';
-import { state } from './state';
+import { setState, state } from './state';
 import { escapeHtml, toLocalDatetimeInput, DEFAULT_GREETING } from './utils';
 
 // ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ function taskFieldsMarkup(defaults?: {
     </div>
     <label>Priority
       <select name="priority">
-        <option value="normal" ${defaults?.priority !== 'urgent' ? 'selected' : ''}>Normal reminder</option>
+        <option value="normal" ${defaults?.priority !== 'urgent' ? 'selected' : ''}>Normal</option>
         <option value="urgent" ${defaults?.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
       </select>
     </label>
@@ -331,8 +331,16 @@ export function openProfileModal(render: () => void): void {
       .querySelector('#profile-startup-toggle')!
       .classList.contains('on');
 
-    await window.senku.saveSettings({ ...state.settings, userName: name, launchAtStartup, greeting });
-    if (state.workspace) await window.senku.setStrictMode(state.workspace.id, strictMode);
+    let snapshot = await window.senku.saveSettings({
+      ...state.settings,
+      userName: name,
+      launchAtStartup,
+      greeting,
+    });
+    if (state.workspace) {
+      snapshot = await window.senku.setStrictMode(state.workspace.id, strictMode);
+    }
+    setState(snapshot);
     overlay.remove();
     render();
   });
@@ -478,7 +486,8 @@ export function openWorkspaceSettingsModal(render: () => void): void {
       showFormError(overlay, '#workspace-settings-error', 'Workspace name is required.');
       return;
     }
-    await window.senku.renameWorkspace(ws.id, name);
+    const snapshot = await window.senku.renameWorkspace(ws.id, name);
+    setState(snapshot);
     overlay.remove();
     render();
   });

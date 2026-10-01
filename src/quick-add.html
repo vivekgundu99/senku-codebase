@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Add</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap');
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 18px 20px 16px;
+        background: #f5f4ef;
+        font-family: 'Manrope', sans-serif;
+        color: #26332d;
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .brand { font-size: 11px; font-weight: 800; letter-spacing: -.04em; color: #778078; }
+      .close-btn {
+        -webkit-app-region: no-drag;
+        padding: 0 4px;
+        border: 0;
+        background: transparent;
+        color: #9da69e;
+        font-size: 18px;
+        cursor: pointer;
+      }
+      input, select {
+        -webkit-app-region: no-drag;
+        width: 100%;
+        margin-bottom: 9px;
+        padding: 10px 12px;
+        border: 1px solid #d9ddd5;
+        border-radius: 6px;
+        outline: 0;
+        background: #fff;
+        color: #26332d;
+        font: 500 12px 'Manrope', sans-serif;
+      }
+      input:focus, select:focus { border-color: #6b8b69; box-shadow: 0 0 0 3px rgba(107,139,105,.12); }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      button.primary {
+        -webkit-app-region: no-drag;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 4px;
+        padding: 11px 14px;
+        border: 0;
+        border-radius: 6px;
+        background: #26332d;
+        color: #fff;
+        font: 800 11px 'Manrope', sans-serif;
+        cursor: pointer;
+      }
+      button.primary span { color: #b8d1b2; font-size: 15px; }
+      .err { min-height: 14px; margin: -4px 0 6px; color: #d97858; font-size: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <span class="brand">S senku</span>
+      <button class="close-btn" id="close">×</button>
+    </div>
+    <input id="title" placeholder="What needs doing?" autofocus />
+    <div class="row">
+      <input id="start" type="datetime-local" title="Start time" />
+      <select id="priority">
+        <option value="normal">Normal</option>
+        <option value="urgent">Urgent</option>
+      </select>
+    </div>
+    <p class="err" id="err"></p>
+    <button class="primary" id="save">Add task <span>→</span></button>
+
+    <script type="module">
+      // Pre-fill start time to right now, rounded to next 5 min
+      const now = new Date();
+      now.setSeconds(0, 0);
+      now.setMinutes(now.getMinutes() + (5 - (now.getMinutes() % 5)));
+      const pad = (n) => String(n).padStart(2, '0');
+      document.querySelector('#start').value =
+        `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+      document.querySelector('#close').addEventListener('click', () => window.senku.closeQuickAdd());
+
+      document.querySelector('#save').addEventListener('click', async () => {
+        const title = document.querySelector('#title').value.trim();
+        const startRaw = document.querySelector('#start').value;
+        const priority = document.querySelector('#priority').value;
+        const errEl = document.querySelector('#err');
+
+        if (!title) { errEl.textContent = 'Enter a task name.'; return; }
+        if (!startRaw) { errEl.textContent = 'Pick a start time.'; return; }
+
+        const startAt = new Date(startRaw).toISOString();
+        // End time: 1 year out by default — user can edit properly in the main window
+        const endAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
+        try {
+          await window.senku.createTask({ title, priority, startAt, endAt, linkedPaths: [] });
+          await window.senku.closeQuickAdd();
+        } catch (e) {
+          errEl.textContent = e?.message ?? 'Could not save task.';
+        }
+      });
+
+      // Enter key submits
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.querySelector('#save').click();
+        if (e.key === 'Escape') window.senku.closeQuickAdd();
+      });
+    </script>
+  </body>
+</html>

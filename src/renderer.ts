@@ -1,5 +1,13 @@
-import { state, setState, setView } from './state';
-import { setupScreenMarkup, sidebarMarkup, topbarMarkup, filePanelMarkup, taskPanelMarkup } from './markup';
+import { state, setState, currentView } from './state';
+import {
+  setupScreenMarkup,
+  sidebarMarkup,
+  topbarMarkup,
+  errorBannerMarkup,
+  filePanelMarkup,
+  taskPanelMarkup,
+  dailyNotePanelMarkup,
+} from './markup';
 import {
   bindAll,
   bindSetupScreen,
@@ -7,7 +15,7 @@ import {
   addResourceButtons,
   addCompleteSelectedBar,
   addCompletedFilters,
-  addCreatorNote,
+  bindDailyNote,
 } from './events';
 
 // ---------------------------------------------------------------------------
@@ -22,32 +30,46 @@ const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
 function render(): void {
   if (!state?.workspace) {
-    // First-run / no workspace: show setup screen
     appRoot.innerHTML = setupScreenMarkup();
     bindSetupScreen(load);
     return;
   }
+
+  // Note view replaces the task panel with the daily note editor
+  const mainContent = currentView === 'Note'
+    ? `<div class="content-grid">
+         ${dailyNotePanelMarkup()}
+         <div class="right-column">
+           ${filePanelMarkup()}
+         </div>
+       </div>`
+    : `${errorBannerMarkup()}
+       <div class="content-grid">
+         ${taskPanelMarkup()}
+         <div class="right-column">
+           ${filePanelMarkup()}
+         </div>
+       </div>`;
 
   appRoot.innerHTML = `
     <div class="app-shell">
       ${sidebarMarkup()}
       <main class="main-area">
         ${topbarMarkup()}
-        <div class="content-grid">
-          ${taskPanelMarkup()}
-          ${filePanelMarkup()}
-        </div>
+        ${mainContent}
       </main>
     </div>`;
 
-  // Post-render DOM additions
+  // Post-render additions
   addCompletedFilters(render);
   addCompleteSelectedBar();
   addResourceButtons();
-  addCreatorNote();
 
-  // Bind all interactive events
+  // Bind per-render events
   bindAll(load, render);
+
+  // Daily note autosave (re-bound each render so it always has the fresh textarea)
+  bindDailyNote();
 }
 
 // ---------------------------------------------------------------------------
@@ -60,6 +82,15 @@ async function load(pathToShow?: string): Promise<void> {
   render();
 }
 
-// Boot — wire global listeners exactly once, then load initial state
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+
+// Wire global (document-level) listeners exactly once
 initGlobalListeners(load, render);
+
+// Listen for tasks:changed pushed from main process (after quick-add)
+window.senku.onTasksChanged(() => void load(state?.currentPath));
+
+// Initial load
 void load();
