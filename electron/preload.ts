@@ -43,9 +43,6 @@ const api = {
   copyPath: (path: string) =>
     ipcRenderer.invoke('path:copy', path) as Promise<boolean>,
 
-  renamePath: (path: string, name: string) =>
-    ipcRenderer.invoke('path:rename', path, name) as Promise<{ ok: boolean; error?: string }>,
-
   pinPath: (path: string) =>
     ipcRenderer.invoke('path:pin', path) as Promise<AppSnapshot>,
 

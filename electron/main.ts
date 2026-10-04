@@ -11,10 +11,10 @@ import {
   shell,
   Tray,
 } from 'electron';
+import dotenv from 'dotenv';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { pathToFileURL } from 'node:url';
 import type {
   AppSnapshot,
   DailyNote,
@@ -32,8 +32,14 @@ import type {
 
 let mainWindow: BrowserWindow | null = null;
 let quickAddWindow: BrowserWindow | null = null;
+let guideWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+
+if (!app.isPackaged) {
+  dotenv.config();
+}
+const isTesting = process.env.testing === '1';
 
 // ---------------------------------------------------------------------------
 // Task-engine scheduling
@@ -220,12 +226,30 @@ async function listFolder(
 async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const settings = await getSettings();
   const workspaces = await getWorkspaces();
+  const workspaceFolderAvailability = Object.fromEntries(
+    await Promise.all(workspaces.map(async (workspace) => {
+      try {
+        return [workspace.id, (await fs.stat(workspace.masterFolder)).isDirectory()] as const;
+      } catch (error) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+        ) {
+          return [workspace.id, false] as const;
+        }
+        throw error;
+      }
+    })),
+  );
   const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
 
   if (!workspace) {
     return {
       settings,
       workspaces,
+      workspaceFolderAvailability,
       workspace: null,
       entries: [],
       currentPath: '',
@@ -255,6 +279,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   return {
     settings,
     workspaces,
+    workspaceFolderAvailability,
     workspace,
     entries,
     currentPath,
@@ -441,7 +466,19 @@ async function createWindow(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 app.whenReady().then(async () => {
-  Menu.setApplicationMenu(null);
+  if (isTesting) {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        { role: 'fileMenu' },
+        { role: 'editMenu' },
+        { role: 'viewMenu' },
+        { role: 'windowMenu' },
+        { role: 'help' },
+      ]),
+    );
+  } else {
+    Menu.setApplicationMenu(null);
+  }
 
   const startupSettings = await getSettings();
   app.setLoginItemSettings({
@@ -583,9 +620,29 @@ ipcMain.handle('guide:open', async () => {
     : path.join(app.getAppPath(), 'guide', 'index.html');
   try {
     await fs.access(guidePath);
-    await shell.openExternal(pathToFileURL(guidePath).toString());
+    if (guideWindow && !guideWindow.isDestroyed()) {
+      guideWindow.show();
+      guideWindow.focus();
+      return { ok: true };
+    }
+
+    guideWindow = new BrowserWindow({
+      width: 1100,
+      height: 800,
+      title: 'Senku Guide',
+      autoHideMenuBar: true,
+      parent: mainWindow ?? undefined,
+    });
+    const window = guideWindow;
+    window.once('closed', () => {
+      if (guideWindow === window) guideWindow = null;
+    });
+    await window.loadFile(guidePath);
+    window.show();
     return { ok: true };
   } catch (error) {
+    guideWindow?.close();
+    guideWindow = null;
     return { ok: false, error: error instanceof Error ? error.message : 'Guide not found.' };
   }
 });
@@ -593,31 +650,6 @@ ipcMain.handle('guide:open', async () => {
 ipcMain.handle('path:copy', async (_event, target: string) => {
   clipboard.writeText(target);
   return true;
-});
-
-ipcMain.handle('path:rename', async (_event, target: string, name: string) => {
-  const settings = await getSettings();
-  const workspace = getWorkspace(await getWorkspaces(), settings.activeWorkspaceId);
-  const safeName = path.basename(name);
-
-  if (
-    !workspace ||
-    !isInside(workspace.masterFolder, target) ||
-    path.resolve(target) === path.resolve(workspace.masterFolder)
-  ) {
-    return { ok: false, error: 'Only resources inside the master folder can be renamed.' };
-  }
-
-  if (!safeName || safeName !== name || safeName === '.' || safeName === '..') {
-    return { ok: false, error: 'Invalid name.' };
-  }
-
-  try {
-    await fs.rename(target, path.join(path.dirname(target), safeName));
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: String(error) };
-  }
 });
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 {
-  "name": "senku-v1",
-  "version": "1.0.0",
-  "description": "A calm, local file workspace and one-time task scheduler for BTech students.",
+  "name": "senku",
+  "version": "2.3.0-beta",
+  "author": "Vivek Gundu",
+  "description": "Senku is a win Desktop app which reduces the friction of starting a Work",
   "main": "dist/electron/main.js",
   "scripts": {
     "dev": "tsc && concurrently -k \"vite --config vite.config.ts\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
@@ -35,11 +36,17 @@
       "guide/**/*"
     ],
     "extraResources": [
-      { "from": "guide", "to": "guide" }
+      {
+        "from": "guide",
+        "to": "guide"
+      }
     ],
     "win": {
       "target": "nsis",
       "icon": "assets/senku.ico"
     }
+  },
+  "dependencies": {
+    "dotenv": "^18.0.5"
   }
 }

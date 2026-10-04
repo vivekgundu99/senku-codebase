@@ -40,7 +40,7 @@ export function sidebarMarkup(): string {
       <div class="space-list">
         ${state.workspaces.map((space) => `
           <button class="space-item ${space.id === ws.id ? 'current' : ''}" data-switch-space="${space.id}" title="${escapeHtml(space.masterFolder)}">
-            <span class="workspace-dot"></span><span>${escapeHtml(space.name)}</span>
+            <span class="workspace-dot ${state.workspaceFolderAvailability[space.id] === false ? 'missing' : space.strictMode ? 'open-resources' : ''}" title="${state.workspaceFolderAvailability[space.id] === false ? 'Main folder not found' : space.strictMode ? 'Opens linked resources automatically' : 'Gentle reminder mode'}"></span><span>${escapeHtml(space.name)}</span>
           </button>`).join('')}
       </div>
       <button class="settings-link" id="add-space">＋ Add a Space</button>
@@ -55,20 +55,10 @@ export function sidebarMarkup(): string {
 // ---------------------------------------------------------------------------
 
 export function topbarMarkup(): string {
-  const ws = state.workspace!;
-  const relative = state.currentPath
-    .replace(ws.masterFolder, '')
-    .split('\\')
-    .filter(Boolean);
-
   const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
   return `
     <header class="topbar">
       <div>
-        <p class="breadcrumb">
-          ${escapeHtml(ws.name)} <span>/</span>
-          ${relative.length ? escapeHtml(relative.join(' / ')) : 'Overview'}
-        </p>
         <h1>${greeting}</h1>
         <p class="date-line">
           ${new Intl.DateTimeFormat(undefined, {
@@ -143,18 +133,13 @@ export function fileEntryMarkup(entry: FileEntry): string {
         <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" title="Copy path">
           Copy path
         </button>
-        <button data-file-action="rename"
-          data-path="${escapeHtml(entry.path)}"
-          data-name="${escapeHtml(entry.name)}"
-          title="Rename">
-          Rename
-        </button>
       </span>
     </div>`;
 }
 
 export function filePanelMarkup(): string {
   const ws = state.workspace!;
+  const rootFolderName = ws.masterFolder.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || ws.masterFolder;
   const relative = state.currentPath
     .replace(ws.masterFolder, '')
     .split('\\')
@@ -181,13 +166,12 @@ export function filePanelMarkup(): string {
     <section class="files-panel">
       <div class="section-heading">
         <div>
-          <span class="section-kicker">MAIN FOLDER</span>
           <h2>Files and folders</h2>
         </div>
         <button class="text-button" id="open-folder">Open in Explorer ↗</button>
       </div>
       <div class="folder-path">
-        <button id="go-root">⌂</button>
+        <button id="go-root" title="Go to main folder">${escapeHtml(rootFolderName)}</button>
         ${breadcrumb}
       </div>
       <div class="file-list">${fileList}</div>

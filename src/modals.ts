@@ -419,7 +419,7 @@ export function openWorkspaceMenuModal(load: () => Promise<void>): void {
             (ws) => `
           <button class="workspace-option ${ws.id === state.workspace?.id ? 'current' : ''}"
             data-workspace-id="${ws.id}">
-            <span class="workspace-dot"></span>
+            <span class="workspace-dot ${state.workspaceFolderAvailability[ws.id] === false ? 'missing' : ws.strictMode ? 'open-resources' : ''}" title="${state.workspaceFolderAvailability[ws.id] === false ? 'Main folder not found' : ws.strictMode ? 'Opens linked resources automatically' : 'Gentle reminder mode'}"></span>
             <span>
               <strong>${escapeHtml(ws.name)}</strong>
               <small>Main folder · ${escapeHtml(ws.masterFolder)}</small>
@@ -589,52 +589,5 @@ export function openWorkspaceSettingsModal(load: () => Promise<void>, render: ()
     } catch (err) {
       showFormError(overlay, '#workspace-settings-error', err instanceof Error ? err.message : 'Could not save Space settings.');
     }
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Rename file modal
-// ---------------------------------------------------------------------------
-
-export function openRenameFileModal(
-  entryPath: string,
-  currentName: string,
-  load: (path?: string) => Promise<void>,
-  currentFolderPath: string,
-): void {
-  const overlay = createOverlay(`
-    <form class="modal-card">
-      <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">RENAME RESOURCE</span>
-      <h2>Rename carefully</h2>
-      <p class="modal-copy">
-        This changes the real Windows file or folder name.
-        Senku will not move or copy it.
-      </p>
-      <label>New name
-        <input name="name" required value="${escapeHtml(currentName)}" />
-      </label>
-      <p class="rename-warning">
-        Warning: any Windows app, shortcut, task link, or external reference using the
-        old name may stop working.
-      </p>
-      <p class="form-error" id="rename-error"></p>
-      <button class="primary-button" type="submit">Rename resource <span>→</span></button>
-    </form>`);
-
-  overlay.querySelector('form')!.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = String(new FormData(e.currentTarget as HTMLFormElement).get('name')).trim();
-    if (!name || name === currentName) {
-      overlay.remove();
-      return;
-    }
-    const result = await window.senku.renamePath(entryPath, name);
-    if (!result.ok) {
-      showFormError(overlay, '#rename-error', result.error || 'Rename failed.');
-      return;
-    }
-    overlay.remove();
-    await load(currentFolderPath);
   });
 }

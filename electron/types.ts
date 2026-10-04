@@ -63,6 +63,7 @@ export interface DailyNote {
 export interface AppSnapshot {
   settings: Settings;
   workspaces: Workspace[];
+  workspaceFolderAvailability: Record<string, boolean>;
   workspace: Workspace | null;
   entries: FileEntry[];
   currentPath: string;

@@ -1,4 +1,5 @@
 import { state, currentView, selectedTaskIds, setCompletedFilter, setView, setDailyNote, setState } from './state';
+import { registerShortcuts } from './shortcuts';
 import {
   openNewTaskModal,
   openEditTaskModal,
@@ -9,7 +10,6 @@ import {
   openWorkspaceMenuModal,
   openWorkspaceFormModal,
   openWorkspaceSettingsModal,
-  openRenameFileModal,
 } from './modals';
 
 type LoadFn = (path?: string) => Promise<void>;
@@ -221,7 +221,7 @@ function bindFileActions(load: LoadFn): void {
     }),
   );
 
-  // Copy path / rename / pin / unpin
+  // Copy path / pin / unpin
   document.querySelectorAll<HTMLElement>('[data-file-action]').forEach((btn) =>
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -232,11 +232,6 @@ function bindFileActions(load: LoadFn): void {
         await window.senku.copyPath(filePath);
         btn.textContent = 'Copied';
         setTimeout(() => { btn.textContent = 'Copy path'; }, 1200);
-        return;
-      }
-
-      if (action === 'rename') {
-        openRenameFileModal(filePath, btn.dataset.name!, load, state.currentPath);
         return;
       }
 
@@ -316,6 +311,8 @@ function bindTaskRowActions(load: LoadFn): void {
 // ---------------------------------------------------------------------------
 
 export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
+  registerShortcuts(load, render);
+
   document.addEventListener(
     'click',
     async (e) => {

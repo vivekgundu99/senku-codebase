@@ -17,7 +17,6 @@ declare global {
       openPath(path: string): Promise<{ ok: boolean; error?: string }>;
       openUserGuide(): Promise<{ ok: boolean; error?: string }>;
       copyPath(path: string): Promise<boolean>;
-      renamePath(path: string, name: string): Promise<{ ok: boolean; error?: string }>;
       pinPath(path: string): Promise<AppSnapshot>;
       unpinPath(path: string): Promise<AppSnapshot>;
       saveNote(content: string): Promise<void>;
