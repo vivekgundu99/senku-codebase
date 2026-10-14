@@ -1,6 +1,5 @@
 import { state, setState, currentView } from './state';
 import {
-  setupScreenMarkup,
   sidebarMarkup,
   topbarMarkup,
   errorBannerMarkup,
@@ -11,7 +10,6 @@ import {
 } from './markup';
 import {
   bindAll,
-  bindSetupScreen,
   initGlobalListeners,
   addResourceButtons,
   addCompleteSelectedBar,
@@ -30,11 +28,6 @@ const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 // ---------------------------------------------------------------------------
 
 function render(): void {
-  if (!state?.workspace) {
-    appRoot.innerHTML = setupScreenMarkup();
-    bindSetupScreen(load);
-    return;
-  }
 
   // Note view replaces the task panel with the daily note editor
   const mainContent = currentView === 'Note'
@@ -76,16 +69,55 @@ function render(): void {
 
   // Daily note autosave (re-bound each render so it always has the fresh textarea)
   bindDailyNote();
+
+  // Keep active space visible and centered in the sidebar list
+  const scrollToActiveSpace = () => {
+    const activeSpace = appRoot.querySelector<HTMLElement>('.space-row.current');
+    const spaceList = appRoot.querySelector<HTMLElement>('.space-list');
+    if (activeSpace && spaceList) {
+      const rowTop = activeSpace.offsetTop;
+      const rowHeight = activeSpace.offsetHeight;
+      const listHeight = spaceList.clientHeight;
+      if (listHeight > 0) {
+        spaceList.scrollTop = Math.max(0, rowTop - listHeight / 2 + rowHeight / 2);
+      } else {
+        activeSpace.scrollIntoView({ block: 'center', behavior: 'instant' });
+      }
+    }
+  };
+  requestAnimationFrame(() => {
+    scrollToActiveSpace();
+    setTimeout(scrollToActiveSpace, 60);
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Data loading
 // ---------------------------------------------------------------------------
 
+let loadSeq = 0;
+
 async function load(pathToShow?: string): Promise<void> {
-  const snapshot = await window.senku.getSnapshot(pathToShow);
-  setState(snapshot);
-  render();
+  const seq = ++loadSeq;
+  try {
+    const snapshot = await window.senku.getSnapshot(pathToShow);
+    // Two quick requests can finish out of order. Only the newest one may draw.
+    if (seq !== loadSeq) return;
+    setState(snapshot);
+    render();
+  } catch (error) {
+    if (seq !== loadSeq) return;
+    console.error('Senku could not load:', error);
+    // Keep whatever is on screen. Only show the error screen if nothing was drawn yet.
+    if (state?.workspace || state?.settings) return;
+    appRoot.innerHTML = `
+      <main class="setup-shell">
+        <h1>Something went wrong.</h1>
+        <p class="setup-copy">Senku could not read its data. Your files and tasks are safe.</p>
+        <button class="primary-button" id="retry-load" style="max-width:200px">Try again <span>→</span></button>
+      </main>`;
+    appRoot.querySelector('#retry-load')?.addEventListener('click', () => void load(pathToShow));
+  }
 }
 
 // ---------------------------------------------------------------------------

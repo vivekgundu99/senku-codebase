@@ -1,4 +1,21 @@
-import { state, currentView, selectedTaskIds, setCompletedFilter, setView, setDailyNote, setState } from './state';
+import {
+  state,
+  currentView,
+  completedFilter,
+  selectedTaskIds,
+  setCompletedFilter,
+  setView,
+  setDailyNote,
+  setNoteDirty,
+  setFileFilter,
+  showMoreFiles,
+  visibleTasks,
+  setPickedFlexibleTask,
+  pickedFlexibleTaskId,
+  setHomeFocusTab,
+} from './state';
+import { fileCountLabel, fileListMarkup } from './markup';
+import { checkMainFolder, DEFAULT_GREETING, isSamePath, parentOf } from './utils';
 import { registerShortcuts } from './shortcuts';
 import {
   openNewTaskModal,
@@ -7,7 +24,6 @@ import {
   openReassignModal,
   openProfileModal,
   openAppSettingsModal,
-  openWorkspaceMenuModal,
   openWorkspaceFormModal,
   openWorkspaceSettingsModal,
 } from './modals';
@@ -32,38 +48,32 @@ export function addResourceButtons(): void {
     if (!task?.linkedPaths.length) return;
 
     const detail = row.querySelector('.task-body');
-    if (!detail || detail.querySelector('.open-resources-button')) return;
+    if (!detail || detail.querySelector('.task-launch-pill, .open-resources-button')) return;
 
     const button = document.createElement('button');
-    button.className = 'open-resources-button';
+    button.className = 'task-launch-pill';
     button.dataset.action = 'open-resources';
     button.dataset.taskId = task.id;
-    button.textContent = `Open resources (${task.linkedPaths.length})`;
+    button.innerHTML = `<span class="pill-icon">▷</span> Launch (${task.linkedPaths.length})`;
     button.title = 'Open all linked resources';
     detail.append(button);
   });
 }
 
-/** Inject Complete + Delete selection action bar above the task list in active views. */
+/** Selection bar above the task list. Active tasks: Complete + Delete. Completed tasks: Delete. */
 export function addCompleteSelectedBar(): void {
-  if (currentView === 'Completed' || currentView === 'Error') return;
-  if (selectedTaskIds.size === 0) return;
+  if (currentView === 'Error' || selectedTaskIds.size === 0) return;
   const list = document.querySelector('.task-list');
   if (!list || list.previousElementSibling?.classList.contains('selection-actions')) return;
 
-  const count = selectedTaskIds.size;
+  const allSelected = visibleTasks().every((t) => selectedTaskIds.has(t.id));
   const bar = document.createElement('div');
   bar.className = 'selection-actions';
   bar.innerHTML = `
-    <span class="selection-count">${count} selected</span>
-    <button class="selection-btn complete" data-action="complete-selected"
-      >
-      ✓ Complete
-    </button>
-    <button class="selection-btn delete" data-action="delete-selected"
-      >
-      ✕ Delete
-    </button>`;
+    <span class="selection-count">${selectedTaskIds.size} selected</span>
+    <button class="selection-link" data-action="select-all">${allSelected ? 'Clear' : 'Select all'}</button>
+    ${currentView === 'Completed' ? '' : '<button class="selection-btn complete" data-action="complete-selected">✓ Complete</button>'}
+    <button class="selection-btn delete" data-action="delete-selected">✕ Delete</button>`;
   list.before(bar);
 }
 
@@ -75,10 +85,9 @@ export function addCompletedFilters(render: RenderFn): void {
 
   const filters = document.createElement('div');
   filters.className = 'task-filters';
-  filters.innerHTML = `
-    <button data-completed-filter="today">Today</button>
-    <button data-completed-filter="last-week">Last week</button>
-    <button data-completed-filter="all">All</button>`;
+  const option = (value: string, label: string) =>
+    `<button data-completed-filter="${value}" class="${completedFilter === value ? 'active' : ''}">${label}</button>`;
+  filters.innerHTML = option('today', 'Today') + option('last-week', 'Last week') + option('all', 'All');
   list.before(filters);
 
   filters.querySelectorAll<HTMLElement>('[data-completed-filter]').forEach((btn) =>
@@ -107,6 +116,7 @@ export function bindDailyNote(): void {
   textarea.addEventListener('input', () => {
     const content = textarea.value;
     setDailyNote(content);
+    setNoteDirty(true);
 
     // Debounce saves — write 1.5 s after the user stops typing
     if (noteSaveTimer) clearTimeout(noteSaveTimer);
@@ -116,6 +126,8 @@ export function bindDailyNote(): void {
     }
     noteSaveTimer = setTimeout(async () => {
       await window.senku.saveNote(content);
+      // Only "clean" if nothing new was typed while saving.
+      if (textarea.value === content) setNoteDirty(false);
       if (savedEl) {
         savedEl.textContent = 'saved';
         // Fade out after 2 s
@@ -157,23 +169,12 @@ function bindNavigation(render: RenderFn): void {
 
 function bindSidebarButtons(load: LoadFn, render: RenderFn): void {
   document
-    .querySelector('#workspace-switcher')
-    ?.addEventListener('click', () => openWorkspaceMenuModal(load));
-
-  document
     .querySelector('#workspace-settings')
     ?.addEventListener('click', () => openWorkspaceSettingsModal(load, render));
 
   document.querySelector('#add-space')?.addEventListener('click', () => openWorkspaceFormModal(load));
 
   document.querySelector('#app-settings')?.addEventListener('click', () => openAppSettingsModal(render));
-
-  document.querySelectorAll<HTMLElement>('[data-switch-space]').forEach((button) =>
-    button.addEventListener('click', async () => {
-      await window.senku.switchWorkspace(button.dataset.switchSpace!);
-      await load();
-    }),
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -184,72 +185,85 @@ function bindTopbarButtons(load: LoadFn): void {
   document
     .querySelector('#refresh-button')
     ?.addEventListener('click', () => void load(state.currentPath));
-
-  document
-    .querySelector('#open-folder')
-    ?.addEventListener('click', () => void window.senku.openPath(state.currentPath));
-
-  document
-    .querySelector('#go-root')
-    ?.addEventListener('click', () => void load(state.workspace?.masterFolder));
-
-  document.querySelectorAll<HTMLElement>('[data-breadcrumb]').forEach((btn) =>
-    btn.addEventListener('click', () => void load(btn.dataset.breadcrumb)),
-  );
 }
 
 // ---------------------------------------------------------------------------
 // File actions
 // ---------------------------------------------------------------------------
 
+/** One listener for the whole panel (instead of 3 per row), so big folders stay fast. */
 function bindFileActions(load: LoadFn): void {
-  // Open file / navigate into folder
-  document.querySelectorAll<HTMLElement>('[data-open-path]').forEach((btn) =>
-    btn.addEventListener('click', async () => {
-      const p = btn.dataset.openPath!;
-      if (btn.dataset.kind === 'folder') await load(p);
-      else await window.senku.openPath(p);
-    }),
-  );
+  const panel = document.querySelector<HTMLElement>('.files-panel');
+  if (!panel) return;
 
-  // Double-click row also opens
-  document.querySelectorAll<HTMLElement>('.file-row').forEach((row) =>
-    row.addEventListener('dblclick', () => {
-      const p = row.dataset.path!;
-      if (row.dataset.kind === 'folder') void load(p);
-      else void window.senku.openPath(p);
-    }),
-  );
+  const refreshList = () => {
+    const list = panel.querySelector('.file-list');
+    if (list) list.innerHTML = fileListMarkup();
+    const count = panel.querySelector('#file-count');
+    if (count) count.textContent = fileCountLabel();
+  };
 
-  // Copy path / pin / unpin
-  document.querySelectorAll<HTMLElement>('[data-file-action]').forEach((btn) =>
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const action = btn.dataset.fileAction!;
-      const filePath = btn.dataset.path!;
+  panel.addEventListener('click', async (event) => {
+    const target = event.target as HTMLElement;
 
+    const fileAction = target.closest<HTMLElement>('[data-file-action]');
+    if (fileAction) {
+      event.stopPropagation();
+      const action = fileAction.dataset.fileAction!;
+      const filePath = fileAction.dataset.path!;
       if (action === 'copy') {
         await window.senku.copyPath(filePath);
-        btn.textContent = 'Copied';
-        setTimeout(() => { btn.textContent = 'Copy path'; }, 1200);
+        fileAction.textContent = 'Copied';
+        setTimeout(() => { fileAction.textContent = 'Copy path'; }, 1200);
         return;
       }
+      const here = state.currentPath;
+      if (action === 'pin') await window.senku.pinPath(filePath);
+      if (action === 'unpin') await window.senku.unpinPath(filePath);
+      await load(here);
+      return;
+    }
 
-      if (action === 'pin') {
-        const snap = await window.senku.pinPath(filePath);
-        setState(snap);
-        await load(state.currentPath);
-        return;
-      }
+    const open = target.closest<HTMLElement>('[data-open-path]');
+    if (open) {
+      const p = open.dataset.openPath!;
+      if (open.dataset.kind === 'folder') await load(p);
+      else await window.senku.openPath(p);
+      return;
+    }
 
-      if (action === 'unpin') {
-        const snap = await window.senku.unpinPath(filePath);
-        setState(snap);
-        await load(state.currentPath);
-        return;
-      }
-    }),
-  );
+    if (target.closest('#show-more-files')) {
+      showMoreFiles();
+      refreshList();
+      return;
+    }
+    if (target.closest('#go-up')) {
+      const root = state.workspace?.masterFolder;
+      if (root && !isSamePath(state.currentPath, root)) await load(parentOf(state.currentPath));
+      return;
+    }
+    if (target.closest('#go-root')) {
+      await load(state.workspace?.masterFolder);
+      return;
+    }
+    if (target.closest('#open-folder')) {
+      await window.senku.openPath(state.currentPath);
+      return;
+    }
+    const crumb = target.closest<HTMLElement>('[data-breadcrumb]');
+    if (crumb) await load(crumb.dataset.breadcrumb);
+  });
+
+  // Live filter: only the list is redrawn, so typing never loses focus.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  panel.querySelector<HTMLInputElement>('#file-filter')?.addEventListener('input', (event) => {
+    const value = (event.target as HTMLInputElement).value;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      setFileFilter(value);
+      refreshList();
+    }, 120);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -319,17 +333,169 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       const target = e.target as HTMLElement;
 
       // Avatar / profile
-      if (target.closest('.avatar-button, #profile-sidebar-button')) {
+      if (target.closest('.avatar-button, #profile-avatar-button, #profile-sidebar-button')) {
         e.preventDefault();
         openProfileModal(render);
         return;
       }
 
+      // Switch Space -> Always return to Home
+      const switchSpaceBtn = target.closest<HTMLElement>('[data-switch-space]');
+      if (switchSpaceBtn) {
+        e.preventDefault();
+        const spaceId = switchSpaceBtn.dataset.switchSpace;
+        if (spaceId) {
+          await window.senku.switchWorkspace(spaceId);
+          setView('Home');
+          await load();
+        }
+        return;
+      }
+
+      // Create Space triggers (header +, empty states, topbar pill, files unlinked button)
+      if (target.closest('#add-space, #add-space-empty, #topbar-create-space, #create-space-files')) {
+        e.preventDefault();
+        openWorkspaceFormModal(load);
+        return;
+      }
+
       // Add task
-      if (target.closest('#new-task, #add-task, #home-add-task')) {
+      if (target.closest('#new-task, #add-task, #home-add-task, #home-hero-add-task, #home-agenda-add-task, #topbar-add-task')) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        if (!state.workspace) {
+          openWorkspaceFormModal(load);
+          return;
+        }
         openNewTaskModal(load);
+        return;
+      }
+
+      // Hero Tab switcher (Scheduled Focus vs Flexible Focus)
+      const tabBtn = target.closest<HTMLElement>('[data-home-tab]');
+      if (tabBtn) {
+        e.preventDefault();
+        const tab = tabBtn.dataset.homeTab as 'scheduled' | 'flexible';
+        if (tab) {
+          setHomeFocusTab(tab);
+          render();
+        }
+        return;
+      }
+
+      // Hero Launchpad: Start & Launch all resources
+      const launchBtn = target.closest<HTMLElement>('[data-hero-launch]');
+      if (launchBtn) {
+        e.preventDefault();
+        const taskId = launchBtn.dataset.heroLaunch;
+        const task = state.activeTasks?.find((t) => t.id === taskId);
+        if (task) {
+          const originalHtml = launchBtn.innerHTML;
+          launchBtn.innerHTML = `<span class="launch-icon">✓</span> <span class="launch-label">Opening resources...</span>`;
+          for (const p of task.linkedPaths) {
+            await window.senku.openPath(p);
+          }
+          setTimeout(() => {
+            launchBtn.innerHTML = `<span class="launch-icon">✓</span> <span class="launch-label">Launched! Focus well</span> <span class="launch-arrow">→</span>`;
+          }, 400);
+          setTimeout(() => {
+            if (document.body.contains(launchBtn)) launchBtn.innerHTML = originalHtml;
+          }, 3500);
+        }
+        return;
+      }
+
+      // Hero Launchpad: Quick complete
+      const heroCompleteBtn = target.closest<HTMLElement>('[data-hero-complete]');
+      if (heroCompleteBtn) {
+        e.preventDefault();
+        const taskId = heroCompleteBtn.dataset.heroComplete;
+        if (taskId) {
+          await window.senku.completeTask(taskId);
+          setPickedFlexibleTask(null);
+          await load();
+        }
+        return;
+      }
+
+      // Hero Launchpad: Quick snooze
+      const heroSnoozeBtn = target.closest<HTMLElement>('[data-hero-snooze]');
+      if (heroSnoozeBtn) {
+        e.preventDefault();
+        const taskId = heroSnoozeBtn.dataset.heroSnooze;
+        const mins = Number(heroSnoozeBtn.dataset.mins ?? 15);
+        if (taskId) {
+          await window.senku.snoozeTask(taskId, mins);
+          await load();
+        }
+        return;
+      }
+
+      // Hero Launchpad: Quick make-flexible (guilt-free escape)
+      const heroFlexBtn = target.closest<HTMLElement>('[data-hero-flexible]');
+      if (heroFlexBtn) {
+        e.preventDefault();
+        const taskId = heroFlexBtn.dataset.heroFlexible;
+        const task = state.activeTasks?.find((t) => t.id === taskId);
+        if (task) {
+          await window.senku.updateTask(task.id, {
+            title: task.title,
+            taskType: 'flexible',
+            linkedPaths: task.linkedPaths,
+          });
+          await load();
+        }
+        return;
+      }
+
+      // Hero Launchpad: Pick random flexible task
+      if (target.closest('#hero-pick-random, #hero-pick-another')) {
+        e.preventDefault();
+        const flexible = state.activeTasks?.filter((t) => t.taskType === 'flexible') ?? [];
+        if (flexible.length > 0) {
+          const other = flexible.filter((t) => t.id !== pickedFlexibleTaskId);
+          const pool = other.length > 0 ? other : flexible;
+          const choice = pool[Math.floor(Math.random() * pool.length)];
+          setPickedFlexibleTask(choice.id);
+          render();
+        }
+        return;
+      }
+
+      // Task row: 1-click make-flexible
+      const rowMakeFlex = target.closest<HTMLElement>('[data-action="make-flexible"]');
+      if (rowMakeFlex) {
+        e.preventDefault();
+        const id = rowMakeFlex.dataset.id;
+        const task = state.activeTasks?.find((t) => t.id === id);
+        if (task) {
+          await window.senku.updateTask(task.id, {
+            title: task.title,
+            firstStep: task.firstStep,
+            taskType: 'flexible',
+            linkedPaths: task.linkedPaths,
+          });
+          await load();
+        }
+        return;
+      }
+
+      // Missed banner: Convert all to flexible
+      if (target.closest('#convert-all-flexible')) {
+        e.preventDefault();
+        const now = Date.now();
+        const overdueTasks = (state.activeTasks ?? []).filter(
+          (t) => t.taskType === 'scheduled' && t.endAt && Date.parse(t.endAt) < now,
+        );
+        for (const task of overdueTasks) {
+          await window.senku.updateTask(task.id, {
+            title: task.title,
+            firstStep: task.firstStep,
+            taskType: 'flexible',
+            linkedPaths: task.linkedPaths,
+          });
+        }
+        await load();
         return;
       }
 
@@ -366,27 +532,37 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
         return;
       }
 
+      // Select all / clear (only the rows currently visible)
+      if (target.closest('[data-action="select-all"]')) {
+        const ids = visibleTasks().map((t) => t.id);
+        if (ids.every((id) => selectedTaskIds.has(id))) selectedTaskIds.clear();
+        else ids.forEach((id) => selectedTaskIds.add(id));
+        render();
+        return;
+      }
+
+      // Bulk actions only touch rows that are visible right now.
+      const selectedVisibleIds = () => visibleTasks().map((t) => t.id).filter((id) => selectedTaskIds.has(id));
+
       // Complete selected — single atomic IPC call, no file-race
-      const completeBar = target.closest<HTMLElement>('[data-action="complete-selected"]');
-      if (completeBar && !completeBar.hasAttribute('disabled')) {
+      if (target.closest('[data-action="complete-selected"]')) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        const ids = [...selectedTaskIds];
+        const ids = selectedVisibleIds();
         selectedTaskIds.clear();
-        await window.senku.completeManyTasks(ids);
+        if (ids.length) await window.senku.completeManyTasks(ids);
         await load();
         return;
       }
 
-      // Delete selected — same atomic approach
-      const deleteBar = target.closest<HTMLElement>('[data-action="delete-selected"]');
-      if (deleteBar && !deleteBar.hasAttribute('disabled')) {
+      // Delete selected — works for active and completed tasks
+      if (target.closest('[data-action="delete-selected"]')) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        const ids = [...selectedTaskIds];
-        if (confirm(`Delete ${ids.length} task(s)? This cannot be undone.`)) {
+        const ids = selectedVisibleIds();
+        if (ids.length && confirm(`Delete ${ids.length} task${ids.length === 1 ? '' : 's'}? This cannot be undone. Your files are not affected.`)) {
           selectedTaskIds.clear();
-          await window.senku.deleteManyTasks(ids, 'active');
+          await window.senku.deleteManyTasks(ids, currentView === 'Completed' ? 'completed' : 'active');
           await load();
         }
         return;
@@ -405,42 +581,4 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Setup screen
-// ---------------------------------------------------------------------------
 
-export function bindSetupScreen(load: LoadFn): void {
-  document.querySelector('#browse-folder')?.addEventListener('click', async () => {
-    const selected = await window.senku.chooseMasterFolder();
-    if (selected) {
-      (document.querySelector<HTMLInputElement>('#master-path')!).value = selected;
-    }
-  });
-
-  document.querySelector('#save-folder')?.addEventListener('click', async () => {
-    const name = (document.querySelector<HTMLInputElement>('#user-name')!).value.trim();
-    const wsName = (document.querySelector<HTMLInputElement>('#workspace-name')!).value.trim();
-    const folder = (document.querySelector<HTMLInputElement>('#master-path')!).value.trim();
-    const errorEl = document.querySelector('#setup-error')!;
-
-    if (!name || !wsName || !folder) {
-      errorEl.textContent = 'Enter your name, Space name, and main folder.';
-      return;
-    }
-
-    try {
-      const { DEFAULT_GREETING } = await import('./utils');
-      await window.senku.saveSettings({
-        userName: name,
-        activeWorkspaceId: '',
-        launchAtStartup: true,
-        greeting: DEFAULT_GREETING,
-      });
-      await window.senku.createWorkspace(wsName, folder);
-      await load();
-    } catch (err) {
-      errorEl.textContent =
-        err instanceof Error ? err.message : 'Could not create Space.';
-    }
-  });
-}

@@ -3,83 +3,674 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#f5f4ef" />
-  <title>Senku Guide</title>
+  <meta name="theme-color" content="#f5f2ea" />
+  <title>Senku — User Guide &amp; Master Shortcuts</title>
   <style>
-    :root { color-scheme: light; --ink:#26332d; --muted:#718078; --green:#6b8b69; --line:#e1e3dc; --paper:#fbfbf8; --pale:#e5eee2; }
-    * { box-sizing:border-box; }
-    body { margin:0; background:radial-gradient(circle at 90% 0,#e5eee2,transparent 27%),#f5f4ef; color:var(--ink); font:16px/1.65 'Segoe UI',sans-serif; }
-    header { position:sticky; top:0; padding:16px max(24px,calc((100% - 980px)/2)); border-bottom:1px solid var(--line); background:rgba(251,251,248,.92); backdrop-filter:blur(12px); }
-    header strong { font-size:18px; letter-spacing:-.04em; }
-    main { width:min(980px,calc(100% - 40px)); margin:68px auto 100px; }
-    .eyebrow { color:var(--green); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
-    h1 { max-width:760px; margin:12px 0 16px; font-size:clamp(40px,7vw,72px); line-height:1.02; letter-spacing:-.07em; }
-    h1 em { color:var(--green); font-weight:500; }
-    .intro { max-width:660px; color:var(--muted); font-size:18px; }
-    nav { display:flex; flex-wrap:wrap; gap:8px; margin:32px 0 70px; }
-    nav a { padding:8px 12px; border:1px solid var(--line); border-radius:6px; color:var(--green); text-decoration:none; font-size:13px; font-weight:700; }
-    section { padding:32px 0; border-top:1px solid var(--line); scroll-margin-top:90px; }
-    h2 { margin:0 0 12px; font-size:28px; letter-spacing:-.05em; }
-    h3 { margin:22px 0 6px; font-size:17px; }
-    p, li { color:#59665d; }
-    .callout { margin:20px 0; padding:16px 18px; border-left:3px solid var(--green); background:var(--pale); }
-    .quote { margin:28px 0 0; padding-left:16px; border-left:2px solid var(--green); color:var(--green); font-size:18px; font-weight:700; }
-    .steps { padding-left:22px; }
-    footer { padding:30px 20px; border-top:1px solid var(--line); color:var(--muted); text-align:center; font-size:13px; }
-    code { padding:2px 5px; border-radius:4px; background:#eff0ea; }
+    :root {
+      --ink: #29362f;
+      --ink-soft: #596b61;
+      --muted: #798b80;
+      --green: #5f805f;
+      --green-deep: #436444;
+      --green-light: #e5eee2;
+      --paper: #fbfbf8;
+      --bg: #f5f2ea;
+      --card-bg: #fffdf8;
+      --line: #dedcd4;
+      --line-subtle: #eae8df;
+      --kbd-bg: #edece4;
+      --kbd-border: #cbcaa5;
+      --amber: #b86214;
+      --amber-bg: #fdf5ea;
+      --shadow-sm: 0 2px 8px rgba(41, 54, 47, 0.04);
+      --shadow-md: 0 8px 24px rgba(41, 54, 47, 0.07);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: radial-gradient(circle at 85% 0%, var(--green-light) 0%, transparent 28%), var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 14px max(24px, calc((100% - 1000px)/2));
+      border-bottom: 1px solid var(--line);
+      background: rgba(251, 251, 248, 0.92);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .header-logo .badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--green-light);
+      color: var(--green-deep);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-link {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+    .header-link:hover {
+      color: var(--ink);
+      background: var(--line-subtle);
+    }
+    .header-btn {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--green-deep);
+      text-decoration: none;
+      padding: 7px 14px;
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+    .header-btn:hover {
+      background: var(--green);
+    }
+
+    main {
+      width: min(1000px, calc(100% - 44px));
+      margin: 50px auto 100px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--green-deep);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .hero-eyebrow span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+    h1 {
+      max-width: 840px;
+      font-size: clamp(38px, 6vw, 68px);
+      line-height: 1.05;
+      letter-spacing: -0.05em;
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 22px;
+    }
+    h1 em {
+      font-style: normal;
+      color: var(--green);
+      position: relative;
+    }
+    .hero-lead {
+      max-width: 720px;
+      color: var(--ink-soft);
+      font-size: clamp(18px, 2.2vw, 21px);
+      line-height: 1.5;
+      margin-bottom: 30px;
+    }
+
+    .quote-box {
+      margin: 28px 0 36px;
+      padding: 18px 22px;
+      border-left: 3px solid var(--green);
+      background: var(--card-bg);
+      border-radius: 0 10px 10px 0;
+      border-top: 1px solid var(--line-subtle);
+      border-right: 1px solid var(--line-subtle);
+      border-bottom: 1px solid var(--line-subtle);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .quote-box span {
+      display: block;
+      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    nav.toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 36px 0 60px;
+      padding: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    nav.toc a {
+      padding: 6px 12px;
+      border-radius: 6px;
+      color: var(--ink-soft);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--paper);
+      border: 1px solid var(--line-subtle);
+      transition: all 0.15s ease;
+    }
+    nav.toc a:hover {
+      color: var(--green-deep);
+      border-color: var(--green);
+      background: var(--green-light);
+    }
+
+    section {
+      padding: 44px 0;
+      border-top: 1px solid var(--line);
+      scroll-margin-top: 80px;
+    }
+    .section-tag {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+    h2 {
+      font-size: clamp(26px, 3.5vw, 36px);
+      letter-spacing: -0.04em;
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 16px;
+    }
+    h3 {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin: 28px 0 10px;
+    }
+    p {
+      color: var(--ink-soft);
+      font-size: 16px;
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+    p strong {
+      color: var(--ink);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin: 24px 0 16px;
+    }
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--green);
+    }
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+    .feature-card h4 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--ink-soft);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .callout {
+      margin: 22px 0;
+      padding: 18px 20px;
+      border-radius: 10px;
+      border-left: 4px solid var(--green);
+      background: var(--green-light);
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .callout-amber {
+      border-left-color: var(--amber);
+      background: var(--amber-bg);
+    }
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Shortcuts Table */
+    .shortcuts-wrapper {
+      margin: 24px 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--card-bg);
+      box-shadow: var(--shadow-sm);
+    }
+    table.shortcuts-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    table.shortcuts-table th {
+      background: #f7f6f0;
+      padding: 12px 18px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+    table.shortcuts-table td {
+      padding: 14px 18px;
+      font-size: 14px;
+      border-bottom: 1px solid var(--line-subtle);
+      color: var(--ink-soft);
+    }
+    table.shortcuts-table tr:last-child td {
+      border-bottom: none;
+    }
+    table.shortcuts-table tr:hover td {
+      background: rgba(95, 128, 95, 0.04);
+    }
+    kbd {
+      display: inline-block;
+      padding: 3px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      background: var(--kbd-bg);
+      border: 1px solid var(--kbd-border);
+      border-radius: 5px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+      margin: 0 2px;
+    }
+
+    footer {
+      padding: 40px 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    footer strong {
+      color: var(--ink);
+    }
+
+    @media (max-width: 640px) {
+      .header-actions { display: none; }
+      nav.toc { gap: 6px; }
+      h1 { font-size: 34px; }
+    }
   </style>
 </head>
 <body>
-  <header><strong>senku</strong></header>
+  <header>
+    <a href="#" class="header-logo">
+      <span>senku</span>
+      <span class="badge" data-version-badge>v2.4.0</span>
+    </a>
+    <div class="header-actions">
+      <a href="#launchpad" class="header-link">Next Up</a>
+      <a href="#shortcuts" class="header-link">Shortcuts</a>
+      <a href="#spaces" class="header-link">Spaces</a>
+      <a href="#shortcuts" class="header-btn">Cheatsheet</a>
+    </div>
+  </header>
+
   <main>
-    <p class="eyebrow">A guide to your workspace</p>
-    <h1>Your files, your flow.<br><em>Senku helps you pick up where you left off.</em></h1>
-    <p class="intro">Senku brings folders, tasks, links, and rough notes together. It remembers the context you choose, then keeps it easy to return to.</p>
-    <blockquote class="quote">“senku is a spark, you are the fire”</blockquote>
-    <nav aria-label="Guide sections">
-      <a href="#home">Home</a><a href="#spaces">Spaces</a><a href="#tasks">Tasks</a><a href="#flexible">Flexible</a><a href="#files">Files</a><a href="#privacy">Your data</a>
+    <div class="hero-eyebrow">
+      <span></span> Built for Students Who Actually Build
+    </div>
+    <h1>Stop planning your work.<br><em>Start it in 120 seconds.</em></h1>
+    <p class="hero-lead">
+      You don't need another 50-feature productivity app with 10 colored tags, sub-tasks, and complex kanban boards that you abandon next Tuesday. You need to start. In the next two minutes.
+    </p>
+
+    <div class="quote-box">
+      “Senku is a spark, you are the fire.”
+      <span>Action creates motivation — not the other way around.</span>
+    </div>
+
+    <nav class="toc" aria-label="Table of Contents">
+      <a href="#why-senku">The Senku Philosophy</a>
+      <a href="#launchpad">Next Up Launchpad</a>
+      <a href="#tiny-step">The 2-Minute First Step</a>
+      <a href="#paradigms">Scheduled vs. Flexible</a>
+      <a href="#pick-for-me">Pick For Me</a>
+      <a href="#soft-missed">Soft Missed Tasks</a>
+      <a href="#spaces">Spaces &amp; Files</a>
+      <a href="#rough-note">Rough Note</a>
+      <a href="#shortcuts">Keyboard Shortcuts</a>
+      <a href="#privacy">Zero-Cloud Privacy</a>
     </nav>
-    <section id="home">
-      <h2>Home and Rough Note</h2>
-      <p>Senku opens to Home. It shows task counts and shortcuts to Today, Upcoming, Overdue, and Completed, alongside the current Space's file browser. Task names stay in their task views.</p>
-      <p>The sidebar keeps Home, Rough Note, your Spaces, and settings close at hand. Rough Note is a simple place for thoughts and reminders that do not need to become tasks.</p>
+
+    <!-- SECTION 1: THE PHILOSOPHY -->
+    <section id="why-senku">
+      <div class="section-tag">01 · The Problem We Solved</div>
+      <h2>The Real Enemy Isn't Discipline. It's Initiation Friction.</h2>
+      <p>
+        Every student coder knows the feeling: you have an assignment due tomorrow or a 40-video DSA playlist waiting. You want to work. But opening the browser, finding the tutorial link, navigating 5 nested Windows folders to open VS Code, and remembering what line of code you wrote yesterday feels like lifting a boulder.
+      </p>
+      <p>
+        Psychologists call this <strong>initiation friction</strong> and subtle <strong>executive dysfunction</strong>. In high-demand college routines, you also deal with <strong>time blindness</strong> — hours vanish while you fiddle with setups or worry about how much work is left.
+      </p>
+      <div class="callout">
+        <div class="callout-title">The Senku Rule:</div>
+        Senku does not track your life. Senku exists solely to push you past the first 120 seconds of resistance. Once you are in motion, your own brain takes over.
+      </div>
     </section>
-    <section id="spaces">
-      <h2>Spaces</h2>
-      <p>A Space connects a name, a main folder, and its own task list. Make a Space for college, a project, personal work, or any setup that suits you.</p>
-      <p>Use the Spaces list in the sidebar to switch quickly. In Current Space Settings, you can rename the Space, choose a different main folder, and change its resource-opening setting. Your Senku tasks and note stay with the Space when you change its folder.</p>
-      <div class="callout">Deleting a Space removes its Senku data. It does not delete the Windows folder or the files inside it.</div>
+
+    <!-- SECTION 2: NEXT UP LAUNCHPAD -->
+    <section id="launchpad">
+      <div class="section-tag">02 · The Home Screen</div>
+      <h2>The Next Up Launchpad</h2>
+      <p>
+        When you open Senku, you are not assaulted with 30 overdue red alerts or a wall of tasks. You see exactly <strong>one clean hero card</strong>: what is next right now.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🚀</div>
+          <h4>One-Click Start &amp; Launch</h4>
+          <p>Click the big hero button. Senku simultaneously opens your code editor, your browser links, your project folders, and sets your headspace into motion.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h4>Zero Context Switching</h4>
+          <p>Everything you need for that specific task is pre-linked. No searching for files, no bookmark diving, no distractions.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h4>Rapid Micro-Actions</h4>
+          <p>Finished early? Hit <strong>✓ Done</strong>. Need a coffee break? Hit <strong>Snooze 15m</strong>. Ran out of steam? Hit <strong>Make flexible</strong> without any guilt.</p>
+        </div>
+      </div>
     </section>
-    <section id="tasks">
-      <h2>Scheduled tasks</h2>
-      <p>Use Scheduled when you know when you want to work. The start time defaults to now; the end defaults to 11:59 PM that day. Both can be changed.</p>
-      <p>The start time is important: Senku sends a reminder when a Scheduled task starts. If <strong>Open linked resources automatically</strong> is enabled for the Space, Senku also opens that task's linked resources at the start time.</p>
-      <h3>Task actions</h3>
-      <ul>
-        <li><strong>Complete</strong> moves a finished task to Completed.</li>
-        <li><strong>Reassign</strong> saves the current attempt in Completed and creates the next Scheduled task.</li>
-        <li><strong>Snooze</strong> moves the start time by 10 minutes, 1 hour, 1 day, or 1 week. Senku sends the reminder again then; linked resources open again too if automatic opening is enabled.</li>
-        <li><strong>Pin</strong> keeps a task near the top of task lists. Pinned tasks are not shown on Home.</li>
+
+    <!-- SECTION 3: THE TINY FIRST STEP -->
+    <section id="tiny-step">
+      <div class="section-tag">03 · Defeating Overwhelm</div>
+      <h2>The 2-Minute Tiny First Step</h2>
+      <p>
+        Never write a task titled <em>"Build entire frontend authentication system"</em>. Your brain will immediately resist and procrastinate.
+      </p>
+      <p>
+        Instead, every task in Senku gives you a prominent <strong>Tiny First Step</strong> prompt. Make it ridiculously small and easy:
+      </p>
+      <ul style="margin: 0 0 16px 24px; color: var(--ink-soft); line-height: 1.8;">
+        <li><em>"Open login.tsx and import useState"</em></li>
+        <li><em>"Watch just the first 4 minutes of Striver's Dynamic Programming video"</em></li>
+        <li><em>"Create the folder structure: /components /services"</em></li>
       </ul>
-      <p>Editing a Scheduled task's start time resets its reminder for the new time. Linked resources will open again at that time when automatic opening is enabled. Overdue tasks remain available in the Overdue view; reassign one when you are ready to continue.</p>
-      <p>Use the Home shortcuts to open Today, Upcoming, Overdue, or Completed.</p>
+      <p>
+        When you click <strong>Start &amp; Launch</strong>, that tiny first step is displayed right in front of you. Once you complete the first 2 minutes, momentum carries you forward effortlessly.
+      </p>
     </section>
-    <section id="flexible">
-      <h2>Flexible tasks</h2>
-      <p>Use Flexible for ongoing work with no specific time or reminder, such as completing a Java playlist. Flexible tasks appear in the Flexible and Upcoming views. Complete the task when the playlist is finished.</p>
-      <p>When you want to schedule a specific session, create a separate Scheduled task, such as “Watch 3 videos,” and choose its start time. Flexible tasks themselves do not send reminders or open linked resources automatically.</p>
+
+    <!-- SECTION 4: TASK PARADIGMS -->
+    <section id="paradigms">
+      <div class="section-tag">04 · Work Structure</div>
+      <h2>Scheduled vs. Flexible Tasks</h2>
+      <p>
+        Real students don't work like corporate managers. Some tasks have hard deadlines; other projects are ongoing explorations. Senku separates them cleanly:
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <h4>Scheduled Tasks</h4>
+          <p>For work that must happen at a specific hour — college lab submissions, live lectures, or designated study blocks. Senku triggers native desktop reminders and auto-launches resources at start time.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌊</div>
+          <h4>Flexible Tasks</h4>
+          <p>For ongoing self-paced journeys without arbitrary calendar deadlines — like finishing a 100-problem LeetCode list or building a side project. No overdue pressure, ever.</p>
+        </div>
+      </div>
     </section>
-    <section id="files">
-      <h2>Files and linked resources</h2>
-      <p>The file browser shows items inside the current Space's main folder. Open a file with its normal Windows app, copy its path into a task, or rename it after reading the warning.</p>
-      <p>Tasks can also link to resources outside the main folder, including documents, folders, playlists, and web pages. Use <strong>Open resources</strong> to launch them manually.</p>
-      <p>In Space settings, <strong>Open linked resources automatically</strong> controls whether linked items open when a Scheduled task starts. This setting applies only to that Space.</p>
+
+    <!-- SECTION 5: PICK FOR ME -->
+    <section id="pick-for-me">
+      <div class="section-tag">05 · Analysis Paralysis Cure</div>
+      <h2>🎲 Pick For Me</h2>
+      <p>
+        You have 7 flexible tasks on your backlog: learn Docker, practice trees, write that blog post, clean up your Git repo. You stare at the screen for 25 minutes unable to choose which one to do first.
+      </p>
+      <p>
+        Switch to Flexible (<kbd>F</kbd>) or use the Next Up Flexible tab, and click <strong>🎲 Pick for me</strong>. Senku instantly rolls the dice and surfaces one task at random. Stop debating. Accept the challenge and start building.
+      </p>
     </section>
+
+    <!-- SECTION 6: SOFT MISSED TASKS -->
+    <section id="soft-missed">
+      <div class="section-tag">06 · Zero Guilt</div>
+      <h2>Soft Missed Tasks Conversion</h2>
+      <p>
+        Life happens. You fell asleep, college ran late, or an emergency popped up. Other productivity apps punish you with blaring red "OVERDUE" badges that make you feel like a failure.
+      </p>
+      <div class="callout callout-amber">
+        <div class="callout-title">⚠️ Missed is not Failure. It's just a reschedule.</div>
+        In Senku, missed tasks are treated with zero shame. Open the Missed view (<kbd>M</kbd>) and convert any task with one click:
+        <ul style="margin: 8px 0 0 20px; line-height: 1.6;">
+          <li><strong>Make Flexible:</strong> Remove the time lock and keep it alive in your backlog.</li>
+          <li><strong>Reschedule Today:</strong> Give yourself a clean start for this evening.</li>
+          <li><strong>Mark Done:</strong> Completed offline? Archive it without guilt.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SECTION 7: SPACES & FILES -->
+    <section id="spaces">
+      <div class="section-tag">07 · Clean Mental Boundaries</div>
+      <h2>Spaces: One Context at a Time</h2>
+      <p>
+        Don't mix your Computer Networks homework with your DSA practice or your React freelance gig.
+      </p>
+      <p>
+        Create a <strong>Space</strong> for each domain (e.g., <code>DSA</code>, <code>College</code>, <code>WebDev</code>, <code>Senku</code>). Each Space links directly to its own local Windows folder, its own task list, and its own file explorer.
+      </p>
+      <ul style="margin: 0 0 16px 24px; color: var(--ink-soft); line-height: 1.8;">
+        <li><strong>Open in Explorer:</strong> Jump right into the Windows directory with a single click.</li>
+        <li><strong>In-Folder Search:</strong> Type to filter files and folders in real time.</li>
+        <li><strong>Fast Parent Navigation:</strong> Tap <kbd>R</kbd> anytime to navigate straight up to the parent directory (<code>cd ..</code>).</li>
+        <li><strong>Smart Resource Binding:</strong> Attach PDFs, websites, repos, or notebooks straight to any task.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 8: ROUGH NOTE -->
+    <section id="rough-note">
+      <div class="section-tag">08 · Scratchpad</div>
+      <h2>Rough Note (Shortcut: N)</h2>
+      <p>
+        During deep focus, you suddenly remember you need to buy milk, or you stumble upon a quick terminal command (<code>git stash pop</code>), or an idea strikes.
+      </p>
+      <p>
+        Don't open a bloated browser tab. Press <kbd>N</kbd> from anywhere in Senku. Your <strong>Rough Note</strong> appears instantly. Type your thought, hit save (or let it autosave), and jump right back to your task.
+      </p>
+    </section>
+
+    <!-- SECTION 9: KEYBOARD SHORTCUTS TABLE -->
+    <section id="shortcuts">
+      <div class="section-tag">09 · Speed of Thought</div>
+      <h2>Master Keyboard Shortcuts</h2>
+      <p>
+        True speed means keeping your hands on the keyboard. Senku is wired for single-key navigation:
+      </p>
+
+      <div class="shortcuts-wrapper">
+        <table class="shortcuts-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Key</th>
+              <th style="width: 35%;">Action</th>
+              <th style="width: 40%;">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><kbd>H</kbd></td>
+              <td><strong>Home View</strong></td>
+              <td>Jump back to your Next Up Launchpad and folder view.</td>
+            </tr>
+            <tr>
+              <td><kbd>T</kbd></td>
+              <td><strong>Today View</strong></td>
+              <td>Inspect all tasks scheduled for today.</td>
+            </tr>
+            <tr>
+              <td><kbd>U</kbd></td>
+              <td><strong>Upcoming View</strong></td>
+              <td>Browse tasks scheduled starting tomorrow and beyond.</td>
+            </tr>
+            <tr>
+              <td><kbd>F</kbd></td>
+              <td><strong>Flexible View</strong></td>
+              <td>View your ongoing, self-paced backlog.</td>
+            </tr>
+            <tr>
+              <td><kbd>M</kbd></td>
+              <td><strong>Missed View</strong></td>
+              <td>Inspect past scheduled tasks and softly reschedule them.</td>
+            </tr>
+            <tr>
+              <td><kbd>C</kbd></td>
+              <td><strong>Completed View</strong></td>
+              <td>Review your finished victories.</td>
+            </tr>
+            <tr>
+              <td><kbd>N</kbd></td>
+              <td><strong>Rough Note</strong></td>
+              <td>Open your immediate scratchpad for quick notes.</td>
+            </tr>
+            <tr>
+              <td><kbd>R</kbd></td>
+              <td><strong>Folder Up (<code>cd ..</code>)</strong></td>
+              <td>In the file explorer, instantly navigate up to the parent directory.</td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd></td>
+              <td><strong>Summon Senku</strong></td>
+              <td>Global hotkey to bring Senku to the front from anywhere in Windows.</td>
+            </tr>
+            <tr>
+              <td><kbd>Esc</kbd></td>
+              <td><strong>Close / Cancel</strong></td>
+              <td>Dismiss modals, escape forms, or return to Home.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 10: PRIVACY -->
     <section id="privacy">
-      <h2>Your files and data</h2>
-      <p>Senku does not copy or move your files. It stores Space settings, task details, and paths locally in your Windows user data folder. The task list also retains creation and last-updated times.</p>
+      <div class="section-tag">10 · Sovereign &amp; Offline</div>
+      <h2>100% Local, Fast &amp; Private</h2>
+      <p>
+        Your tasks, folders, and notes belong to you — not some remote cloud server.
+      </p>
+      <ul style="margin: 0 0 16px 24px; color: var(--ink-soft); line-height: 1.8;">
+        <li><strong>Zero Account Creation:</strong> No email, no password, no tracking cookies.</li>
+        <li><strong>Stored in Windows AppData:</strong> All data is stored purely on your local drive in standard JSON format.</li>
+        <li><strong>Works 100% Offline:</strong> No Wi-Fi required. Open Senku in an airplane, train, or library with zero latency.</li>
+        <li><strong>Zero Telemetry:</strong> We do not log what you study or what you build.</li>
+      </ul>
     </section>
   </main>
-  <footer>Made by a Navodayan · Senku</footer>
+
+  <footer>
+    <p>
+      <strong>Senku <span data-version-footer>v2.4.0</span></strong> · The Student Workspace Starter<br>
+      Crafted with pride by a Navodayan · Simple. Standard. Authentic.
+    </p>
+  </footer>
+
+  <script>
+    // Dynamically retrieve version from URL parameters or package.json
+    (async function initVersion() {
+      function applyVersion(ver) {
+        if (!ver) return;
+        const clean = ver.startsWith('v') ? ver : 'v' + ver;
+        document.querySelectorAll('[data-version-badge], [data-version-footer]').forEach(el => {
+          el.textContent = clean;
+        });
+        document.title = 'Senku ' + clean + ' — User Guide & Master Shortcuts';
+      }
+
+      // 1. Check query parameter passed by Electron main process (?version=2.4.0)
+      const urlParams = new URLSearchParams(window.location.search);
+      const qVersion = urlParams.get('version');
+      if (qVersion) {
+        applyVersion(qVersion);
+        return;
+      }
+
+      // 2. Fallback to fetching package.json
+      try {
+        const res = await fetch('../package.json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.version) {
+            applyVersion(data.version);
+            return;
+          }
+        }
+      } catch (err) {
+        // Silent fallback
+      }
+    })();
+  </script>
 </body>
 </html>

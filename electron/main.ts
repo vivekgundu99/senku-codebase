@@ -11,6 +11,7 @@ import {
   shell,
   Tray,
 } from 'electron';
+import type { IpcMainInvokeEvent } from 'electron';
 import dotenv from 'dotenv';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -41,6 +42,12 @@ if (!app.isPackaged) {
 }
 const isTesting = process.env.testing === '1';
 
+// Only one Senku at a time. Two copies would both run the reminder engine and
+// both write the same JSON files (duplicate notifications, save collisions).
+const gotSingleInstanceLock = isTesting || app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) app.quit();
+app.on('second-instance', () => showMainWindow());
+
 // ---------------------------------------------------------------------------
 // Task-engine scheduling
 // ---------------------------------------------------------------------------
@@ -59,9 +66,12 @@ function normalizeTaskInput(input: TaskInput, existing?: Task): NormalizedTaskIn
   const taskType = (input.taskType ?? existing?.taskType ?? 'scheduled') as TaskType;
   const title = String(input.title ?? '').trim();
   if (!title) throw new Error('Task name is required.');
+  const firstStep = input.firstStep !== undefined
+    ? (String(input.firstStep).trim() || undefined)
+    : existing?.firstStep;
 
   if (taskType === 'flexible') {
-    return { ...input, title, taskType: 'flexible', startAt: undefined, endAt: undefined, linkedPaths: input.linkedPaths ?? [] };
+    return { ...input, title, firstStep, taskType: 'flexible', startAt: undefined, endAt: undefined, linkedPaths: input.linkedPaths ?? [] };
   }
 
   const rawStart = input.startAt ? new Date(input.startAt) : new Date();
@@ -76,6 +86,7 @@ function normalizeTaskInput(input: TaskInput, existing?: Task): NormalizedTaskIn
   return {
     ...input,
     title,
+    firstStep,
     taskType: 'scheduled',
     startAt: rawStart.toISOString(),
     endAt: rawEnd.toISOString(),
@@ -106,20 +117,64 @@ const dailyNoteFile = (id: string) => path.join(workspaceDir(id), 'daily-note.js
 // JSON helpers
 // ---------------------------------------------------------------------------
 
+const backedUp = new Set<string>();
+
 async function readJson<T>(file: string, fallback: T): Promise<T> {
   try {
     return JSON.parse(await fs.readFile(file, 'utf8')) as T;
-  } catch {
+  } catch (error) {
+    // Missing file is normal (first run). A file that exists but cannot be parsed
+    // is not: keep a copy before the next save overwrites it.
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT' && !backedUp.has(file)) {
+      backedUp.add(file);
+      await fs.copyFile(file, `${file}.corrupt-${Date.now()}`).catch(() => undefined);
+    }
     return fallback;
   }
 }
 
+/**
+ * Atomic save: write to a unique temp file, then rename over the real one.
+ * (The temp name used to be fixed, so two saves at once fought over it.)
+ */
 async function writeJson(file: string, value: unknown): Promise<void> {
   const dir = path.dirname(file);
   await fs.mkdir(dir, { recursive: true });
-  const tmp = path.join(dir, `${path.basename(file)}.tmp`);
+  const tmp = path.join(dir, `${path.basename(file)}.${randomUUID().slice(0, 8)}.tmp`);
   await fs.writeFile(tmp, JSON.stringify(value, null, 2), 'utf8');
-  await fs.rename(tmp, file);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.rename(tmp, file);
+      return;
+    } catch (error) {
+      // Antivirus / search indexer can briefly lock the file on Windows.
+      const code = (error as NodeJS.ErrnoException)?.code;
+      const retryable = code === 'EPERM' || code === 'EBUSY' || code === 'EACCES';
+      if (!retryable || attempt >= 4) {
+        await fs.rm(tmp, { force: true });
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1)));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// One-at-a-time queue. Every handler that reads, changes and saves data runs
+// through this, so two requests (or a request and the reminder engine) can
+// never overwrite each other's changes.
+// ---------------------------------------------------------------------------
+
+let lockChain: Promise<unknown> = Promise.resolve();
+
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lockChain.then(() => fn());
+  lockChain = run.catch(() => undefined);
+  return run;
+}
+
+function handleLocked(channel: string, listener: (event: IpcMainInvokeEvent, ...args: any[]) => unknown): void {
+  ipcMain.handle(channel, (event, ...args) => withLock(async () => listener(event, ...args)));
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +231,61 @@ function getWorkspace(workspaces: Workspace[], id: string): Workspace | null {
 // File browser
 // ---------------------------------------------------------------------------
 
+const IGNORED_NAMES = new Set(['desktop.ini', 'thumbs.db', '$recycle.bin', 'system volume information']);
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i]);
+      }
+    }),
+  );
+  return results;
+}
+
+// Re-reading a big folder after every click is wasteful. Reuse the last listing
+// while the folder itself is unchanged (adding, removing or renaming changes it).
+const listCache = new Map<string, { mtimeMs: number; at: number; entries: FileEntry[] }>();
+
+async function readFolderEntries(dir: string): Promise<FileEntry[]> {
+  const dirStat = await fs.stat(dir);
+  const cached = listCache.get(dir);
+  if (cached && cached.mtimeMs === dirStat.mtimeMs && Date.now() - cached.at < 15_000) return cached.entries;
+
+  const items = (await fs.readdir(dir, { withFileTypes: true })).filter(
+    (item) => !IGNORED_NAMES.has(item.name.toLowerCase()) && !item.name.startsWith('~$'),
+  );
+
+  // Stats run in parallel (48 at a time) instead of one by one.
+  const found = await mapLimit(items, 48, async (item): Promise<FileEntry | null> => {
+    const itemPath = path.join(dir, item.name);
+    try {
+      const stats = await fs.stat(itemPath); // follows shortcuts/links
+      const isFolder = stats.isDirectory();
+      return {
+        name: item.name,
+        path: itemPath,
+        kind: isFolder ? 'folder' : 'file',
+        extension: isFolder ? '' : path.extname(item.name).slice(1).toUpperCase(),
+        size: isFolder ? undefined : stats.size,
+        modifiedAt: stats.mtime.toISOString(),
+      };
+    } catch {
+      return null; // inaccessible entry
+    }
+  });
+
+  const entries = found.filter((entry): entry is FileEntry => entry !== null);
+  listCache.set(dir, { mtimeMs: dirStat.mtimeMs, at: Date.now(), entries });
+  if (listCache.size > 20) listCache.delete(listCache.keys().next().value as string);
+  return entries;
+}
+
 async function listFolder(
   masterFolder: string,
   currentPath: string,
@@ -184,38 +294,25 @@ async function listFolder(
   if (!masterFolder || !isInside(masterFolder, currentPath)) return [];
 
   try {
-    const items = await fs.readdir(currentPath, { withFileTypes: true });
-    const entries: FileEntry[] = [];
+    const pinned = new Set(pinnedPaths);
+    const entries = (await readFolderEntries(currentPath)).map((entry) => ({ ...entry, pinned: pinned.has(entry.path) }));
 
-    for (const item of items) {
-      const itemPath = path.join(currentPath, item.name);
-      try {
-        const stats = await fs.stat(itemPath);
-        entries.push({
-          name: item.name,
-          path: itemPath,
-          kind: item.isDirectory() ? 'folder' : 'file',
-          extension: item.isDirectory() ? '' : path.extname(item.name).slice(1).toUpperCase(),
-          size: item.isDirectory() ? undefined : stats.size,
-          modifiedAt: stats.mtime.toISOString(),
-          pinned: pinnedPaths.includes(itemPath),
-        });
-      } catch {
-        // Ignore inaccessible entries
-      }
-    }
-
-    // Pinned first, then folders, then alphabetical
-    return entries.sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return (
-        Number(b.kind === 'folder') - Number(a.kind === 'folder') ||
-        a.name.localeCompare(b.name)
-      );
-    });
+    // Pinned first, then folders, then A-Z (numbers in natural order: 2 before 10)
+    return entries.sort((a, b) =>
+      Number(b.pinned) - Number(a.pinned) ||
+      Number(b.kind === 'folder') - Number(a.kind === 'folder') ||
+      collator.compare(a.name, b.name),
+    );
   } catch {
     return [];
+  }
+}
+
+async function isDirectory(target: string): Promise<boolean> {
+  try {
+    return (await fs.stat(target)).isDirectory();
+  } catch {
+    return false;
   }
 }
 
@@ -228,19 +325,9 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const workspaces = await getWorkspaces();
   const workspaceFolderAvailability = Object.fromEntries(
     await Promise.all(workspaces.map(async (workspace) => {
-      try {
-        return [workspace.id, (await fs.stat(workspace.masterFolder)).isDirectory()] as const;
-      } catch (error) {
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          'code' in error &&
-          (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-        ) {
-          return [workspace.id, false] as const;
-        }
-        throw error;
-      }
+      // Any failure (missing, disconnected drive, no permission) just means "not available".
+      // It must never break the whole app.
+      return [workspace.id, await isDirectory(workspace.masterFolder)] as const;
     })),
   );
   const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
@@ -260,13 +347,23 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     };
   }
 
-  const currentPath =
+  let currentPath =
     requestedPath && isInside(workspace.masterFolder, requestedPath)
       ? path.resolve(requestedPath)
       : workspace.lastSubfolder || workspace.masterFolder;
 
-  workspace.lastSubfolder = currentPath;
-  await writeJson(workspacesFile(), workspaces);
+  // The remembered folder may have been deleted or renamed: go back to the main folder
+  // instead of showing a confusing "empty" list.
+  if (currentPath !== workspace.masterFolder && !(await isDirectory(currentPath))) {
+    currentPath = workspace.masterFolder;
+  }
+
+  // Only touch the disk when the folder actually changed. (Saving on every
+  // read was the cause of the "rename ... workspaces.json.tmp" error.)
+  if (workspace.lastSubfolder !== currentPath) {
+    workspace.lastSubfolder = currentPath;
+    await writeJson(workspacesFile(), workspaces);
+  }
 
   const [entries, activeTasks, completedTasks, errorTasks, dailyNote] = await Promise.all([
     listFolder(workspace.masterFolder, currentPath, workspace.pinnedPaths),
@@ -301,6 +398,8 @@ async function runTaskEngine(): Promise<void> {
     const failed: Task[] = [];
     let changed = false;
 
+    let missed = 0;
+
     for (const task of active) {
       if (task.taskType === 'flexible' || !task.startAt) {
         remaining.push(task);
@@ -313,6 +412,14 @@ async function runTaskEngine(): Promise<void> {
         task.updatedAt = new Date().toISOString();
         changed = true;
 
+        // Its whole time window passed while Senku was closed or asleep. Don't pop a
+        // notification per task or open old files: it shows up as Overdue instead.
+        if (task.endAt && Date.now() > Date.parse(task.endAt)) {
+          missed += 1;
+          remaining.push(task);
+          continue;
+        }
+
         new Notification({
           title: `Scheduled reminder · ${workspace.name}`,
           body: task.title,
@@ -321,8 +428,17 @@ async function runTaskEngine(): Promise<void> {
         if (workspace.strictMode && task.linkedPaths.length) {
           const failures: string[] = [];
           for (const linkedPath of task.linkedPaths) {
-            const error = await shell.openPath(linkedPath);
-            if (error) failures.push(`${linkedPath}: ${error}`);
+            const trimmed = linkedPath.trim();
+            if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
+              try {
+                await shell.openExternal(trimmed);
+              } catch (err) {
+                failures.push(`${trimmed}: ${String(err)}`);
+              }
+            } else {
+              const error = await shell.openPath(trimmed);
+              if (error) failures.push(`${trimmed}: ${error}`);
+            }
           }
           if (failures.length) {
             failed.push({ ...task, errorMessage: failures.join('\n') });
@@ -334,6 +450,12 @@ async function runTaskEngine(): Promise<void> {
       remaining.push(task);
     }
 
+    if (missed > 0) {
+      new Notification({
+        title: `Senku · ${workspace.name}`,
+        body: `${missed} scheduled task${missed === 1 ? ' was' : 's were'} missed while Senku was closed. See Overdue.`,
+      }).show();
+    }
     if (changed) await saveTasks(workspace.id, 'active', remaining);
     if (failed.length) {
       await saveTasks(workspace.id, 'error', [
@@ -341,6 +463,7 @@ async function runTaskEngine(): Promise<void> {
         ...failed,
       ]);
     }
+    if (failed.length || missed > 0) mainWindow?.webContents.send('tasks:changed');
   }
 }
 
@@ -370,7 +493,7 @@ async function scheduleNextWake(): Promise<void> {
 }
 
 async function wake(): Promise<void> {
-  await runTaskEngine();
+  await withLock(runTaskEngine);
   await scheduleNextWake();
 }
 
@@ -466,6 +589,7 @@ async function createWindow(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 app.whenReady().then(async () => {
+  if (!gotSingleInstanceLock) return;
   if (isTesting) {
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
@@ -504,10 +628,9 @@ app.whenReady().then(async () => {
   );
   tray.on('click', showMainWindow);
 
+  powerMonitor.on('resume', () => { void wake(); });
   await wake();
 });
-
-powerMonitor.on('resume', () => { void wake(); });
 
 app.on('before-quit', () => {
   isQuitting = true;
@@ -529,19 +652,20 @@ ipcMain.handle('folder:choose', async () => {
 
 ipcMain.handle('folder:desktop-path', () => app.getPath('desktop'));
 
-ipcMain.handle('app:get-snapshot', (_event, requestedPath?: string) =>
+handleLocked('app:get-snapshot', (_event, requestedPath?: string) =>
   snapshot(requestedPath),
 );
 
-ipcMain.handle('settings:save', async (_event, settings: Settings) => {
+handleLocked('settings:save', async (_event, settings: Settings) => {
   await writeJson(settingsFile(), settings);
   app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup, openAsHidden: false });
   return snapshot();
 });
 
-ipcMain.handle('workspace:create', async (_event, name: string, masterFolder: string) => {
+handleLocked('workspace:create', async (_event, name: string, masterFolder: string) => {
   const stats = await fs.stat(masterFolder).catch(() => null);
   if (!stats?.isDirectory()) throw new Error('Master folder does not exist.');
+  if (!name.trim()) throw new Error('Space name is required.');
 
   const workspace: Workspace = {
     id: randomUUID(),
@@ -558,12 +682,12 @@ ipcMain.handle('workspace:create', async (_event, name: string, masterFolder: st
   return snapshot();
 });
 
-ipcMain.handle('workspace:switch', async (_event, id: string) => {
+handleLocked('workspace:switch', async (_event, id: string) => {
   await writeJson(settingsFile(), { ...(await getSettings()), activeWorkspaceId: id });
   return snapshot();
 });
 
-ipcMain.handle('workspace:rename', async (_event, id: string, name: string) => {
+handleLocked('workspace:rename', async (_event, id: string, name: string) => {
   const workspaces = await getWorkspaces();
   const workspace = getWorkspace(workspaces, id);
   if (!workspace || !name.trim()) throw new Error('Space name is required.');
@@ -572,7 +696,7 @@ ipcMain.handle('workspace:rename', async (_event, id: string, name: string) => {
   return snapshot();
 });
 
-ipcMain.handle('workspace:set-master-folder', async (_event, id: string, folder: string) => {
+handleLocked('workspace:set-master-folder', async (_event, id: string, folder: string) => {
   const stats = await fs.stat(folder).catch(() => null);
   if (!stats?.isDirectory()) throw new Error('Main folder does not exist.');
   const workspaces = await getWorkspaces();
@@ -584,7 +708,7 @@ ipcMain.handle('workspace:set-master-folder', async (_event, id: string, folder:
   return snapshot(workspace.masterFolder);
 });
 
-ipcMain.handle('workspace:strict-mode', async (_event, id: string, enabled: boolean) => {
+handleLocked('workspace:strict-mode', async (_event, id: string, enabled: boolean) => {
   const workspaces = await getWorkspaces();
   const workspace = getWorkspace(workspaces, id);
   if (!workspace) throw new Error('Space not found.');
@@ -593,7 +717,7 @@ ipcMain.handle('workspace:strict-mode', async (_event, id: string, enabled: bool
   return snapshot();
 });
 
-ipcMain.handle('workspace:delete', async (_event, id: string) => {
+handleLocked('workspace:delete', async (_event, id: string) => {
   const workspaces = await getWorkspaces();
   const next = workspaces.filter((ws) => ws.id !== id);
   if (next.length === workspaces.length) return { ok: false, error: 'Space not found.' };
@@ -610,9 +734,19 @@ ipcMain.handle('workspace:delete', async (_event, id: string) => {
   return { ok: true };
 });
 
-ipcMain.handle('path:open', async (_event, target: string) => ({
-  ok: !(await shell.openPath(target)),
-}));
+ipcMain.handle('path:open', async (_event, target: string) => {
+  const trimmed = target.trim();
+  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
+    try {
+      await shell.openExternal(trimmed);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: String(error) };
+    }
+  }
+  const error = await shell.openPath(trimmed);
+  return { ok: !error, error: error || undefined };
+});
 
 ipcMain.handle('guide:open', async () => {
   const guidePath = app.isPackaged
@@ -637,7 +771,7 @@ ipcMain.handle('guide:open', async () => {
     window.once('closed', () => {
       if (guideWindow === window) guideWindow = null;
     });
-    await window.loadFile(guidePath);
+    await window.loadFile(guidePath, { query: { version: app.getVersion() } });
     window.show();
     return { ok: true };
   } catch (error) {
@@ -656,12 +790,12 @@ ipcMain.handle('path:copy', async (_event, target: string) => {
 // IPC — pin / unpin
 // ---------------------------------------------------------------------------
 
-ipcMain.handle('path:pin', async (_event, target: string) => {
+handleLocked('path:pin', async (_event, target: string) => {
   const settings = await getSettings();
   const workspaces = await getWorkspaces();
   const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
   if (!workspace || !isInside(workspace.masterFolder, target)) {
-    return { ok: false, error: 'Path is not inside the master folder.' };
+    return snapshot();
   }
   const resolved = path.resolve(target);
   if (!workspace.pinnedPaths.includes(resolved)) {
@@ -671,11 +805,11 @@ ipcMain.handle('path:pin', async (_event, target: string) => {
   return snapshot();
 });
 
-ipcMain.handle('path:unpin', async (_event, target: string) => {
+handleLocked('path:unpin', async (_event, target: string) => {
   const settings = await getSettings();
   const workspaces = await getWorkspaces();
   const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
-  if (!workspace) return { ok: false, error: 'No workspace.' };
+  if (!workspace) return snapshot();
   const resolved = path.resolve(target);
   workspace.pinnedPaths = workspace.pinnedPaths.filter((p) => p !== resolved);
   await writeJson(workspacesFile(), workspaces);
@@ -686,7 +820,7 @@ ipcMain.handle('path:unpin', async (_event, target: string) => {
 // IPC — daily note
 // ---------------------------------------------------------------------------
 
-ipcMain.handle('note:save', async (_event, content: string) => {
+handleLocked('note:save', async (_event, content: string) => {
   const settings = await getSettings();
   if (!settings.activeWorkspaceId) return;
   await saveDailyNote(settings.activeWorkspaceId, content);
@@ -696,7 +830,7 @@ ipcMain.handle('note:save', async (_event, content: string) => {
 // IPC — tasks
 // ---------------------------------------------------------------------------
 
-ipcMain.handle('task:create', async (_event, input: TaskInput) => {
+handleLocked('task:create', async (_event, input: TaskInput) => {
   const settings = await getSettings();
   if (!settings.activeWorkspaceId) throw new Error('No workspace selected.');
 
@@ -721,7 +855,7 @@ ipcMain.handle('task:create', async (_event, input: TaskInput) => {
   return task;
 });
 
-ipcMain.handle('task:complete', async (_event, id: string, reschedule?: TaskInput) => {
+handleLocked('task:complete', async (_event, id: string, reschedule?: TaskInput) => {
   const settings = await getSettings();
   const active = await getTasks(settings.activeWorkspaceId, 'active');
   const task = active.find((t) => t.id === id);
@@ -732,11 +866,11 @@ ipcMain.handle('task:complete', async (_event, id: string, reschedule?: TaskInpu
     completedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  await saveTasks(settings.activeWorkspaceId, 'active', active.filter((t) => t.id !== id));
   await saveTasks(settings.activeWorkspaceId, 'completed', [
     ...(await getTasks(settings.activeWorkspaceId, 'completed')),
     completed,
   ]);
+  await saveTasks(settings.activeWorkspaceId, 'active', active.filter((t) => t.id !== id));
 
   let next: Task | undefined;
   if (reschedule) {
@@ -759,7 +893,7 @@ ipcMain.handle('task:complete', async (_event, id: string, reschedule?: TaskInpu
   return { task: completed, next };
 });
 
-ipcMain.handle('task:snooze', async (_event, id: string, durationMinutes: number) => {
+handleLocked('task:snooze', async (_event, id: string, durationMinutes: number) => {
   const settings = await getSettings();
   const active = await getTasks(settings.activeWorkspaceId, 'active');
   const task = active.find((t) => t.id === id);
@@ -768,7 +902,15 @@ ipcMain.handle('task:snooze', async (_event, id: string, durationMinutes: number
     throw new Error('Plan this Flexible task for today before snoozing it.');
   }
 
-  task.startAt = new Date(Date.parse(task.startAt) + durationMinutes * 60_000).toISOString();
+  // Snooze counts from now (or from the start time if that is still ahead).
+  // It used to add to the old start time, so an old task came straight back.
+  const base = Math.max(Date.now(), Date.parse(task.startAt));
+  const newStart = new Date(base + durationMinutes * 60_000);
+  task.startAt = newStart.toISOString();
+  // A snooze must never push the start past the end (that made the task "Overdue" at once).
+  if (!task.endAt || newStart.getTime() >= Date.parse(task.endAt)) {
+    task.endAt = endOfLocalDay(newStart).toISOString();
+  }
   task.startEventHandled = false;
   task.updatedAt = new Date().toISOString();
 
@@ -777,7 +919,7 @@ ipcMain.handle('task:snooze', async (_event, id: string, durationMinutes: number
   return task;
 });
 
-ipcMain.handle(
+handleLocked(
   'task:update',
   async (_event, id: string, input: TaskInput, bucket: 'active' | 'error' = 'active') => {
     const settings = await getSettings();
@@ -805,7 +947,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle('task:recover', async (_event, id: string, input: TaskInput) => {
+handleLocked('task:recover', async (_event, id: string, input: TaskInput) => {
   const settings = await getSettings();
   const errors = await getTasks(settings.activeWorkspaceId, 'error');
   const task = errors.find((t) => t.id === id);
@@ -820,16 +962,16 @@ ipcMain.handle('task:recover', async (_event, id: string, input: TaskInput) => {
     updatedAt: new Date().toISOString(),
   };
 
-  await saveTasks(settings.activeWorkspaceId, 'error', errors.filter((t) => t.id !== id));
   await saveTasks(settings.activeWorkspaceId, 'active', [
     ...(await getTasks(settings.activeWorkspaceId, 'active')),
     recovered,
   ]);
+  await saveTasks(settings.activeWorkspaceId, 'error', errors.filter((t) => t.id !== id));
   await scheduleNextWake();
   return recovered;
 });
 
-ipcMain.handle(
+handleLocked(
   'task:delete',
   async (_event, id: string, bucket: 'active' | 'completed' | 'error') => {
     const settings = await getSettings();
@@ -843,7 +985,7 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle('task:pin', async (_event, id: string, isPinned: boolean) => {
+handleLocked('task:pin', async (_event, id: string, isPinned: boolean) => {
   const settings = await getSettings();
   const active = await getTasks(settings.activeWorkspaceId, 'active');
   const index = active.findIndex((task) => task.id === id);
@@ -861,7 +1003,7 @@ ipcMain.handle('task:pin', async (_event, id: string, isPinned: boolean) => {
 // IPC — bulk task operations (multiselect)
 // ---------------------------------------------------------------------------
 
-ipcMain.handle('task:complete-many', async (_event, ids: string[]) => {
+handleLocked('task:complete-many', async (_event, ids: string[]) => {
   const settings = await getSettings();
   const wsId = settings.activeWorkspaceId;
   if (!wsId) throw new Error('No workspace selected.');
@@ -877,13 +1019,13 @@ ipcMain.handle('task:complete-many', async (_event, ids: string[]) => {
 
   active = active.filter((t) => !ids.includes(t.id));
 
-  await saveTasks(wsId, 'active', active);
   await saveTasks(wsId, 'completed', [...existing, ...completed]);
+  await saveTasks(wsId, 'active', active);
   await scheduleNextWake();
   return completed.length;
 });
 
-ipcMain.handle('task:delete-many', async (_event, ids: string[], bucket: 'active' | 'completed' | 'error') => {
+handleLocked('task:delete-many', async (_event, ids: string[], bucket: 'active' | 'completed' | 'error') => {
   const settings = await getSettings();
   const wsId = settings.activeWorkspaceId;
   if (!wsId) throw new Error('No workspace selected.');

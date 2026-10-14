@@ -10,7 +10,7 @@
       body {
         margin: 0;
         padding: 18px 20px 16px;
-        background: #f5f4ef;
+        background: #f5f2ea;
         font-family: 'Manrope', sans-serif;
         color: #26332d;
         -webkit-app-region: drag;
@@ -72,6 +72,7 @@
       <button class="close-btn" id="close">×</button>
     </div>
     <input id="title" placeholder="What needs doing?" autofocus />
+    <input id="firstStep" placeholder="Tiny 1st step? (optional)" />
     <div class="row">
       <input id="start" type="datetime-local" title="Start time" />
       <span class="quick-type">Scheduled · ends 11:59 PM</span>
@@ -90,8 +91,11 @@
 
       document.querySelector('#close').addEventListener('click', () => window.senku.closeQuickAdd());
 
+      let saving = false;
       document.querySelector('#save').addEventListener('click', async () => {
+        if (saving) return;
         const title = document.querySelector('#title').value.trim();
+        const firstStep = document.querySelector('#firstStep')?.value.trim() || undefined;
         const startRaw = document.querySelector('#start').value;
         const errEl = document.querySelector('#err');
 
@@ -102,17 +106,19 @@
         const selectedStart = new Date(startRaw);
         const endAt = new Date(selectedStart.getFullYear(), selectedStart.getMonth(), selectedStart.getDate(), 23, 59, 59, 999).toISOString();
 
+        saving = true;
         try {
-          await window.senku.createTask({ title, taskType: 'scheduled', startAt, endAt, linkedPaths: [] });
+          await window.senku.createTask({ title, firstStep, taskType: 'scheduled', startAt, endAt, linkedPaths: [] });
           await window.senku.closeQuickAdd();
         } catch (e) {
+          saving = false;
           errEl.textContent = e?.message ?? 'Could not save task.';
         }
       });
 
       // Enter key submits
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') document.querySelector('#save').click();
+        if (e.key === 'Enter' && !e.repeat) document.querySelector('#save').click();
         if (e.key === 'Escape') window.senku.closeQuickAdd();
       });
     </script>

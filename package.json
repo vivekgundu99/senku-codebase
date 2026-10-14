@@ -1,6 +1,6 @@
 {
   "name": "senku",
-  "version": "2.3.0-beta",
+  "version": "2.4.0",
   "author": "Vivek Gundu",
   "description": "Senku is a win Desktop app which reduces the friction of starting a Work",
   "main": "dist/electron/main.js",

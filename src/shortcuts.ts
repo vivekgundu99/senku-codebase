@@ -1,4 +1,5 @@
 import { currentPath, setView, state } from './state';
+import { isSamePath, parentOf } from './utils';
 
 type ShortcutContext = {
   load: (path?: string) => Promise<void>;
@@ -19,6 +20,41 @@ const shortcuts: Shortcut[] = [
     },
   },
   {
+    key: 't',
+    run: ({ render }) => {
+      setView('Today');
+      render();
+    },
+  },
+  {
+    key: 'u',
+    run: ({ render }) => {
+      setView('Upcoming');
+      render();
+    },
+  },
+  {
+    key: 'f',
+    run: ({ render }) => {
+      setView('Flexible');
+      render();
+    },
+  },
+  {
+    key: 'm',
+    run: ({ render }) => {
+      setView('Overdue');
+      render();
+    },
+  },
+  {
+    key: 'c',
+    run: ({ render }) => {
+      setView('Completed');
+      render();
+    },
+  },
+  {
     key: 'n',
     run: ({ render }) => {
       setView('Note');
@@ -29,16 +65,9 @@ const shortcuts: Shortcut[] = [
     key: 'r',
     run: ({ load }) => {
       const root = state.workspace?.masterFolder;
-      if (!root || currentPath.toLowerCase() === root.toLowerCase()) return;
-
-      const separator = Math.max(currentPath.lastIndexOf('\\'), currentPath.lastIndexOf('/'));
-      if (separator < 0) return;
-      const parent = separator === 2 && currentPath[1] === ':'
-        ? currentPath.slice(0, 3)
-        : separator === 0
-          ? currentPath.slice(0, 1)
-          : currentPath.slice(0, separator);
-      void load(parent);
+      if (!root || isSamePath(currentPath, root)) return;
+      const parent = parentOf(currentPath);
+      if (parent) void load(parent);
     },
   },
 ];

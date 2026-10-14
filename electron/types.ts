@@ -34,6 +34,7 @@ export interface FileEntry {
 export interface Task {
   id: string;
   title: string;
+  firstStep?: string;
   taskType: TaskType;
   startAt?: string;
   endAt?: string;
@@ -48,6 +49,7 @@ export interface Task {
 
 export interface TaskInput {
   title: string;
+  firstStep?: string;
   taskType: TaskType;
   startAt?: string;
   endAt?: string;

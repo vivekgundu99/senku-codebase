@@ -9,6 +9,7 @@
     "outDir": "dist",
     "rootDir": ".",
     "types": ["node"],
+    "resolveJsonModule": true,
     "sourceMap": true
   },
   "include": ["electron/**/*.ts", "src/**/*.ts", "vite.config.ts"]
