@@ -228,13 +228,33 @@ function bindLogPanel(): void {
 function bindLaunchpadActions(load: LoadFn): void {
   document.querySelector('#add-launchpad')?.addEventListener('click', () => openLaunchpadFormModal(load));
 
+  document.querySelectorAll<HTMLElement>('[data-open-item]').forEach((chip) =>
+    chip.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const target = chip.dataset.openItem;
+      if (!target) return;
+      const folderTarget = chip.dataset.folderTarget as 'explorer' | 'vscode' | undefined;
+      chip.classList.add('opening');
+      try {
+        const res = await window.senku.openItem(target, state.workspace?.id, folderTarget);
+        if (!res.ok && res.error) {
+          alert(`Could not open item:\n${res.error}`);
+        }
+      } catch (err) {
+        alert(`Error opening item: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        chip.classList.remove('opening');
+      }
+    }),
+  );
+
   document.querySelectorAll<HTMLElement>('[data-launch-id]').forEach((btn) =>
     btn.addEventListener('click', async () => {
       const id = btn.dataset.launchId!;
       btn.textContent = '⏳ Opening…';
       const res = await window.senku.launchLaunchpad(id);
       if (!res.ok && res.errors.length) alert('Some resources could not be opened:\n' + res.errors.join('\n'));
-      btn.textContent = '▷ Launch';
+      btn.textContent = '▷ Launch All';
     }),
   );
 

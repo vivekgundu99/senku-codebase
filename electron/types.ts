@@ -12,6 +12,7 @@ export interface Workspace {
   lastSubfolder: string;
   createdAt: string;
   pinnedPaths: string[];
+  defaultFolderTarget?: 'explorer' | 'vscode';
 }
 
 export interface FileEntry {
@@ -37,6 +38,7 @@ export interface Launchpad {
   spaceId: string;
   paths: string[];
   createdAt: number;
+  folderTarget?: 'explorer' | 'vscode';
 }
 
 export interface DailyNote {

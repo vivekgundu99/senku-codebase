@@ -718,10 +718,67 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
 });
 
 // ---------------------------------------------------------------------------
+// V3: Resource Opening with VS Code & Explorer fallback
+// ---------------------------------------------------------------------------
+
+async function openSingleItem(target: string, folderTarget?: 'explorer' | 'vscode'): Promise<{ ok: boolean; error?: string }> {
+  const trimmed = target.trim();
+  if (!trimmed) return { ok: true };
+
+  // 1. Web URL or mailto
+  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
+    try {
+      await shell.openExternal(trimmed);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
+  }
+
+  // 2. Check if folder
+  let isDir = false;
+  try {
+    const stat = await fs.stat(trimmed);
+    isDir = stat.isDirectory();
+  } catch {
+    // If stat fails, continue to shell.openPath
+  }
+
+  // 3. If folder and preference is VS Code: try opening in VS Code with File Explorer fallback
+  if (isDir && folderTarget === 'vscode') {
+    try {
+      const cp = await import('node:child_process');
+      const child = cp.spawn('code', [`"${trimmed}"`], { shell: true, detached: true, stdio: 'ignore' });
+      let failed = false;
+      const doFallback = async () => {
+        if (!failed) {
+          failed = true;
+          await shell.openPath(trimmed);
+        }
+      };
+      child.on('error', doFallback);
+      child.on('exit', (code) => {
+        if (code !== 0) doFallback();
+      });
+      child.unref();
+      await new Promise((r) => setTimeout(r, 150));
+      if (!failed) return { ok: true };
+    } catch {
+      const err = await shell.openPath(trimmed);
+      return { ok: !err, error: err || undefined };
+    }
+  }
+
+  // 4. Default: open with File Explorer or default program
+  const err = await shell.openPath(trimmed);
+  return { ok: !err, error: err || undefined };
+}
+
+// ---------------------------------------------------------------------------
 // V3: Launchpad Handlers
 // ---------------------------------------------------------------------------
 
-handleLocked('launchpad:create', async (_event, name: string, spaceId: string, paths: string[]) => {
+handleLocked('launchpad:create', async (_event, name: string, spaceId: string, paths: string[], folderTarget?: 'explorer' | 'vscode') => {
   const trimmedName = (name || '').trim();
   if (!trimmedName) throw new Error('Launchpad name is required.');
   const pads = await getLaunchpads();
@@ -730,24 +787,49 @@ handleLocked('launchpad:create', async (_event, name: string, spaceId: string, p
     name: trimmedName,
     spaceId,
     paths: paths.map((p) => p.trim()).filter(Boolean),
+    folderTarget,
     createdAt: Date.now(),
   };
   await saveLaunchpads([...pads, pad]);
+
+  // Remember preference per space
+  if (folderTarget && spaceId) {
+    const workspaces = await getWorkspaces();
+    const ws = workspaces.find((w) => w.id === spaceId);
+    if (ws && ws.defaultFolderTarget !== folderTarget) {
+      ws.defaultFolderTarget = folderTarget;
+      await writeJson(workspacesFile(), workspaces);
+    }
+  }
+
   return snapshot();
 });
 
-handleLocked('launchpad:update', async (_event, id: string, name: string, paths: string[]) => {
+handleLocked('launchpad:update', async (_event, id: string, name: string, paths: string[], folderTarget?: 'explorer' | 'vscode') => {
   const trimmedName = (name || '').trim();
   if (!trimmedName) throw new Error('Launchpad name is required.');
   const pads = await getLaunchpads();
   const index = pads.findIndex((p) => p.id === id);
   if (index < 0) throw new Error('Launchpad not found.');
+  const spaceId = pads[index].spaceId;
   pads[index] = {
     ...pads[index],
     name: trimmedName,
     paths: paths.map((p) => p.trim()).filter(Boolean),
+    folderTarget,
   };
   await saveLaunchpads(pads);
+
+  // Remember preference per space
+  if (folderTarget && spaceId) {
+    const workspaces = await getWorkspaces();
+    const ws = workspaces.find((w) => w.id === spaceId);
+    if (ws && ws.defaultFolderTarget !== folderTarget) {
+      ws.defaultFolderTarget = folderTarget;
+      await writeJson(workspacesFile(), workspaces);
+    }
+  }
+
   return snapshot();
 });
 
@@ -761,22 +843,27 @@ ipcMain.handle('launchpad:launch', async (_event, id: string) => {
   const pads = await getLaunchpads();
   const pad = pads.find((p) => p.id === id);
   if (!pad) return { ok: false, errors: ['Launchpad not found'] };
+
+  const workspaces = await getWorkspaces();
+  const space = workspaces.find((w) => w.id === pad.spaceId);
+  const targetPref = pad.folderTarget ?? space?.defaultFolderTarget ?? 'explorer';
+
   const errors: string[] = [];
   for (const target of pad.paths) {
-    const trimmed = target.trim();
-    if (!trimmed) continue;
-    if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
-      try {
-        await shell.openExternal(trimmed);
-      } catch (err) {
-        errors.push(`${trimmed}: ${String(err)}`);
-      }
-    } else {
-      const err = await shell.openPath(trimmed);
-      if (err) errors.push(`${trimmed}: ${err}`);
-    }
+    const res = await openSingleItem(target, targetPref);
+    if (!res.ok && res.error) errors.push(`${target}: ${res.error}`);
   }
   return { ok: errors.length === 0, errors };
+});
+
+ipcMain.handle('path:open-item', async (_event, target: string, spaceId?: string, explicitTarget?: 'explorer' | 'vscode') => {
+  let targetPref: 'explorer' | 'vscode' = explicitTarget || 'explorer';
+  if (!explicitTarget && spaceId) {
+    const workspaces = await getWorkspaces();
+    const space = workspaces.find((w) => w.id === spaceId);
+    if (space?.defaultFolderTarget) targetPref = space.defaultFolderTarget;
+  }
+  return openSingleItem(target, targetPref);
 });
 
 // ---------------------------------------------------------------------------

@@ -301,6 +301,7 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
   const heading = isEditing ? 'Update your Launchpad' : 'Bundle and launch context in 1-click';
   const defaultPaths = existing ? existing.paths.join('\n') : '';
   const defaultName = existing ? existing.name : '';
+  const defaultTarget = existing?.folderTarget ?? state.workspace?.defaultFolderTarget ?? 'explorer';
   const submitText = isEditing ? 'Save Changes' : 'Create Launchpad';
 
   const overlay = createOverlay(`
@@ -327,6 +328,21 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
           style="font-family:monospace;font-size:12px;line-height:1.4;"
         >${escapeHtml(defaultPaths)}</textarea>
       </label>
+
+      <div class="form-group folder-target-field">
+        <label class="field-label">When launching folders:</label>
+        <div class="folder-target-options">
+          <label class="target-option-label">
+            <input type="radio" name="folderTarget" value="explorer" ${defaultTarget === 'explorer' ? 'checked' : ''} />
+            <span class="target-chip">📁 File Explorer</span>
+          </label>
+          <label class="target-option-label">
+            <input type="radio" name="folderTarget" value="vscode" ${defaultTarget === 'vscode' ? 'checked' : ''} />
+            <span class="target-chip">💻 VS Code (with Explorer fallback)</span>
+          </label>
+        </div>
+        <small class="field-hint">Your choice becomes the default for this Space.</small>
+      </div>
 
       <p class="form-error" id="lp-error"></p>
       <button class="primary-button" type="submit">${submitText} <span>→</span></button>
@@ -361,12 +377,14 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const folderTarget = (data.get('folderTarget') as 'explorer' | 'vscode') || 'explorer';
+
     try {
       if (existing) {
-        await window.senku.updateLaunchpad(existing.id, name, paths);
+        await window.senku.updateLaunchpad(existing.id, name, paths, folderTarget);
       } else {
         const spaceId = state.workspace?.id ?? '';
-        await window.senku.createLaunchpad(name, spaceId, paths);
+        await window.senku.createLaunchpad(name, spaceId, paths, folderTarget);
       }
       overlay.remove();
       await load(state.currentPath);

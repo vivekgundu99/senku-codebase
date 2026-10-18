@@ -23,10 +23,11 @@ declare global {
       // V3: Log
       addLogEntry(text: string, spaceId?: string): Promise<AppSnapshot>;
       // V3: Launchpads
-      createLaunchpad(name: string, spaceId: string, paths: string[]): Promise<AppSnapshot>;
-      updateLaunchpad(id: string, name: string, paths: string[]): Promise<AppSnapshot>;
+      createLaunchpad(name: string, spaceId: string, paths: string[], folderTarget?: 'explorer' | 'vscode'): Promise<AppSnapshot>;
+      updateLaunchpad(id: string, name: string, paths: string[], folderTarget?: 'explorer' | 'vscode'): Promise<AppSnapshot>;
       deleteLaunchpad(id: string): Promise<AppSnapshot>;
       launchLaunchpad(id: string): Promise<{ ok: boolean; errors: string[] }>;
+      openItem(target: string, spaceId?: string, folderTarget?: 'explorer' | 'vscode'): Promise<{ ok: boolean; error?: string }>;
       // V3: Open in VS Code / Terminal
       openInVSCode(path: string): Promise<{ ok: boolean; error?: string }>;
       openInTerminal(path: string): Promise<{ ok: boolean; error?: string }>;

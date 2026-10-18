@@ -912,6 +912,28 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   background: var(--green-pale);
 }
 
+.lp-head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lp-target-badge {
+  font: 600 10.5px var(--mono);
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.lp-target-badge.vscode {
+  background: rgba(0, 122, 204, 0.08);
+  border-color: rgba(0, 122, 204, 0.25);
+  color: #007acc;
+}
+
 .lp-paths {
   display: flex;
   flex-wrap: wrap;
@@ -925,6 +947,90 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   padding: 3px 8px;
   border-radius: 6px;
   color: var(--muted);
+}
+
+.lp-path-chip.interactive {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all .15s ease;
+  user-select: none;
+}
+
+.lp-path-chip.interactive:hover {
+  border-color: var(--green);
+  color: var(--ink);
+  background: var(--hover);
+  transform: translateY(-1px);
+}
+
+.lp-path-chip .chip-arrow {
+  opacity: 0.45;
+  font-size: 10px;
+  transition: opacity .15s, transform .15s;
+}
+
+.lp-path-chip.interactive:hover .chip-arrow {
+  opacity: 1;
+  transform: translate(1px, -1px);
+}
+
+.lp-path-chip.opening {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Modal Folder Target Options */
+.folder-target-field {
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+
+.folder-target-field .field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.folder-target-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.target-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.target-chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  transition: all .12s ease;
+}
+
+.target-option-label input[type="radio"]:checked + .target-chip {
+  border-color: var(--green);
+  background: var(--green-pale);
+  color: var(--green);
+  font-weight: 600;
+}
+
+.field-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 5px;
 }
 
 .file-panel-actions {
