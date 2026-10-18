@@ -545,6 +545,15 @@ handleLocked('workspace:set-master-folder', async (_event, id: string, folder: s
   return snapshot(workspace.masterFolder);
 });
 
+handleLocked('workspace:set-folder-target', async (_event, id: string, target: 'explorer' | 'vscode') => {
+  const workspaces = await getWorkspaces();
+  const workspace = getWorkspace(workspaces, id);
+  if (!workspace) throw new Error('Space not found.');
+  workspace.defaultFolderTarget = target;
+  await writeJson(workspacesFile(), workspaces);
+  return snapshot();
+});
+
 handleLocked('workspace:delete', async (_event, id: string) => {
   const workspaces = await getWorkspaces();
   const target = workspaces.find((ws) => ws.id === id);
@@ -778,7 +787,7 @@ async function openSingleItem(target: string, folderTarget?: 'explorer' | 'vscod
 // V3: Launchpad Handlers
 // ---------------------------------------------------------------------------
 
-handleLocked('launchpad:create', async (_event, name: string, spaceId: string, paths: string[], folderTarget?: 'explorer' | 'vscode') => {
+handleLocked('launchpad:create', async (_event, name: string, spaceId: string, paths: string[]) => {
   const trimmedName = (name || '').trim();
   if (!trimmedName) throw new Error('Launchpad name is required.');
   const pads = await getLaunchpads();
@@ -787,49 +796,24 @@ handleLocked('launchpad:create', async (_event, name: string, spaceId: string, p
     name: trimmedName,
     spaceId,
     paths: paths.map((p) => p.trim()).filter(Boolean),
-    folderTarget,
     createdAt: Date.now(),
   };
   await saveLaunchpads([...pads, pad]);
-
-  // Remember preference per space
-  if (folderTarget && spaceId) {
-    const workspaces = await getWorkspaces();
-    const ws = workspaces.find((w) => w.id === spaceId);
-    if (ws && ws.defaultFolderTarget !== folderTarget) {
-      ws.defaultFolderTarget = folderTarget;
-      await writeJson(workspacesFile(), workspaces);
-    }
-  }
-
   return snapshot();
 });
 
-handleLocked('launchpad:update', async (_event, id: string, name: string, paths: string[], folderTarget?: 'explorer' | 'vscode') => {
+handleLocked('launchpad:update', async (_event, id: string, name: string, paths: string[]) => {
   const trimmedName = (name || '').trim();
   if (!trimmedName) throw new Error('Launchpad name is required.');
   const pads = await getLaunchpads();
   const index = pads.findIndex((p) => p.id === id);
   if (index < 0) throw new Error('Launchpad not found.');
-  const spaceId = pads[index].spaceId;
   pads[index] = {
     ...pads[index],
     name: trimmedName,
     paths: paths.map((p) => p.trim()).filter(Boolean),
-    folderTarget,
   };
   await saveLaunchpads(pads);
-
-  // Remember preference per space
-  if (folderTarget && spaceId) {
-    const workspaces = await getWorkspaces();
-    const ws = workspaces.find((w) => w.id === spaceId);
-    if (ws && ws.defaultFolderTarget !== folderTarget) {
-      ws.defaultFolderTarget = folderTarget;
-      await writeJson(workspacesFile(), workspaces);
-    }
-  }
-
   return snapshot();
 });
 
@@ -846,7 +830,7 @@ ipcMain.handle('launchpad:launch', async (_event, id: string) => {
 
   const workspaces = await getWorkspaces();
   const space = workspaces.find((w) => w.id === pad.spaceId);
-  const targetPref = pad.folderTarget ?? space?.defaultFolderTarget ?? 'explorer';
+  const targetPref = space?.defaultFolderTarget ?? 'explorer';
 
   const errors: string[] = [];
   for (const target of pad.paths) {
@@ -856,9 +840,9 @@ ipcMain.handle('launchpad:launch', async (_event, id: string) => {
   return { ok: errors.length === 0, errors };
 });
 
-ipcMain.handle('path:open-item', async (_event, target: string, spaceId?: string, explicitTarget?: 'explorer' | 'vscode') => {
-  let targetPref: 'explorer' | 'vscode' = explicitTarget || 'explorer';
-  if (!explicitTarget && spaceId) {
+ipcMain.handle('path:open-item', async (_event, target: string, spaceId?: string) => {
+  let targetPref: 'explorer' | 'vscode' = 'explorer';
+  if (spaceId) {
     const workspaces = await getWorkspaces();
     const space = workspaces.find((w) => w.id === spaceId);
     if (space?.defaultFolderTarget) targetPref = space.defaultFolderTarget;

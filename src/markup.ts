@@ -351,7 +351,6 @@ export function logPanelMarkup(): string {
 // ---------------------------------------------------------------------------
 
 function launchpadCardMarkup(lp: Launchpad): string {
-  const folderTarget = lp.folderTarget || 'explorer';
   const pathChips = lp.paths.map(p => {
     const isUrl = /^https?:\/\//i.test(p);
     const label = isUrl
@@ -359,20 +358,13 @@ function launchpadCardMarkup(lp: Launchpad): string {
       : folderName(p);
     const icon = isUrl ? '🌐' : '📁';
     const titleText = isUrl ? `Open website: ${p}` : `Open item: ${p}`;
-    return `<button type="button" class="lp-path-chip interactive" data-open-item="${escapeHtml(p)}" data-folder-target="${folderTarget}" title="${escapeHtml(titleText)}">${icon} <span>${escapeHtml(label)}</span> <span class="chip-arrow">↗</span></button>`;
+    return `<button type="button" class="lp-path-chip interactive" data-open-item="${escapeHtml(p)}" title="${escapeHtml(titleText)}">${icon} <span>${escapeHtml(label)}</span> <span class="chip-arrow">↗</span></button>`;
   }).join('');
-
-  const targetBadge = folderTarget === 'vscode'
-    ? `<span class="lp-target-badge vscode" title="Folders open in VS Code (with Explorer fallback)">💻 VS Code</span>`
-    : `<span class="lp-target-badge explorer" title="Folders open in File Explorer">📁 Explorer</span>`;
 
   return `
     <div class="launchpad-card">
       <div class="lp-card-head">
-        <div class="lp-head-title">
-          <h3 class="lp-name">${escapeHtml(lp.name)}</h3>
-          ${targetBadge}
-        </div>
+        <h3 class="lp-name">${escapeHtml(lp.name)}</h3>
         <div class="lp-card-actions">
           <button class="lp-launch-btn" data-launch-id="${lp.id}" title="Open all resources">▷ Launch All</button>
           <button class="lp-edit-btn" data-edit-lp="${lp.id}" title="Edit launchpad">✎ Edit</button>

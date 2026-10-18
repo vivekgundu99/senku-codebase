@@ -233,10 +233,9 @@ function bindLaunchpadActions(load: LoadFn): void {
       e.stopPropagation();
       const target = chip.dataset.openItem;
       if (!target) return;
-      const folderTarget = chip.dataset.folderTarget as 'explorer' | 'vscode' | undefined;
       chip.classList.add('opening');
       try {
-        const res = await window.senku.openItem(target, state.workspace?.id, folderTarget);
+        const res = await window.senku.openItem(target, state.workspace?.id);
         if (!res.ok && res.error) {
           alert(`Could not open item:\n${res.error}`);
         }

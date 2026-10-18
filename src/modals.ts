@@ -244,6 +244,18 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
           <button type="button" id="browse-space-folder" class="ghost-button">Browse</button>
         </div>
       </label>
+
+      <div class="space-toggle-row">
+        <label class="toggle-control">
+          <input type="checkbox" name="openInVsCode" ${ws.defaultFolderTarget === 'vscode' ? 'checked' : ''} />
+          <span class="toggle-slider"></span>
+        </label>
+        <div class="toggle-info">
+          <span class="toggle-title">Open folders in VS Code whenever possible</span>
+          <span class="toggle-desc">Automatically tries to open folders in VS Code; falls back to File Explorer if VS Code is unavailable.</span>
+        </div>
+      </div>
+
       <p class="form-error" id="workspace-settings-error"></p>
       <button class="primary-button" type="submit">Save Space settings <span>→</span></button>
       <button type="button" class="danger-button" id="delete-workspace">Delete this Space</button>
@@ -267,8 +279,13 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
 
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = String(new FormData(e.currentTarget as HTMLFormElement).get('name')).trim();
-    const folder = String(new FormData(e.currentTarget as HTMLFormElement).get('folder')).trim();
+    const formEl = e.currentTarget as HTMLFormElement;
+    const data = new FormData(formEl);
+    const name = String(data.get('name') ?? '').trim();
+    const folder = String(data.get('folder') ?? '').trim();
+    const openInVsCode = formEl.querySelector<HTMLInputElement>('[name="openInVsCode"]')?.checked;
+    const defaultFolderTarget = openInVsCode ? 'vscode' : 'explorer';
+
     if (!name) {
       showFormError(overlay, '#workspace-settings-error', 'Space name is required.');
       return;
@@ -281,6 +298,7 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
     try {
       let snapshot = await window.senku.setMasterFolder(ws.id, folder);
       snapshot = await window.senku.renameWorkspace(ws.id, name);
+      snapshot = await window.senku.setWorkspaceFolderTarget(ws.id, defaultFolderTarget);
       setState(snapshot);
       overlay.remove();
       render();
@@ -301,7 +319,6 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
   const heading = isEditing ? 'Update your Launchpad' : 'Bundle and launch context in 1-click';
   const defaultPaths = existing ? existing.paths.join('\n') : '';
   const defaultName = existing ? existing.name : '';
-  const defaultTarget = existing?.folderTarget ?? state.workspace?.defaultFolderTarget ?? 'explorer';
   const submitText = isEditing ? 'Save Changes' : 'Create Launchpad';
 
   const overlay = createOverlay(`
@@ -328,21 +345,6 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
           style="font-family:monospace;font-size:12px;line-height:1.4;"
         >${escapeHtml(defaultPaths)}</textarea>
       </label>
-
-      <div class="form-group folder-target-field">
-        <label class="field-label">When launching folders:</label>
-        <div class="folder-target-options">
-          <label class="target-option-label">
-            <input type="radio" name="folderTarget" value="explorer" ${defaultTarget === 'explorer' ? 'checked' : ''} />
-            <span class="target-chip">📁 File Explorer</span>
-          </label>
-          <label class="target-option-label">
-            <input type="radio" name="folderTarget" value="vscode" ${defaultTarget === 'vscode' ? 'checked' : ''} />
-            <span class="target-chip">💻 VS Code (with Explorer fallback)</span>
-          </label>
-        </div>
-        <small class="field-hint">Your choice becomes the default for this Space.</small>
-      </div>
 
       <p class="form-error" id="lp-error"></p>
       <button class="primary-button" type="submit">${submitText} <span>→</span></button>
@@ -377,14 +379,12 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const folderTarget = (data.get('folderTarget') as 'explorer' | 'vscode') || 'explorer';
-
     try {
       if (existing) {
-        await window.senku.updateLaunchpad(existing.id, name, paths, folderTarget);
+        await window.senku.updateLaunchpad(existing.id, name, paths);
       } else {
         const spaceId = state.workspace?.id ?? '';
-        await window.senku.createLaunchpad(name, spaceId, paths, folderTarget);
+        await window.senku.createLaunchpad(name, spaceId, paths);
       }
       overlay.remove();
       await load(state.currentPath);

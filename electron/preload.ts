@@ -36,6 +36,9 @@ const api = {
   setMasterFolder: (id: string, folder: string) =>
     ipcRenderer.invoke('workspace:set-master-folder', id, folder) as Promise<AppSnapshot>,
 
+  setWorkspaceFolderTarget: (id: string, target: 'explorer' | 'vscode') =>
+    ipcRenderer.invoke('workspace:set-folder-target', id, target) as Promise<AppSnapshot>,
+
   // --- File system ---
   openPath: (path: string) =>
     ipcRenderer.invoke('path:open', path) as Promise<{ ok: boolean; error?: string }>,
@@ -61,11 +64,11 @@ const api = {
     ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,
 
   // --- V3: Launchpads ---
-  createLaunchpad: (name: string, spaceId: string, paths: string[], folderTarget?: 'explorer' | 'vscode') =>
-    ipcRenderer.invoke('launchpad:create', name, spaceId, paths, folderTarget) as Promise<AppSnapshot>,
+  createLaunchpad: (name: string, spaceId: string, paths: string[]) =>
+    ipcRenderer.invoke('launchpad:create', name, spaceId, paths) as Promise<AppSnapshot>,
 
-  updateLaunchpad: (id: string, name: string, paths: string[], folderTarget?: 'explorer' | 'vscode') =>
-    ipcRenderer.invoke('launchpad:update', id, name, paths, folderTarget) as Promise<AppSnapshot>,
+  updateLaunchpad: (id: string, name: string, paths: string[]) =>
+    ipcRenderer.invoke('launchpad:update', id, name, paths) as Promise<AppSnapshot>,
 
   deleteLaunchpad: (id: string) =>
     ipcRenderer.invoke('launchpad:delete', id) as Promise<AppSnapshot>,
@@ -73,8 +76,8 @@ const api = {
   launchLaunchpad: (id: string) =>
     ipcRenderer.invoke('launchpad:launch', id) as Promise<{ ok: boolean; errors: string[] }>,
 
-  openItem: (target: string, spaceId?: string, folderTarget?: 'explorer' | 'vscode') =>
-    ipcRenderer.invoke('path:open-item', target, spaceId, folderTarget) as Promise<{ ok: boolean; error?: string }>,
+  openItem: (target: string, spaceId?: string) =>
+    ipcRenderer.invoke('path:open-item', target, spaceId) as Promise<{ ok: boolean; error?: string }>,
 
   // --- V3: Quick Actions ---
   openInVSCode: (path: string) =>

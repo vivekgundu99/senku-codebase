@@ -912,28 +912,6 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   background: var(--green-pale);
 }
 
-.lp-head-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.lp-target-badge {
-  font: 600 10.5px var(--mono);
-  padding: 2px 7px;
-  border-radius: 99px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--muted);
-}
-
-.lp-target-badge.vscode {
-  background: rgba(0, 122, 204, 0.08);
-  border-color: rgba(0, 122, 204, 0.25);
-  color: #007acc;
-}
-
 .lp-paths {
   display: flex;
   flex-wrap: wrap;
@@ -981,56 +959,79 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   pointer-events: none;
 }
 
-/* Modal Folder Target Options */
-.folder-target-field {
-  margin-top: 14px;
-  margin-bottom: 6px;
-}
-
-.folder-target-field .field-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 6px;
-}
-
-.folder-target-options {
+/* Space Settings: VS Code Toggle */
+.space-toggle-row {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 14px 0 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
-.target-option-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.toggle-control {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-top: 2px;
   cursor: pointer;
 }
 
-.target-chip {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: var(--muted);
-  transition: all .12s ease;
+.toggle-control input {
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
-.target-option-label input[type="radio"]:checked + .target-chip {
-  border-color: var(--green);
-  background: var(--green-pale);
-  color: var(--green);
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--line);
+  border-radius: 22px;
+  transition: all .2s ease;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: all .2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.toggle-control input:checked + .toggle-slider {
+  background: var(--green);
+}
+
+.toggle-control input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-title {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--ink);
 }
 
-.field-hint {
-  display: block;
-  font-size: 11px;
+.toggle-desc {
+  font-size: 11.5px;
   color: var(--muted);
-  margin-top: 5px;
+  line-height: 1.35;
 }
 
 .file-panel-actions {
