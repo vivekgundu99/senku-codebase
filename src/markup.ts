@@ -6,6 +6,8 @@ import {
   fileFilter,
   visibleEntries,
   getLogEntries,
+  logFilter,
+  visibleLogEntries,
 } from './state';
 import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
 
@@ -64,6 +66,13 @@ export function sidebarMarkup(): string {
         <button class="mini-button" id="add-space" title="Add a Space" aria-label="Add a Space">＋</button>
       </div>
       <div class="space-list">${spacesContent}</div>
+      ${state.trashWorkspaces && state.trashWorkspaces.length > 0 ? `
+        <div class="space-trash-wrap">
+          <button class="space-trash-btn" id="open-trash" title="Trash (${state.trashWorkspaces.length} deleted spaces)">
+            <span>🗑 Trash</span>
+            <span class="trash-count">${state.trashWorkspaces.length}</span>
+          </button>
+        </div>` : ''}
     </aside>`;
 }
 
@@ -289,18 +298,30 @@ function formatLogTime(ts: number): string {
   return `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${timeStr}`;
 }
 
-export function logPanelMarkup(): string {
-  const entries = getLogEntries();
-  const entriesList = entries.length
-    ? entries.map((e: LogEntry) => `
-        <div class="log-entry">
-          <span class="log-time">${formatLogTime(e.createdAt)}</span>
-          <p class="log-text">${escapeHtml(e.text)}</p>
-        </div>`).join('')
-    : `<div class="log-empty">
+export function logListMarkup(): string {
+  const { items, matched, total } = visibleLogEntries();
+  if (total === 0) {
+    return `<div class="log-empty">
          <p>Nothing logged yet.</p>
          <small>Use the bar below to capture what you just did. No pressure.</small>
        </div>`;
+  }
+  if (matched === 0) {
+    return `<div class="log-empty"><p>No log entries matching "${escapeHtml(logFilter)}"</p></div>`;
+  }
+
+  const more = matched - items.length;
+  return items.map((e: LogEntry) => `
+      <div class="log-entry">
+        <span class="log-time">${formatLogTime(e.createdAt)}</span>
+        <p class="log-text">${escapeHtml(e.text)}</p>
+      </div>`).join('') +
+    (more > 0 ? `<button class="show-more" id="show-more-logs">Show ${Math.min(more, 40)} more · ${more} remaining</button>` : '');
+}
+
+export function logPanelMarkup(): string {
+  const { matched, total } = visibleLogEntries();
+  const countLabel = matched === total ? `${total} entries` : `${matched} of ${total}`;
 
   return `
     <section class="log-panel">
@@ -309,9 +330,19 @@ export function logPanelMarkup(): string {
           <span class="section-kicker">QUIET LOG</span>
           <h2>What happened</h2>
         </div>
-        <span class="log-count-badge">${entries.length} entries</span>
+        <span class="log-count-badge">${countLabel}</span>
       </div>
-      <div class="log-entries">${entriesList}</div>
+      <div class="log-tools">
+        <input
+          id="log-search"
+          type="search"
+          placeholder="Search your log..."
+          value="${escapeHtml(logFilter)}"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+      <div class="log-entries">${logListMarkup()}</div>
     </section>`;
 }
 

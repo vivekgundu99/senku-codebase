@@ -45,6 +45,14 @@ export interface DailyNote {
   updatedAt: string;
 }
 
+export interface TrashWorkspace {
+  id: string;
+  name: string;
+  masterFolder: string;
+  dailyNote?: string;
+  deletedAt: number;
+}
+
 export interface AppSnapshot {
   settings: Settings;
   workspaces: Workspace[];
@@ -55,4 +63,5 @@ export interface AppSnapshot {
   dailyNote: string;
   logEntries: LogEntry[];
   launchpads: Launchpad[];
+  trashWorkspaces: TrashWorkspace[];
 }

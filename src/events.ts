@@ -6,8 +6,11 @@ import {
   setNoteDirty,
   setFileFilter,
   showMoreFiles,
+  setLogFilter,
+  showMoreLogs,
+  visibleLogEntries,
 } from './state';
-import { fileCountLabel, fileListMarkup } from './markup';
+import { fileCountLabel, fileListMarkup, logListMarkup } from './markup';
 import { isSamePath, parentOf } from './utils';
 import { registerShortcuts } from './shortcuts';
 import {
@@ -15,6 +18,7 @@ import {
   openWorkspaceFormModal,
   openWorkspaceSettingsModal,
   openLaunchpadFormModal,
+  openTrashModal,
 } from './modals';
 
 type LoadFn = (path?: string) => Promise<void>;
@@ -59,6 +63,7 @@ export function bindAll(load: LoadFn, render: RenderFn): void {
   bindTopbarButtons(load);
   bindFileActions(load);
   bindLogBar(load, render);
+  bindLogPanel();
   bindLaunchpadActions(load);
 }
 
@@ -82,6 +87,7 @@ function bindNavigation(render: RenderFn): void {
 function bindSidebarButtons(load: LoadFn, render: RenderFn): void {
   document.querySelector('#workspace-settings')?.addEventListener('click', () => openWorkspaceSettingsModal(load, render));
   document.querySelector('#add-space')?.addEventListener('click', () => openWorkspaceFormModal(load));
+  document.querySelector('#open-trash')?.addEventListener('click', () => openTrashModal(load));
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +190,34 @@ function bindLogBar(load: LoadFn, render: RenderFn): void {
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
     if (currentView === 'Log') render();
+  });
+}
+
+function bindLogPanel(): void {
+  const panel = document.querySelector<HTMLElement>('.log-panel');
+  if (!panel) return;
+
+  const refreshList = () => {
+    const list = panel.querySelector('.log-entries');
+    if (list) list.innerHTML = logListMarkup();
+    const count = panel.querySelector('.log-count-badge');
+    const { matched, total } = visibleLogEntries();
+    if (count) count.textContent = matched === total ? `${total} entries` : `${matched} of ${total}`;
+  };
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  panel.querySelector<HTMLInputElement>('#log-search')?.addEventListener('input', (event) => {
+    const value = (event.target as HTMLInputElement).value;
+    clearTimeout(timer);
+    timer = setTimeout(() => { setLogFilter(value); refreshList(); }, 80);
+  });
+
+  panel.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('#show-more-logs')) {
+      showMoreLogs();
+      refreshList();
+    }
   });
 }
 

@@ -375,3 +375,76 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
     }
   });
 }
+
+// ---------------------------------------------------------------------------
+// Space Trash / Bin modal
+// ---------------------------------------------------------------------------
+
+export function openTrashModal(load: () => Promise<void>): void {
+  const trash = state.trashWorkspaces ?? [];
+
+  const itemsList = trash.length
+    ? trash.map((t) => {
+        const deletedStr = new Date(t.deletedAt).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        });
+        return `
+          <div class="trash-space-row" data-id="${t.id}">
+            <div class="trash-space-info">
+              <strong class="trash-space-name">${escapeHtml(t.name)}</strong>
+              <span class="trash-space-path">${escapeHtml(t.masterFolder)}</span>
+              <small class="trash-space-time">Deleted ${deletedStr}</small>
+            </div>
+            <div class="trash-space-actions">
+              <button type="button" class="primary-button mini" data-restore-id="${t.id}">↺ Restore</button>
+              <button type="button" class="danger-button mini" data-purge-id="${t.id}">Delete</button>
+            </div>
+          </div>`;
+      }).join('')
+    : `<div class="trash-empty"><p>Trash is empty.</p></div>`;
+
+  const overlay = createOverlay(`
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="close-modal">×</button>
+      <span class="section-kicker">SPACES TRASH</span>
+      <h2>Deleted Spaces</h2>
+      <p class="modal-copy">Restoring a Space brings it back to your sidebar with its notes intact. Your Windows folders were never touched.</p>
+
+      <div class="trash-list">${itemsList}</div>
+
+      ${trash.length ? `
+        <div class="trash-footer">
+          <button type="button" class="danger-button" id="empty-all-trash">Empty entire Trash</button>
+        </div>` : ''}
+    </div>`);
+
+  overlay.querySelectorAll<HTMLElement>('[data-restore-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.restoreId!;
+      btn.textContent = 'Restoring…';
+      await window.senku.restoreWorkspace(id);
+      overlay.remove();
+      await load();
+    });
+  });
+
+  overlay.querySelectorAll<HTMLElement>('[data-purge-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Permanently delete this Space configuration from trash?')) return;
+      const id = btn.dataset.purgeId!;
+      await window.senku.purgeTrash(id);
+      overlay.remove();
+      await load();
+    });
+  });
+
+  overlay.querySelector('#empty-all-trash')?.addEventListener('click', async () => {
+    if (!confirm('Permanently empty all items in trash?')) return;
+    await window.senku.purgeTrash();
+    overlay.remove();
+    await load();
+  });
+}

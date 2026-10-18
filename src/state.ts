@@ -65,9 +65,29 @@ export function visibleEntries(): { items: FileEntry[]; matched: number; total: 
 }
 
 // ---------------------------------------------------------------------------
-// Log entries (sorted newest first)
+// Log entries: filter + lazy page (sorted newest first)
 // ---------------------------------------------------------------------------
+
+export const LOG_PAGE = 40;
+export let logFilter = '';
+export let logLimit = LOG_PAGE;
+
+export function setLogFilter(value: string): void {
+  logFilter = value;
+  logLimit = LOG_PAGE;
+}
+
+export function showMoreLogs(): void {
+  logLimit += LOG_PAGE;
+}
 
 export function getLogEntries(): LogEntry[] {
   return [...(state?.logEntries ?? [])].sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function visibleLogEntries(): { items: LogEntry[]; matched: number; total: number } {
+  const all = getLogEntries();
+  const q = logFilter.trim().toLowerCase();
+  const matched = q ? all.filter((entry) => entry.text.toLowerCase().includes(q)) : all;
+  return { items: matched.slice(0, logLimit), matched: matched.length, total: all.length };
 }

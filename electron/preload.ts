@@ -24,6 +24,12 @@ const api = {
   deleteWorkspace: (id: string) =>
     ipcRenderer.invoke('workspace:delete', id) as Promise<{ ok: boolean; error?: string }>,
 
+  restoreWorkspace: (id: string) =>
+    ipcRenderer.invoke('workspace:restore', id) as Promise<AppSnapshot>,
+
+  purgeTrash: (id?: string) =>
+    ipcRenderer.invoke('workspace:purge-trash', id) as Promise<AppSnapshot>,
+
   renameWorkspace: (id: string, name: string) =>
     ipcRenderer.invoke('workspace:rename', id, name) as Promise<AppSnapshot>,
 

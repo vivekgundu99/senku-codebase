@@ -21,6 +21,7 @@ import type {
   Launchpad,
   LogEntry,
   Settings,
+  TrashWorkspace,
   Workspace,
 } from './types';
 
@@ -61,6 +62,7 @@ const settingsFile = () => path.join(dataDir(), 'settings.json');
 const workspacesFile = () => path.join(dataDir(), 'workspaces.json');
 const logFile = () => path.join(dataDir(), 'log.json');
 const launchpadsFile = () => path.join(dataDir(), 'launchpads.json');
+const trashFile = () => path.join(dataDir(), 'trash-workspaces.json');
 const workspaceDir = (id: string) => path.join(dataDir(), 'workspaces', id);
 const dailyNoteFile = (id: string) => path.join(workspaceDir(id), 'daily-note.json');
 
@@ -156,6 +158,14 @@ async function getLaunchpads(): Promise<Launchpad[]> {
 
 async function saveLaunchpads(pads: Launchpad[]): Promise<void> {
   await writeJson(launchpadsFile(), pads);
+}
+
+async function getTrashWorkspaces(): Promise<TrashWorkspace[]> {
+  return readJson<TrashWorkspace[]>(trashFile(), []);
+}
+
+async function saveTrashWorkspaces(items: TrashWorkspace[]): Promise<void> {
+  await writeJson(trashFile(), items);
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +301,16 @@ async function isDirectory(target: string): Promise<boolean> {
   }
 }
 
+// Lazy cached check so network drives / unmounted drives don't lag Senku
+const availabilityCache = new Map<string, { ok: boolean; at: number }>();
+async function isDirectoryCached(id: string, folder: string): Promise<boolean> {
+  const cached = availabilityCache.get(id);
+  if (cached && Date.now() - cached.at < 20_000) return cached.ok;
+  const ok = await isDirectory(folder);
+  availabilityCache.set(id, { ok, at: Date.now() });
+  return ok;
+}
+
 // ---------------------------------------------------------------------------
 // App Snapshot
 // ---------------------------------------------------------------------------
@@ -300,13 +320,14 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const workspaces = await getWorkspaces();
   const workspaceFolderAvailability = Object.fromEntries(
     await Promise.all(workspaces.map(async (workspace) => {
-      return [workspace.id, await isDirectory(workspace.masterFolder)] as const;
+      return [workspace.id, await isDirectoryCached(workspace.id, workspace.masterFolder)] as const;
     })),
   );
   const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
-  const [logEntries, launchpads] = await Promise.all([
+  const [logEntries, launchpads, trashWorkspaces] = await Promise.all([
     getLogEntries(),
     getLaunchpads(),
+    getTrashWorkspaces(),
   ]);
 
   if (!workspace) {
@@ -320,6 +341,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       dailyNote: '',
       logEntries,
       launchpads,
+      trashWorkspaces,
     };
   }
 
@@ -352,6 +374,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     dailyNote,
     logEntries,
     launchpads,
+    trashWorkspaces,
   };
 }
 
@@ -524,11 +547,23 @@ handleLocked('workspace:set-master-folder', async (_event, id: string, folder: s
 
 handleLocked('workspace:delete', async (_event, id: string) => {
   const workspaces = await getWorkspaces();
-  const next = workspaces.filter((ws) => ws.id !== id);
-  if (next.length === workspaces.length) return { ok: false, error: 'Space not found.' };
+  const target = workspaces.find((ws) => ws.id === id);
+  if (!target) return { ok: false, error: 'Space not found.' };
 
+  const next = workspaces.filter((ws) => ws.id !== id);
   await writeJson(workspacesFile(), next);
-  await fs.rm(workspaceDir(id), { recursive: true, force: true });
+
+  // Preserve daily note content in trash before deleting
+  const note = await getDailyNote(id);
+  const trash = await getTrashWorkspaces();
+  const item: TrashWorkspace = {
+    id: target.id,
+    name: target.name,
+    masterFolder: target.masterFolder,
+    dailyNote: note,
+    deletedAt: Date.now(),
+  };
+  await saveTrashWorkspaces([item, ...trash.filter((t) => t.id !== id)]);
 
   const settings = await getSettings();
   if (settings.activeWorkspaceId === id) {
@@ -536,6 +571,48 @@ handleLocked('workspace:delete', async (_event, id: string) => {
   }
 
   return { ok: true };
+});
+
+handleLocked('workspace:restore', async (_event, id: string) => {
+  const trash = await getTrashWorkspaces();
+  const item = trash.find((t) => t.id === id);
+  if (!item) return snapshot();
+
+  await saveTrashWorkspaces(trash.filter((t) => t.id !== id));
+
+  const workspaces = await getWorkspaces();
+  const restored: Workspace = {
+    id: item.id,
+    name: item.name,
+    masterFolder: item.masterFolder,
+    lastSubfolder: item.masterFolder,
+    pinnedPaths: [],
+    createdAt: new Date().toISOString(),
+  };
+  await writeJson(workspacesFile(), [...workspaces, restored]);
+
+  if (item.dailyNote) {
+    await saveDailyNote(item.id, item.dailyNote);
+  }
+
+  const settings = await getSettings();
+  await writeJson(settingsFile(), { ...settings, activeWorkspaceId: restored.id });
+
+  return snapshot();
+});
+
+handleLocked('workspace:purge-trash', async (_event, id?: string) => {
+  const trash = await getTrashWorkspaces();
+  if (id) {
+    await saveTrashWorkspaces(trash.filter((t) => t.id !== id));
+    await fs.rm(workspaceDir(id), { recursive: true, force: true }).catch(() => undefined);
+  } else {
+    for (const t of trash) {
+      await fs.rm(workspaceDir(t.id), { recursive: true, force: true }).catch(() => undefined);
+    }
+    await saveTrashWorkspaces([]);
+  }
+  return snapshot();
 });
 
 ipcMain.handle('path:open', async (_event, target: string) => {

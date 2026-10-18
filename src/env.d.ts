@@ -10,6 +10,8 @@ declare global {
       createWorkspace(name: string, masterFolder: string): Promise<AppSnapshot>;
       switchWorkspace(id: string): Promise<AppSnapshot>;
       deleteWorkspace(id: string): Promise<{ ok: boolean; error?: string }>;
+      restoreWorkspace(id: string): Promise<AppSnapshot>;
+      purgeTrash(id?: string): Promise<AppSnapshot>;
       renameWorkspace(id: string, name: string): Promise<AppSnapshot>;
       setMasterFolder(id: string, folder: string): Promise<AppSnapshot>;
       openPath(path: string): Promise<{ ok: boolean; error?: string }>;
