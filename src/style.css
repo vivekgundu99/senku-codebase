@@ -1110,3 +1110,240 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   color: var(--soft);
   font: 500 10.5px var(--mono);
 }
+
+/* ==========================================================================
+   V3: QUICK LOG BAR, LOG VIEW, LAUNCHPADS, QUICK ACTIONS
+   ========================================================================== */
+
+.quick-log-bar {
+  position: fixed;
+  bottom: 0;
+  left: 240px;
+  right: 0;
+  padding: 12px 24px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  z-index: 50;
+}
+
+#quick-log-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 16px;
+  font-size: 13.5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  transition: all .15s ease;
+}
+
+#quick-log-input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(95, 128, 95, .12);
+}
+
+.content-grid-full {
+  grid-template-columns: 1fr !important;
+}
+
+/* Home Panel V3 */
+.home-panel-v3 {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 0;
+}
+
+.home-welcome-sub {
+  color: var(--muted);
+  font-size: 13.5px;
+  margin: 0 0 16px 0;
+}
+
+.home-quick-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.home-quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .12s;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.home-quick-btn:hover {
+  border-color: var(--green);
+  background: var(--green-pale);
+}
+
+.hq-count {
+  background: var(--line);
+  border-radius: 12px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-family: var(--mono);
+}
+
+/* Log Panel */
+.log-panel {
+  padding: 8px 0;
+  max-width: 800px;
+}
+
+.log-count-badge {
+  font: 600 11.5px var(--mono);
+  color: var(--muted);
+  background: var(--surface);
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+.log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.log-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.log-time {
+  font: 600 11px var(--mono);
+  color: var(--soft);
+}
+
+.log-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.log-empty, .lp-empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+/* Launchpads */
+.launchpads-panel {
+  padding: 8px 0;
+  max-width: 800px;
+}
+
+.launchpads-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+}
+
+.launchpad-card {
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lp-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.lp-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.lp-launch-btn {
+  padding: 6px 14px;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .12s;
+}
+
+.lp-launch-btn:hover {
+  opacity: 0.9;
+}
+
+.lp-delete-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lp-delete-btn:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.lp-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lp-path-chip {
+  font: 500 11.5px var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.file-panel-actions {
+  display: flex;
+  gap: 8px;
+}
+

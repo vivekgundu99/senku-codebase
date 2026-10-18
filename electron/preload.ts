@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppSnapshot, Settings, Task, TaskInput } from './types';
+import type { AppSnapshot, Settings } from './types';
 
 const api = {
   getSnapshot: (path?: string) =>
@@ -30,9 +30,6 @@ const api = {
   setMasterFolder: (id: string, folder: string) =>
     ipcRenderer.invoke('workspace:set-master-folder', id, folder) as Promise<AppSnapshot>,
 
-  setStrictMode: (id: string, enabled: boolean) =>
-    ipcRenderer.invoke('workspace:strict-mode', id, enabled) as Promise<AppSnapshot>,
-
   // --- File system ---
   openPath: (path: string) =>
     ipcRenderer.invoke('path:open', path) as Promise<{ ok: boolean; error?: string }>,
@@ -53,43 +50,26 @@ const api = {
   saveNote: (content: string) =>
     ipcRenderer.invoke('note:save', content) as Promise<void>,
 
-  // --- Tasks ---
-  createTask: (input: TaskInput) =>
-    ipcRenderer.invoke('task:create', input) as Promise<Task>,
+  // --- V3: Quiet Log ---
+  addLogEntry: (text: string, spaceId?: string) =>
+    ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,
 
-  completeTask: (id: string, reschedule?: TaskInput) =>
-    ipcRenderer.invoke('task:complete', id, reschedule) as Promise<{ task: Task; next?: Task }>,
+  // --- V3: Launchpads ---
+  createLaunchpad: (name: string, spaceId: string, paths: string[]) =>
+    ipcRenderer.invoke('launchpad:create', name, spaceId, paths) as Promise<AppSnapshot>,
 
-  snoozeTask: (id: string, durationMinutes: number) =>
-    ipcRenderer.invoke('task:snooze', id, durationMinutes) as Promise<Task>,
+  deleteLaunchpad: (id: string) =>
+    ipcRenderer.invoke('launchpad:delete', id) as Promise<AppSnapshot>,
 
-  setTaskPinned: (id: string, isPinned: boolean) =>
-    ipcRenderer.invoke('task:pin', id, isPinned) as Promise<Task>,
+  launchLaunchpad: (id: string) =>
+    ipcRenderer.invoke('launchpad:launch', id) as Promise<{ ok: boolean; errors: string[] }>,
 
-  updateTask: (id: string, input: TaskInput, bucket: 'active' | 'error' = 'active') =>
-    ipcRenderer.invoke('task:update', id, input, bucket) as Promise<Task>,
+  // --- V3: Quick Actions ---
+  openInVSCode: (path: string) =>
+    ipcRenderer.invoke('code:open', path) as Promise<{ ok: boolean; error?: string }>,
 
-  recoverTask: (id: string, input: TaskInput) =>
-    ipcRenderer.invoke('task:recover', id, input) as Promise<Task>,
-
-  deleteTask: (id: string, bucket: 'active' | 'completed' | 'error') =>
-    ipcRenderer.invoke('task:delete', id, bucket) as Promise<boolean>,
-
-  completeManyTasks: (ids: string[]) =>
-    ipcRenderer.invoke('task:complete-many', ids) as Promise<number>,
-
-  deleteManyTasks: (ids: string[], bucket: 'active' | 'completed' | 'error') =>
-    ipcRenderer.invoke('task:delete-many', ids, bucket) as Promise<number>,
-
-  // --- Quick-add window ---
-  closeQuickAdd: () =>
-    ipcRenderer.invoke('quickadd:close') as Promise<void>,
-
-  // Listen for tasks:changed pushed from main (after quick-add creates a task)
-  onTasksChanged: (callback: () => void) => {
-    ipcRenderer.on('tasks:changed', callback);
-    return () => ipcRenderer.removeListener('tasks:changed', callback);
-  },
+  openInTerminal: (path: string) =>
+    ipcRenderer.invoke('terminal:open', path) as Promise<{ ok: boolean; error?: string }>,
 };
 
 contextBridge.exposeInMainWorld('senku', api);

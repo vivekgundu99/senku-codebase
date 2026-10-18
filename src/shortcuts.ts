@@ -6,64 +6,14 @@ type ShortcutContext = {
   render: () => void;
 };
 
-type Shortcut = {
-  key: string;
-  run: (context: ShortcutContext) => void;
-};
-
-const shortcuts: Shortcut[] = [
-  {
-    key: 'h',
-    run: ({ render }) => {
-      setView('Home');
-      render();
-    },
-  },
-  {
-    key: 't',
-    run: ({ render }) => {
-      setView('Today');
-      render();
-    },
-  },
-  {
-    key: 'u',
-    run: ({ render }) => {
-      setView('Upcoming');
-      render();
-    },
-  },
-  {
-    key: 'f',
-    run: ({ render }) => {
-      setView('Flexible');
-      render();
-    },
-  },
-  {
-    key: 'm',
-    run: ({ render }) => {
-      setView('Overdue');
-      render();
-    },
-  },
-  {
-    key: 'c',
-    run: ({ render }) => {
-      setView('Completed');
-      render();
-    },
-  },
-  {
-    key: 'n',
-    run: ({ render }) => {
-      setView('Note');
-      render();
-    },
-  },
+const shortcuts = [
+  { key: 'h', run: ({ render }: ShortcutContext) => { setView('Home'); render(); } },
+  { key: 'l', run: ({ render }: ShortcutContext) => { setView('Log'); render(); } },
+  { key: 'p', run: ({ render }: ShortcutContext) => { setView('Launchpads'); render(); } },
+  { key: 'n', run: ({ render }: ShortcutContext) => { setView('Note'); render(); } },
   {
     key: 'r',
-    run: ({ load }) => {
+    run: ({ load }: ShortcutContext) => {
       const root = state.workspace?.masterFolder;
       if (!root || isSamePath(currentPath, root)) return;
       const parent = parentOf(currentPath);
@@ -79,9 +29,7 @@ export function registerShortcuts(load: ShortcutContext['load'], render: Shortcu
     if (
       event.target instanceof HTMLElement &&
       (event.target.isContentEditable || event.target.closest('input, textarea, select'))
-    ) {
-      return;
-    }
+    ) return;
 
     const shortcut = shortcuts.find((item) => item.key === event.key.toLowerCase());
     if (!shortcut) return;

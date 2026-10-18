@@ -1,19 +1,13 @@
-import type { FileEntry, Task } from '../electron/types';
+import type { FileEntry, LogEntry, Launchpad } from '../electron/types';
 import {
   state,
   currentView,
   dailyNote,
   fileFilter,
-  selectedTaskIds,
   visibleEntries,
-  visibleTasks,
-  tasksForView,
-  errorCount,
-  getScheduledFocusTask,
-  getFlexibleFocusTask,
-  homeFocusTab,
+  getLogEntries,
 } from './state';
-import { escapeHtml, folderName, formatDate, isSamePath, pathCrumbs, renderGreeting } from './utils';
+import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
 
 // ---------------------------------------------------------------------------
 // Sidebar
@@ -21,11 +15,6 @@ import { escapeHtml, folderName, formatDate, isSamePath, pathCrumbs, renderGreet
 
 export function sidebarMarkup(): string {
   const ws = state.workspace;
-  const todayCount = tasksForView('Today').length;
-  const upcomingCount = tasksForView('Upcoming').length;
-  const flexibleCount = tasksForView('Flexible').length;
-  const missedCount = tasksForView('Overdue').length;
-  const completedCount = state.completedTasks?.length ?? 0;
 
   const navItem = (view: string, icon: string, label: string, shortcut?: string) => `
     <button class="nav-item ${currentView === view ? 'selected' : ''}" data-view="${view}" title="${label}${shortcut ? ` (${shortcut})` : ''}">
@@ -37,16 +26,12 @@ export function sidebarMarkup(): string {
   const spaceRow = (space: (typeof state.workspaces)[number]) => {
     const current = ws ? space.id === ws.id : false;
     const missing = state.workspaceFolderAvailability[space.id] === false;
-    const tooltip = `${space.name} · ${space.masterFolder}${space.strictMode ? ' (auto-open)' : ''}${missing ? ' [Folder missing]' : ''}`;
     return `
       <div class="space-row ${current ? 'current' : ''}">
-        <button class="space-item" data-switch-space="${space.id}" title="${escapeHtml(tooltip)}">
+        <button class="space-item" data-switch-space="${space.id}" title="${escapeHtml(space.name)} · ${escapeHtml(space.masterFolder)}${missing ? ' [Folder missing]' : ''}">
           <span class="space-badge ${missing ? 'missing' : ''}">${escapeHtml(space.name.charAt(0).toUpperCase() || '?')}</span>
           <span class="space-name">${escapeHtml(space.name)}</span>
-          <span class="space-indicator-icons">
-            ${space.strictMode ? '<span class="space-strict-icon" title="Auto-open enabled">⚡</span>' : ''}
-            ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
-          </span>
+          ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
         </button>
         ${current ? '<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">⚙</button>' : ''}
       </div>`;
@@ -69,11 +54,8 @@ export function sidebarMarkup(): string {
       <div class="sidebar-section-label">VIEWS</div>
       <nav class="nav-list">
         ${navItem('Home', '⌂', 'Home', 'H')}
-        ${navItem('Today', '☼', 'Today', 'T')}
-        ${navItem('Upcoming', '⇥', 'Upcoming', 'U')}
-        ${navItem('Flexible', '∿', 'Flexible', 'F')}
-        ${navItem('Overdue', '△', 'Missed', 'M')}
-        ${navItem('Completed', '✓', 'Completed', 'C')}
+        ${navItem('Log', '◎', 'My Log', 'L')}
+        ${navItem('Launchpads', '▷', 'Launchpads', 'P')}
         ${navItem('Note', '✎', 'Rough Note', 'N')}
       </nav>
 
@@ -122,31 +104,12 @@ export function topbarMarkup(): string {
         </div>
       </div>
       <div class="top-actions">
-        <button class="topbar-add-task" id="topbar-add-task" title="Add a task">+ Add Task</button>
         <button class="icon-button" id="refresh-button" title="Refresh">↻</button>
         <button class="avatar-button" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
           ${escapeHtml(userInitial)}
         </button>
       </div>
     </header>`;
-}
-
-// ---------------------------------------------------------------------------
-// Error banner — shown at top of Today when strict-mode tasks failed
-// ---------------------------------------------------------------------------
-
-export function errorBannerMarkup(): string {
-  const count = errorCount();
-  if (count === 0) return '';
-  return `
-    <div class="error-banner">
-      <span class="error-banner-icon">△</span>
-      <span>
-        ${count} task${count > 1 ? 's' : ''} need${count === 1 ? 's' : ''} attention —
-        linked resources couldn't be opened.
-      </span>
-      <button class="error-banner-link" data-view="Error">Review →</button>
-    </div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +171,6 @@ export function fileEntryMarkup(entry: FileEntry): string {
     </div>`;
 }
 
-/** The scrolling list only. Re-rendered on its own while filtering. */
 export function fileListMarkup(): string {
   const { items, matched, total } = visibleEntries();
   if (total === 0) {
@@ -218,7 +180,7 @@ export function fileListMarkup(): string {
       </div>`;
   }
   if (matched === 0) {
-    return `<div class="empty-files"><p>No match for “${escapeHtml(fileFilter)}”</p></div>`;
+    return `<div class="empty-files"><p>No match for "${escapeHtml(fileFilter)}"</p></div>`;
   }
   const more = matched - items.length;
   return items.map(fileEntryMarkup).join('') +
@@ -242,7 +204,7 @@ export function filePanelMarkup(): string {
         <div class="empty-files-unlinked">
           <div class="empty-unlinked-icon">📁</div>
           <h3>No folder linked</h3>
-          <p>Create a Space and choose a project folder. Your files, documents, and notes will show up here to launch with one click.</p>
+          <p>Create a Space and choose a project folder. Your files will show up here.</p>
           <button class="primary-button" id="create-space-files" style="max-width:220px; margin: 14px auto 0;">+ Create a Space <span>→</span></button>
         </div>
       </section>`;
@@ -250,7 +212,6 @@ export function filePanelMarkup(): string {
 
   const atRoot = isSamePath(state.currentPath, ws.masterFolder);
   const crumbs = pathCrumbs(ws.masterFolder, state.currentPath);
-  // Deep folder? keep the last three so the bar never overflows.
   const shown = crumbs.length > 3 ? crumbs.slice(-3) : crumbs;
   const breadcrumb =
     (crumbs.length > 3 ? '<span>/</span><span class="crumb-gap">…</span>' : '') +
@@ -260,7 +221,11 @@ export function filePanelMarkup(): string {
     <section class="files-panel">
       <div class="section-heading">
         <div><h2>Files and folders</h2></div>
-        <button class="text-button" id="open-folder">Open in Explorer ↗</button>
+        <div class="file-panel-actions">
+          <button class="text-button" id="open-in-vscode" title="Open in VS Code">VS Code ↗</button>
+          <button class="text-button" id="open-in-terminal" title="Open in Terminal">Terminal ↗</button>
+          <button class="text-button" id="open-folder">Explorer ↗</button>
+        </div>
       </div>
       <div class="folder-path">
         <button id="go-up" class="up-button" title="Up one folder (R)" aria-label="Up one folder" ${atRoot ? 'disabled' : ''}>↑</button>
@@ -276,335 +241,130 @@ export function filePanelMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Task panel
+// Home panel (V3: just file explorer + quick log teaser)
 // ---------------------------------------------------------------------------
 
-export function taskRowMarkup(task: Task, bucket: 'active' | 'completed' | 'error', selectable = true): string {
-  const overdue = bucket === 'active' && task.taskType === 'scheduled' && Boolean(task.endAt && Date.now() > Date.parse(task.endAt));
-  const status =
-    bucket === 'completed'
-      ? 'Completed'
-      : bucket === 'error'
-        ? 'Needs attention'
-        : overdue
-          ? 'Overdue'
-          : 'Active';
-
-  const chipClass = status.toLowerCase().replaceAll(' ', '-');
-
-  let actions = '';
-  if (bucket === 'active' && task.taskType === 'flexible') {
-    actions = `
-      <button data-action="pin" data-id="${task.id}">${task.isPinned ? 'Unpin' : 'Pin'}</button>
-      <button data-action="edit" data-bucket="active" data-id="${task.id}">Edit</button>`;
-  } else if (bucket === 'active') {
-    actions = `
-      <button data-action="make-flexible" data-id="${task.id}" title="Remove schedule and make flexible without guilt">Make flexible</button>
-      <button data-action="snooze" data-id="${task.id}">Snooze</button>
-      <button data-action="reschedule" data-id="${task.id}">Reassign</button>
-      <button data-action="pin" data-id="${task.id}">${task.isPinned ? 'Unpin' : 'Pin'}</button>
-      <button data-action="edit" data-bucket="active" data-id="${task.id}">Edit</button>`;
-  } else if (bucket === 'error') {
-    actions = `
-      <button data-action="recover" data-id="${task.id}">Recover</button>
-      <button data-action="edit"   data-bucket="error" data-id="${task.id}">Edit</button>
-      <button data-action="delete" data-bucket="error" data-id="${task.id}">Delete</button>`;
-  } else {
-    actions = `
-      <button data-action="delete" data-bucket="completed" data-id="${task.id}">Delete</button>`;
-  }
-
-  const isSelected = selectedTaskIds.has(task.id);
-  // Active AND completed rows can be multi-selected. Completed rows keep a soft
-  // green tick (done) until they are selected, then turn solid dark.
-  const checkbox =
-    (bucket === 'active' || bucket === 'completed') && selectable
-      ? `<button class="task-check ${bucket === 'completed' ? 'done' : ''} ${isSelected ? 'checked' : ''}"
-           data-action="select" data-id="${task.id}" aria-label="Select task">
-           ${isSelected || bucket === 'completed' ? '✓' : ''}
-         </button>`
-      : `<span class="task-check"></span>`;
-
-  const completedLinks =
-    bucket === 'completed' && task.linkedPaths.length
-      ? `<div class="completed-links">
-          ${task.linkedPaths
-        .map(
-          (p) =>
-            `<button data-task-path="${escapeHtml(p)}">${escapeHtml(p)}</button>`,
-        )
-        .join('')}
-         </div>`
-      : '';
-
-  const errorReason =
-    bucket === 'error' && task.errorMessage
-      ? `<p class="error-reason">${escapeHtml(task.errorMessage)}</p>`
-      : '';
-
-  const scheduleLabel = task.taskType === 'flexible'
-    ? 'Whenever it fits'
-    : task.startAt && task.endAt ? scheduledTimeLabel(task.startAt, task.endAt) : '';
-  const completionLabel = bucket === 'completed'
-    ? `Completed ${formatDate(task.completedAt ?? task.updatedAt)}`
-    : scheduleLabel;
-
-  return `
-    <article class="task-row" title="Added ${escapeHtml(formatDate(task.createdAt))} · Last updated ${escapeHtml(formatDate(task.updatedAt))}">
-      <div>${checkbox}</div>
-      <div class="task-body">
-        <div class="task-title-line">
-          <h3 title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</h3>
-          <span class="status-chip ${chipClass}">${overdue ? 'Missed' : status}</span>
-        </div>
-        ${task.firstStep ? `<div class="task-first-step">↳ <em>${escapeHtml(task.firstStep)}</em></div>` : ''}
-        <div class="task-meta"><span class="task-type-chip ${task.taskType}">${task.taskType === 'flexible' ? 'Flexible' : 'Scheduled'}</span><span class="schedule-chip">${escapeHtml(completionLabel)}</span>${task.isPinned ? '<span class="task-pin-badge">Pinned</span>' : ''}</div>
-        ${errorReason}
-        ${completedLinks}
-      </div>
-      <div class="task-actions">${actions}</div>
-    </article>`;
-}
-
-export function taskPanelMarkup(): string {
-  // The Error view is surfaced via the banner and a special error-tasks list,
-  // not as a top-level nav view. But we still need to render it if a link
-  // in the banner triggers data-view="Error".
-  const isError = currentView === 'Error';
-  const bucket = currentView === 'Completed' ? 'completed' : isError ? 'error' : 'active';
-  const tasks = isError ? state.errorTasks : visibleTasks();
-
-  const taskList = tasks.length
-    ? tasks.map((t) => taskRowMarkup(t, bucket)).join('')
-    : `<div class="empty-tasks">
-        <span>✦</span>
-        <p>Nothing competing for your attention.</p>
-        <small>Add a task when you are ready.</small>
-       </div>`;
-
-  const panelHeading = currentView === 'Today'
-    ? "Today's Focus"
-    : currentView === 'Overdue'
-      ? 'Missed Tasks'
-      : currentView === 'Error'
-        ? 'Needs attention'
-        : currentView;
-
-  const missedBanner = currentView === 'Overdue' && tasks.length > 0
-    ? `<div class="missed-helper-banner">
-         <div class="missed-helper-text">
-           <strong>Missed a deadline? Life happens.</strong>
-           <p>Convert them into flexible tasks with one click to tackle whenever it fits your flow.</p>
-         </div>
-         <button class="hero-action-btn flex" id="convert-all-flexible">Convert all to flexible</button>
-       </div>`
-    : '';
-
-  // Add task button only makes sense for active/error views
-  const addButton = bucket !== 'completed'
-    ? `<button class="add-button" id="add-task">+</button>`
-    : '';
-
-  return `
-    <aside class="tasks-panel">
-      <div class="section-heading">
-        <div>
-          <span class="section-kicker">TASKS</span>
-          <h2>${panelHeading}</h2>
-        </div>
-        ${addButton}
-      </div>
-      ${missedBanner}
-      <div class="task-list">${taskList}</div>
-      ${bucket !== 'completed' ? `<button class="new-task-button" id="new-task"><span>+</span> Add a new task</button>` : ''}
-    </aside>`;
-}
-
-function scheduledTimeLabel(startValue: string, endValue: string): string {
-  const start = new Date(startValue);
-  const end = new Date(endValue);
-  const today = new Date();
-  const startDate = start.toDateString() === today.toDateString()
-    ? 'Today'
-    : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(start);
-  const time = (date: Date) => new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date);
-  const endOfDay = end.getHours() === 23 && end.getMinutes() === 59;
-  if (start.toDateString() === end.toDateString()) {
-    return endOfDay ? `${startDate} · ${time(start)}` : `${startDate} · ${time(start)} – ${time(end)}`;
-  }
-  const endDateTime = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(end);
-  return `${startDate} · ${time(start)} – ${endDateTime}`;
-}
-
-function resourceChipMarkup(p: string): string {
-  const trimmed = p.trim();
-  const isUrl = /^https?:\/\//i.test(trimmed);
-  let label = trimmed;
-  let icon = '📄';
-  if (isUrl) {
-    icon = '🌐';
-    try {
-      const url = new URL(trimmed);
-      label = url.hostname.replace(/^www\./, '') + (url.pathname.length > 1 ? url.pathname.slice(0, 15) + '…' : '');
-    } catch {
-      label = trimmed.slice(0, 25);
-    }
-  } else {
-    label = folderName(trimmed);
-  }
-  return `<span class="hero-resource-chip" title="${escapeHtml(trimmed)}"><span class="chip-icon">${icon}</span> ${escapeHtml(label)}</span>`;
-}
-
-function heroScheduledContent(task: Task | null, reason: string): string {
-  if (!task) {
-    return `
-      <div class="hero-empty-state">
-        <p class="hero-empty-title">No scheduled tasks queued right now</p>
-        <p class="hero-empty-subtitle">Pick a flexible task to work on, or schedule a new task for today.</p>
-        <div class="hero-empty-actions">
-          <button class="hero-action-btn primary" id="home-hero-add-task">+ Schedule a task</button>
-          <button class="hero-action-btn ghost" data-home-tab="flexible">Switch to Flexible →</button>
-        </div>
-      </div>`;
-  }
-
-  const kickerMap: Record<string, string> = {
-    'in-progress': 'IN PROGRESS',
-    overdue: 'MISSED · READY TO START',
-    today: 'SCHEDULED TODAY',
-  };
-  const kicker = kickerMap[reason] ?? 'SCHEDULED FOCUS';
-  const timing = task.startAt && task.endAt ? scheduledTimeLabel(task.startAt, task.endAt) : 'Scheduled';
-
-  const resources = task.linkedPaths.length
-    ? `<div class="focus-resources-wrap">
-         <span class="focus-resources-label">Resources (${task.linkedPaths.length}):</span>
-         <div class="focus-resources">
-           ${task.linkedPaths.map(resourceChipMarkup).join('')}
-         </div>
-       </div>`
-    : '';
-
-  return `
-    <div class="hero-task-view scheduled">
-      <div class="hero-task-meta-line">
-        <span class="focus-card-kicker ${reason === 'in-progress' ? 'active' : ''}">${kicker}</span>
-        <span class="focus-timing">${escapeHtml(timing)}</span>
-      </div>
-      <h3 class="hero-focus-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</h3>
-      ${task.firstStep ? `<div class="focus-step-banner"><span class="step-label">First step:</span> <em>${escapeHtml(task.firstStep)}</em></div>` : ''}
-      ${resources}
-      <div class="focus-card-foot">
-        <button class="focus-launch-hero-btn" data-hero-launch="${task.id}">
-          <span class="launch-icon">▷</span>
-          <span class="launch-text">Start &amp; Launch ${task.linkedPaths.length ? `(${task.linkedPaths.length} resource${task.linkedPaths.length > 1 ? 's' : ''})` : ''}</span>
-          <span class="launch-arrow">→</span>
-        </button>
-        <div class="focus-actions-bar">
-          <button class="focus-action-btn complete" data-hero-complete="${task.id}" title="Complete task">✓ Done</button>
-          <button class="focus-action-btn" data-hero-snooze="${task.id}" data-mins="15" title="Snooze 15m">Snooze 15m</button>
-          <button class="focus-action-btn" data-hero-flexible="${task.id}" title="Make flexible">Make flexible</button>
-          <button class="focus-action-btn" data-action="edit" data-bucket="active" data-id="${task.id}">Edit</button>
-        </div>
-      </div>
-    </div>`;
-}
-
-function heroFlexibleContent(task: Task | null, isPicked: boolean): string {
-  if (!task) {
-    return `
-      <div class="hero-empty-state">
-        <p class="hero-empty-title">No flexible tasks right now</p>
-        <p class="hero-empty-subtitle">Add tasks without deadlines so you can work on them whenever you have free time.</p>
-        <div class="hero-empty-actions">
-          <button class="hero-action-btn primary" id="home-hero-add-task">+ Add flexible task</button>
-        </div>
-      </div>`;
-  }
-
-  const kicker = isPicked ? '🎲 PICKED FOR YOU' : 'FLEXIBLE FOCUS';
-
-  const resources = task.linkedPaths.length
-    ? `<div class="focus-resources-wrap">
-         <span class="focus-resources-label">Resources (${task.linkedPaths.length}):</span>
-         <div class="focus-resources">
-           ${task.linkedPaths.map(resourceChipMarkup).join('')}
-         </div>
-       </div>`
-    : '';
-
-  return `
-    <div class="hero-task-view flexible">
-      <div class="hero-task-meta-line">
-        <span class="focus-card-kicker flex">${kicker}</span>
-        <span class="focus-timing">Work anytime</span>
-      </div>
-      <h3 class="hero-focus-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</h3>
-      ${task.firstStep ? `<div class="focus-step-banner"><span class="step-label">First step:</span> <em>${escapeHtml(task.firstStep)}</em></div>` : ''}
-      ${resources}
-      <div class="focus-card-foot">
-        <button class="focus-launch-hero-btn" data-hero-launch="${task.id}">
-          <span class="launch-icon">▷</span>
-          <span class="launch-text">Start &amp; Launch ${task.linkedPaths.length ? `(${task.linkedPaths.length} resource${task.linkedPaths.length > 1 ? 's' : ''})` : ''}</span>
-          <span class="launch-arrow">→</span>
-        </button>
-        <div class="focus-actions-bar">
-          <button class="focus-action-btn complete" data-hero-complete="${task.id}" title="Complete task">✓ Done</button>
-          <button class="focus-action-btn" data-action="pin" data-id="${task.id}">${task.isPinned ? 'Unpin' : 'Pin'}</button>
-          <button class="focus-action-btn" data-action="edit" data-bucket="active" data-id="${task.id}">Edit</button>
-        </div>
-      </div>
-    </div>`;
-}
-
 export function homePanelMarkup(): string {
-  const scheduledFocus = getScheduledFocusTask();
-  const flexibleFocus = getFlexibleFocusTask();
-  const todayCount = tasksForView('Today').length;
-  const upcomingCount = tasksForView('Upcoming').length;
-  const flexibleCount = tasksForView('Flexible').length;
-  const missedCount = tasksForView('Overdue').length;
-  const completedCount = state.completedTasks?.length ?? 0;
-
-  const activeTab = homeFocusTab;
-
-  const heroBody = activeTab === 'scheduled'
-    ? heroScheduledContent(scheduledFocus.task, scheduledFocus.reason)
-    : heroFlexibleContent(flexibleFocus.task, flexibleFocus.isPicked);
+  const ws = state.workspace;
+  const logCount = state.logEntries?.length ?? 0;
+  const launchpadCount = state.launchpads?.length ?? 0;
 
   return `
-    <section class="home-panel">
-      <div class="home-hero-card ${activeTab}">
-        <div class="hero-top-bar">
-          <div class="hero-tab-group">
-            <button class="hero-tab-btn ${activeTab === 'scheduled' ? 'active' : ''}" data-home-tab="scheduled">
-              <span class="tab-dot">●</span>
-              <span>Next Up</span>
-            </button>
-            <button class="hero-tab-btn ${activeTab === 'flexible' ? 'active' : ''}" data-home-tab="flexible">
-              <span class="tab-icon">🎲</span>
-              <span>Flexible</span>
-            </button>
-          </div>
-          ${activeTab === 'flexible' && flexibleFocus.totalFlexible > 1 ? '<button class="hero-pick-btn" id="hero-pick-random" title="Randomly pick another flexible task">🎲 Pick for me</button>' : ''}
+    <section class="home-panel-v3">
+      <div class="home-welcome">
+        <p class="home-welcome-sub">Your workspace. Ready when you are.</p>
+        <div class="home-quick-actions">
+          <button class="home-quick-btn" data-view="Launchpads">
+            <span class="hq-icon">▷</span>
+            <span class="hq-label">Launchpads</span>
+            <span class="hq-count">${launchpadCount}</span>
+          </button>
+          <button class="home-quick-btn" data-view="Log">
+            <span class="hq-icon">◎</span>
+            <span class="hq-label">My Log</span>
+            <span class="hq-count">${logCount}</span>
+          </button>
+          <button class="home-quick-btn" data-view="Note">
+            <span class="hq-icon">✎</span>
+            <span class="hq-label">Rough Note</span>
+          </button>
         </div>
-        <div class="hero-content">
-          ${heroBody}
-        </div>
-      </div>
-
-      <div class="home-metrics-bar">
-        <button class="metric-box-chip" data-view="Today" title="Today's tasks (T)">today <span class="metric-box-count">${todayCount}</span></button>
-        <button class="metric-box-chip" data-view="Upcoming" title="Upcoming tasks (U)">upcoming <span class="metric-box-count">${upcomingCount}</span></button>
-        <button class="metric-box-chip" data-view="Flexible" title="Flexible tasks (F)">flexible <span class="metric-box-count">${flexibleCount}</span></button>
-        <button class="metric-box-chip ${missedCount > 0 ? 'alert' : ''}" data-view="Overdue" title="Missed tasks (M)">missed <span class="metric-box-count">${missedCount}</span></button>
-        <button class="metric-box-chip" data-view="Completed" title="Completed tasks (C)">completed <span class="metric-box-count">${completedCount}</span></button>
+        ${!ws ? `<div class="home-no-space-hint">
+          <p>No Space selected. <button class="inline-link" id="home-add-space">Create your first Space →</button></p>
+        </div>` : ''}
       </div>
     </section>`;
 }
 
 // ---------------------------------------------------------------------------
-// Daily note panel — renders in the task-panel slot when Note view is active
+// The Quiet Log panel
+// ---------------------------------------------------------------------------
+
+function formatLogTime(ts: number): string {
+  const d = new Date(ts);
+  const today = new Date();
+  const isToday = d.toDateString() === today.toDateString();
+  const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  if (isToday) return `Today · ${timeStr}`;
+  return `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${timeStr}`;
+}
+
+export function logPanelMarkup(): string {
+  const entries = getLogEntries();
+  const entriesList = entries.length
+    ? entries.map((e: LogEntry) => `
+        <div class="log-entry">
+          <span class="log-time">${formatLogTime(e.createdAt)}</span>
+          <p class="log-text">${escapeHtml(e.text)}</p>
+        </div>`).join('')
+    : `<div class="log-empty">
+         <p>Nothing logged yet.</p>
+         <small>Use the bar below to capture what you just did. No pressure.</small>
+       </div>`;
+
+  return `
+    <section class="log-panel">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">QUIET LOG</span>
+          <h2>What happened</h2>
+        </div>
+        <span class="log-count-badge">${entries.length} entries</span>
+      </div>
+      <div class="log-entries">${entriesList}</div>
+    </section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Launchpads panel
+// ---------------------------------------------------------------------------
+
+function launchpadCardMarkup(lp: Launchpad): string {
+  const pathChips = lp.paths.map(p => {
+    const isUrl = /^https?:\/\//i.test(p);
+    const label = isUrl
+      ? (() => { try { return new URL(p).hostname; } catch { return p.slice(0, 30); } })()
+      : folderName(p);
+    return `<span class="lp-path-chip" title="${escapeHtml(p)}">${isUrl ? '🌐' : '📄'} ${escapeHtml(label)}</span>`;
+  }).join('');
+
+  return `
+    <div class="launchpad-card">
+      <div class="lp-card-head">
+        <h3 class="lp-name">${escapeHtml(lp.name)}</h3>
+        <div class="lp-card-actions">
+          <button class="lp-launch-btn" data-launch-id="${lp.id}" title="Open all resources">▷ Launch</button>
+          <button class="lp-delete-btn" data-delete-lp="${lp.id}" title="Delete launchpad">✕</button>
+        </div>
+      </div>
+      <div class="lp-paths">${pathChips || '<span class="lp-empty-paths">No resources added yet</span>'}</div>
+    </div>`;
+}
+
+export function launchpadsPanelMarkup(): string {
+  const launchpads = state.launchpads ?? [];
+  const content = launchpads.length
+    ? launchpads.map(launchpadCardMarkup).join('')
+    : `<div class="lp-empty-state">
+         <p>No Launchpads yet.</p>
+         <small>Create one to bundle files, folders, and URLs and open them all at once.</small>
+       </div>`;
+
+  return `
+    <section class="launchpads-panel">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">LAUNCHPADS</span>
+          <h2>Quick Launch</h2>
+        </div>
+        <button class="add-button" id="add-launchpad">+</button>
+      </div>
+      <div class="launchpads-list">${content}</div>
+    </section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Daily note panel
 // ---------------------------------------------------------------------------
 
 export function dailyNotePanelMarkup(): string {
@@ -612,7 +372,7 @@ export function dailyNotePanelMarkup(): string {
     <section class="tasks-panel note-panel">
       <div class="section-heading">
         <div>
-          <span class="section-kicker">DAILY NOTE</span>
+          <span class="section-kicker">ROUGH NOTE</span>
           <h2>Today's thoughts</h2>
         </div>
         <span class="note-saved-indicator" id="note-saved"></span>
@@ -625,5 +385,3 @@ export function dailyNotePanelMarkup(): string {
       >${escapeHtml(dailyNote)}</textarea>
     </section>`;
 }
-
-

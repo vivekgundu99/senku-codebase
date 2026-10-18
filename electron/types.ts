@@ -1,12 +1,7 @@
-export type TaskType = 'scheduled' | 'flexible';
-export type TaskBucket = 'active' | 'completed' | 'error';
-
 export interface Settings {
   userName: string;
   activeWorkspaceId: string;
   launchAtStartup: boolean;
-  /** Full greeting shown on Today. Use {name} token, e.g. "Good morning, {name}."
-   *  or write a static tagline with no token at all. */
   greeting: string;
 }
 
@@ -15,9 +10,7 @@ export interface Workspace {
   name: string;
   masterFolder: string;
   lastSubfolder: string;
-  strictMode: boolean;
   createdAt: string;
-  /** Paths pinned to the top of the file browser for this workspace. */
   pinnedPaths: string[];
 }
 
@@ -31,29 +24,19 @@ export interface FileEntry {
   pinned?: boolean;
 }
 
-export interface Task {
+export interface LogEntry {
   id: string;
-  title: string;
-  firstStep?: string;
-  taskType: TaskType;
-  startAt?: string;
-  endAt?: string;
-  linkedPaths: string[];
-  isPinned?: boolean;
-  startEventHandled: boolean;
-  createdAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  errorMessage?: string;
+  text: string;
+  createdAt: number;
+  spaceId?: string;
 }
 
-export interface TaskInput {
-  title: string;
-  firstStep?: string;
-  taskType: TaskType;
-  startAt?: string;
-  endAt?: string;
-  linkedPaths: string[];
+export interface Launchpad {
+  id: string;
+  name: string;
+  spaceId: string;
+  paths: string[];
+  createdAt: number;
 }
 
 export interface DailyNote {
@@ -69,8 +52,7 @@ export interface AppSnapshot {
   workspace: Workspace | null;
   entries: FileEntry[];
   currentPath: string;
-  activeTasks: Task[];
-  completedTasks: Task[];
-  errorTasks: Task[];
   dailyNote: string;
+  logEntries: LogEntry[];
+  launchpads: Launchpad[];
 }

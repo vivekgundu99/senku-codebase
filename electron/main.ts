@@ -6,8 +6,6 @@ import {
   ipcMain,
   Menu,
   nativeImage,
-  Notification,
-  powerMonitor,
   shell,
   Tray,
 } from 'electron';
@@ -20,10 +18,9 @@ import type {
   AppSnapshot,
   DailyNote,
   FileEntry,
+  Launchpad,
+  LogEntry,
   Settings,
-  Task,
-  TaskInput,
-  TaskType,
   Workspace,
 } from './types';
 
@@ -32,7 +29,6 @@ import type {
 // ---------------------------------------------------------------------------
 
 let mainWindow: BrowserWindow | null = null;
-let quickAddWindow: BrowserWindow | null = null;
 let guideWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
@@ -42,57 +38,10 @@ if (!app.isPackaged) {
 }
 const isTesting = process.env.testing === '1';
 
-// Only one Senku at a time. Two copies would both run the reminder engine and
-// both write the same JSON files (duplicate notifications, save collisions).
+// Only one Senku at a time
 const gotSingleInstanceLock = isTesting || app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) app.quit();
 app.on('second-instance', () => showMainWindow());
-
-// ---------------------------------------------------------------------------
-// Task-engine scheduling
-// ---------------------------------------------------------------------------
-
-let wakeTimer: NodeJS.Timeout | null = null;
-const MAX_WAKE_DELAY_MS = 6 * 60 * 60 * 1000;
-const MIN_WAKE_DELAY_MS = 1_000;
-
-type NormalizedTaskInput = TaskInput;
-
-function endOfLocalDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-}
-
-function normalizeTaskInput(input: TaskInput, existing?: Task): NormalizedTaskInput {
-  const taskType = (input.taskType ?? existing?.taskType ?? 'scheduled') as TaskType;
-  const title = String(input.title ?? '').trim();
-  if (!title) throw new Error('Task name is required.');
-  const firstStep = input.firstStep !== undefined
-    ? (String(input.firstStep).trim() || undefined)
-    : existing?.firstStep;
-
-  if (taskType === 'flexible') {
-    return { ...input, title, firstStep, taskType: 'flexible', startAt: undefined, endAt: undefined, linkedPaths: input.linkedPaths ?? [] };
-  }
-
-  const rawStart = input.startAt ? new Date(input.startAt) : new Date();
-  if (Number.isNaN(rawStart.getTime())) throw new Error('Choose a valid start time.');
-  const rawEnd = input.endAt ? new Date(input.endAt) : endOfLocalDay(rawStart);
-  if (input.endAt && rawEnd.getHours() === 23 && rawEnd.getMinutes() === 59 && rawEnd.getSeconds() === 0) {
-    rawEnd.setSeconds(59, 999);
-  }
-  if (Number.isNaN(rawEnd.getTime()) || rawStart >= rawEnd) {
-    throw new Error('End time must be after the start time.');
-  }
-  return {
-    ...input,
-    title,
-    firstStep,
-    taskType: 'scheduled',
-    startAt: rawStart.toISOString(),
-    endAt: rawEnd.toISOString(),
-    linkedPaths: input.linkedPaths ?? [],
-  };
-}
 
 // ---------------------------------------------------------------------------
 // File paths
@@ -108,9 +57,9 @@ const defaultSettings: Settings = {
 const dataDir = () => path.join(app.getPath('userData'), 'data');
 const settingsFile = () => path.join(dataDir(), 'settings.json');
 const workspacesFile = () => path.join(dataDir(), 'workspaces.json');
+const logFile = () => path.join(dataDir(), 'log.json');
+const launchpadsFile = () => path.join(dataDir(), 'launchpads.json');
 const workspaceDir = (id: string) => path.join(dataDir(), 'workspaces', id);
-const tasksFile = (id: string, bucket: string) =>
-  path.join(workspaceDir(id), `${bucket}-tasks.json`);
 const dailyNoteFile = (id: string) => path.join(workspaceDir(id), 'daily-note.json');
 
 // ---------------------------------------------------------------------------
@@ -123,8 +72,6 @@ async function readJson<T>(file: string, fallback: T): Promise<T> {
   try {
     return JSON.parse(await fs.readFile(file, 'utf8')) as T;
   } catch (error) {
-    // Missing file is normal (first run). A file that exists but cannot be parsed
-    // is not: keep a copy before the next save overwrites it.
     if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT' && !backedUp.has(file)) {
       backedUp.add(file);
       await fs.copyFile(file, `${file}.corrupt-${Date.now()}`).catch(() => undefined);
@@ -133,10 +80,6 @@ async function readJson<T>(file: string, fallback: T): Promise<T> {
   }
 }
 
-/**
- * Atomic save: write to a unique temp file, then rename over the real one.
- * (The temp name used to be fixed, so two saves at once fought over it.)
- */
 async function writeJson(file: string, value: unknown): Promise<void> {
   const dir = path.dirname(file);
   await fs.mkdir(dir, { recursive: true });
@@ -147,7 +90,6 @@ async function writeJson(file: string, value: unknown): Promise<void> {
       await fs.rename(tmp, file);
       return;
     } catch (error) {
-      // Antivirus / search indexer can briefly lock the file on Windows.
       const code = (error as NodeJS.ErrnoException)?.code;
       const retryable = code === 'EPERM' || code === 'EBUSY' || code === 'EACCES';
       if (!retryable || attempt >= 4) {
@@ -160,9 +102,7 @@ async function writeJson(file: string, value: unknown): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// One-at-a-time queue. Every handler that reads, changes and saves data runs
-// through this, so two requests (or a request and the reminder engine) can
-// never overwrite each other's changes.
+// Queue lock for atomic state transitions
 // ---------------------------------------------------------------------------
 
 let lockChain: Promise<unknown> = Promise.resolve();
@@ -187,20 +127,7 @@ async function getSettings(): Promise<Settings> {
 
 async function getWorkspaces(): Promise<Workspace[]> {
   const workspaces = await readJson<Workspace[]>(workspacesFile(), []);
-  // Backfill pinnedPaths for workspaces created before v2
   return workspaces.map((ws) => ({ ...ws, pinnedPaths: ws.pinnedPaths ?? [] }));
-}
-
-async function getTasks(id: string, bucket: 'active' | 'completed' | 'error'): Promise<Task[]> {
-  return readJson(tasksFile(id, bucket), []);
-}
-
-async function saveTasks(
-  id: string,
-  bucket: 'active' | 'completed' | 'error',
-  tasks: Task[],
-): Promise<void> {
-  await writeJson(tasksFile(id, bucket), tasks);
 }
 
 async function getDailyNote(id: string): Promise<string> {
@@ -211,6 +138,22 @@ async function getDailyNote(id: string): Promise<string> {
 async function saveDailyNote(id: string, content: string): Promise<void> {
   const note: DailyNote = { workspaceId: id, content, updatedAt: new Date().toISOString() };
   await writeJson(dailyNoteFile(id), note);
+}
+
+async function getLogEntries(): Promise<LogEntry[]> {
+  return readJson<LogEntry[]>(logFile(), []);
+}
+
+async function saveLogEntries(entries: LogEntry[]): Promise<void> {
+  await writeJson(logFile(), entries);
+}
+
+async function getLaunchpads(): Promise<Launchpad[]> {
+  return readJson<Launchpad[]>(launchpadsFile(), []);
+}
+
+async function saveLaunchpads(pads: Launchpad[]): Promise<void> {
+  await writeJson(launchpadsFile(), pads);
 }
 
 // ---------------------------------------------------------------------------
@@ -248,8 +191,6 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return results;
 }
 
-// Re-reading a big folder after every click is wasteful. Reuse the last listing
-// while the folder itself is unchanged (adding, removing or renaming changes it).
 const listCache = new Map<string, { mtimeMs: number; at: number; entries: FileEntry[] }>();
 
 async function readFolderEntries(dir: string): Promise<FileEntry[]> {
@@ -261,11 +202,10 @@ async function readFolderEntries(dir: string): Promise<FileEntry[]> {
     (item) => !IGNORED_NAMES.has(item.name.toLowerCase()) && !item.name.startsWith('~$'),
   );
 
-  // Stats run in parallel (48 at a time) instead of one by one.
   const found = await mapLimit(items, 48, async (item): Promise<FileEntry | null> => {
     const itemPath = path.join(dir, item.name);
     try {
-      const stats = await fs.stat(itemPath); // follows shortcuts/links
+      const stats = await fs.stat(itemPath);
       const isFolder = stats.isDirectory();
       return {
         name: item.name,
@@ -276,7 +216,7 @@ async function readFolderEntries(dir: string): Promise<FileEntry[]> {
         modifiedAt: stats.mtime.toISOString(),
       };
     } catch {
-      return null; // inaccessible entry
+      return null;
     }
   });
 
@@ -297,7 +237,6 @@ async function listFolder(
     const pinned = new Set(pinnedPaths);
     const entries = (await readFolderEntries(currentPath)).map((entry) => ({ ...entry, pinned: pinned.has(entry.path) }));
 
-    // Pinned first, then folders, then A-Z (numbers in natural order: 2 before 10)
     return entries.sort((a, b) =>
       Number(b.pinned) - Number(a.pinned) ||
       Number(b.kind === 'folder') - Number(a.kind === 'folder') ||
@@ -317,7 +256,7 @@ async function isDirectory(target: string): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// Snapshot
+// App Snapshot
 // ---------------------------------------------------------------------------
 
 async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
@@ -325,12 +264,14 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const workspaces = await getWorkspaces();
   const workspaceFolderAvailability = Object.fromEntries(
     await Promise.all(workspaces.map(async (workspace) => {
-      // Any failure (missing, disconnected drive, no permission) just means "not available".
-      // It must never break the whole app.
       return [workspace.id, await isDirectory(workspace.masterFolder)] as const;
     })),
   );
   const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
+  const [logEntries, launchpads] = await Promise.all([
+    getLogEntries(),
+    getLaunchpads(),
+  ]);
 
   if (!workspace) {
     return {
@@ -340,10 +281,9 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       workspace: null,
       entries: [],
       currentPath: '',
-      activeTasks: [],
-      completedTasks: [],
-      errorTasks: [],
       dailyNote: '',
+      logEntries,
+      launchpads,
     };
   }
 
@@ -352,24 +292,17 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       ? path.resolve(requestedPath)
       : workspace.lastSubfolder || workspace.masterFolder;
 
-  // The remembered folder may have been deleted or renamed: go back to the main folder
-  // instead of showing a confusing "empty" list.
   if (currentPath !== workspace.masterFolder && !(await isDirectory(currentPath))) {
     currentPath = workspace.masterFolder;
   }
 
-  // Only touch the disk when the folder actually changed. (Saving on every
-  // read was the cause of the "rename ... workspaces.json.tmp" error.)
   if (workspace.lastSubfolder !== currentPath) {
     workspace.lastSubfolder = currentPath;
     await writeJson(workspacesFile(), workspaces);
   }
 
-  const [entries, activeTasks, completedTasks, errorTasks, dailyNote] = await Promise.all([
+  const [entries, dailyNote] = await Promise.all([
     listFolder(workspace.masterFolder, currentPath, workspace.pinnedPaths),
-    getTasks(workspace.id, 'active'),
-    getTasks(workspace.id, 'completed'),
-    getTasks(workspace.id, 'error'),
     getDailyNote(workspace.id),
   ]);
 
@@ -380,167 +313,14 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     workspace,
     entries,
     currentPath,
-    activeTasks,
-    completedTasks,
-    errorTasks,
     dailyNote,
+    logEntries,
+    launchpads,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Task engine
-// ---------------------------------------------------------------------------
-
-async function runTaskEngine(): Promise<void> {
-  for (const workspace of await getWorkspaces()) {
-    const active = await getTasks(workspace.id, 'active');
-    const remaining: Task[] = [];
-    const failed: Task[] = [];
-    let changed = false;
-
-    let missed = 0;
-
-    for (const task of active) {
-      if (task.taskType === 'flexible' || !task.startAt) {
-        remaining.push(task);
-        continue;
-      }
-      const shouldFire = !task.startEventHandled && Date.now() >= Date.parse(task.startAt);
-
-      if (shouldFire) {
-        task.startEventHandled = true;
-        task.updatedAt = new Date().toISOString();
-        changed = true;
-
-        // Its whole time window passed while Senku was closed or asleep. Don't pop a
-        // notification per task or open old files: it shows up as Overdue instead.
-        if (task.endAt && Date.now() > Date.parse(task.endAt)) {
-          missed += 1;
-          remaining.push(task);
-          continue;
-        }
-
-        new Notification({
-          title: `Scheduled reminder · ${workspace.name}`,
-          body: task.title,
-        }).show();
-
-        if (workspace.strictMode && task.linkedPaths.length) {
-          const failures: string[] = [];
-          for (const linkedPath of task.linkedPaths) {
-            const trimmed = linkedPath.trim();
-            if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
-              try {
-                await shell.openExternal(trimmed);
-              } catch (err) {
-                failures.push(`${trimmed}: ${String(err)}`);
-              }
-            } else {
-              const error = await shell.openPath(trimmed);
-              if (error) failures.push(`${trimmed}: ${error}`);
-            }
-          }
-          if (failures.length) {
-            failed.push({ ...task, errorMessage: failures.join('\n') });
-            continue;
-          }
-        }
-      }
-
-      remaining.push(task);
-    }
-
-    if (missed > 0) {
-      new Notification({
-        title: `Senku · ${workspace.name}`,
-        body: `${missed} scheduled task${missed === 1 ? ' was' : 's were'} missed while Senku was closed. See Overdue.`,
-      }).show();
-    }
-    if (changed) await saveTasks(workspace.id, 'active', remaining);
-    if (failed.length) {
-      await saveTasks(workspace.id, 'error', [
-        ...(await getTasks(workspace.id, 'error')),
-        ...failed,
-      ]);
-    }
-    if (failed.length || missed > 0) mainWindow?.webContents.send('tasks:changed');
-  }
-}
-
-async function computeNextWakeAt(): Promise<number | null> {
-  let earliest: number | null = null;
-  for (const workspace of await getWorkspaces()) {
-    for (const task of await getTasks(workspace.id, 'active')) {
-      if (task.taskType !== 'scheduled' || !task.startAt || task.startEventHandled) continue;
-      const startMs = Date.parse(task.startAt);
-      if (Number.isNaN(startMs)) continue;
-      if (earliest === null || startMs < earliest) earliest = startMs;
-    }
-  }
-  return earliest;
-}
-
-async function scheduleNextWake(): Promise<void> {
-  if (wakeTimer) {
-    clearTimeout(wakeTimer);
-    wakeTimer = null;
-  }
-  const earliest = await computeNextWakeAt();
-  const now = Date.now();
-  const target = earliest === null ? now + MAX_WAKE_DELAY_MS : earliest;
-  const delay = Math.min(Math.max(target - now, MIN_WAKE_DELAY_MS), MAX_WAKE_DELAY_MS);
-  wakeTimer = setTimeout(() => void wake(), delay);
-}
-
-async function wake(): Promise<void> {
-  await withLock(runTaskEngine);
-  await scheduleNextWake();
-}
-
-// ---------------------------------------------------------------------------
-// Quick-add window (tray shortcut)
-// ---------------------------------------------------------------------------
-
-async function openQuickAdd(): Promise<void> {
-  if (quickAddWindow && !quickAddWindow.isDestroyed()) {
-    quickAddWindow.focus();
-    return;
-  }
-
-  quickAddWindow = new BrowserWindow({
-    width: 420,
-    height: 220,
-    resizable: false,
-    frame: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    backgroundColor: '#f5f4ef',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  const devUrl = process.env.VITE_DEV_SERVER_URL;
-  if (devUrl) {
-    const base = devUrl.endsWith('/') ? devUrl : `${devUrl}/`;
-    await quickAddWindow.loadURL(`${base}quick-add.html`);
-  } else {
-    await quickAddWindow.loadFile(path.join(__dirname, '../renderer/quick-add.html'));
-  }
-
-  quickAddWindow.once('blur', () => {
-    quickAddWindow?.close();
-  });
-
-  quickAddWindow.on('closed', () => {
-    quickAddWindow = null;
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Main window & tray
+// Window & Tray
 // ---------------------------------------------------------------------------
 
 function showMainWindow(): void {
@@ -585,7 +365,7 @@ async function createWindow(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// App lifecycle
+// App Lifecycle
 // ---------------------------------------------------------------------------
 
 app.whenReady().then(async () => {
@@ -621,20 +401,15 @@ app.whenReady().then(async () => {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Open Senku', click: showMainWindow },
-      { label: 'Quick add task', click: () => void openQuickAdd() },
       { type: 'separator' },
       { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
     ]),
   );
   tray.on('click', showMainWindow);
-
-  powerMonitor.on('resume', () => { void wake(); });
-  await wake();
 });
 
 app.on('before-quit', () => {
   isQuitting = true;
-  if (wakeTimer) clearTimeout(wakeTimer);
 });
 
 app.on('window-all-closed', () => {
@@ -642,7 +417,7 @@ app.on('window-all-closed', () => {
 });
 
 // ---------------------------------------------------------------------------
-// IPC — existing handlers
+// IPC Handlers
 // ---------------------------------------------------------------------------
 
 ipcMain.handle('folder:choose', async () => {
@@ -672,7 +447,6 @@ handleLocked('workspace:create', async (_event, name: string, masterFolder: stri
     name: name.trim(),
     masterFolder: path.resolve(masterFolder),
     lastSubfolder: path.resolve(masterFolder),
-    strictMode: false,
     pinnedPaths: [],
     createdAt: new Date().toISOString(),
   };
@@ -708,15 +482,6 @@ handleLocked('workspace:set-master-folder', async (_event, id: string, folder: s
   return snapshot(workspace.masterFolder);
 });
 
-handleLocked('workspace:strict-mode', async (_event, id: string, enabled: boolean) => {
-  const workspaces = await getWorkspaces();
-  const workspace = getWorkspace(workspaces, id);
-  if (!workspace) throw new Error('Space not found.');
-  workspace.strictMode = enabled;
-  await writeJson(workspacesFile(), workspaces);
-  return snapshot();
-});
-
 handleLocked('workspace:delete', async (_event, id: string) => {
   const workspaces = await getWorkspaces();
   const next = workspaces.filter((ws) => ws.id !== id);
@@ -730,7 +495,6 @@ handleLocked('workspace:delete', async (_event, id: string) => {
     await writeJson(settingsFile(), { ...settings, activeWorkspaceId: next[0]?.id ?? '' });
   }
 
-  await scheduleNextWake();
   return { ok: true };
 });
 
@@ -786,10 +550,6 @@ ipcMain.handle('path:copy', async (_event, target: string) => {
   return true;
 });
 
-// ---------------------------------------------------------------------------
-// IPC — pin / unpin
-// ---------------------------------------------------------------------------
-
 handleLocked('path:pin', async (_event, target: string) => {
   const settings = await getSettings();
   const workspaces = await getWorkspaces();
@@ -816,10 +576,6 @@ handleLocked('path:unpin', async (_event, target: string) => {
   return snapshot();
 });
 
-// ---------------------------------------------------------------------------
-// IPC — daily note
-// ---------------------------------------------------------------------------
-
 handleLocked('note:save', async (_event, content: string) => {
   const settings = await getSettings();
   if (!settings.activeWorkspaceId) return;
@@ -827,215 +583,101 @@ handleLocked('note:save', async (_event, content: string) => {
 });
 
 // ---------------------------------------------------------------------------
-// IPC — tasks
+// V3: Quiet Log Handlers
 // ---------------------------------------------------------------------------
 
-handleLocked('task:create', async (_event, input: TaskInput) => {
-  const settings = await getSettings();
-  if (!settings.activeWorkspaceId) throw new Error('No workspace selected.');
-
-  const task: Task = {
-    ...normalizeTaskInput(input),
+handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return snapshot();
+  const entries = await getLogEntries();
+  const entry: LogEntry = {
     id: randomUUID(),
-    isPinned: false,
-    startEventHandled: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    text: trimmed,
+    createdAt: Date.now(),
+    spaceId,
   };
-
-  await saveTasks(settings.activeWorkspaceId, 'active', [
-    ...(await getTasks(settings.activeWorkspaceId, 'active')),
-    task,
-  ]);
-  await scheduleNextWake();
-
-  // Notify the main window to refresh if the quick-add window fired this
-  mainWindow?.webContents.send('tasks:changed');
-
-  return task;
-});
-
-handleLocked('task:complete', async (_event, id: string, reschedule?: TaskInput) => {
-  const settings = await getSettings();
-  const active = await getTasks(settings.activeWorkspaceId, 'active');
-  const task = active.find((t) => t.id === id);
-  if (!task) throw new Error('Task not found');
-
-  const completed = {
-    ...task,
-    completedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  await saveTasks(settings.activeWorkspaceId, 'completed', [
-    ...(await getTasks(settings.activeWorkspaceId, 'completed')),
-    completed,
-  ]);
-  await saveTasks(settings.activeWorkspaceId, 'active', active.filter((t) => t.id !== id));
-
-  let next: Task | undefined;
-  if (reschedule) {
-    const normalized = normalizeTaskInput(reschedule);
-    next = {
-      ...normalized,
-      id: randomUUID(),
-      isPinned: task.isPinned ?? false,
-      startEventHandled: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    await saveTasks(settings.activeWorkspaceId, 'active', [
-      ...(await getTasks(settings.activeWorkspaceId, 'active')),
-      next,
-    ]);
-  }
-
-  await scheduleNextWake();
-  return { task: completed, next };
-});
-
-handleLocked('task:snooze', async (_event, id: string, durationMinutes: number) => {
-  const settings = await getSettings();
-  const active = await getTasks(settings.activeWorkspaceId, 'active');
-  const task = active.find((t) => t.id === id);
-  if (!task) throw new Error('Task not found');
-  if (task.taskType !== 'scheduled' || !task.startAt) {
-    throw new Error('Plan this Flexible task for today before snoozing it.');
-  }
-
-  // Snooze counts from now (or from the start time if that is still ahead).
-  // It used to add to the old start time, so an old task came straight back.
-  const base = Math.max(Date.now(), Date.parse(task.startAt));
-  const newStart = new Date(base + durationMinutes * 60_000);
-  task.startAt = newStart.toISOString();
-  // A snooze must never push the start past the end (that made the task "Overdue" at once).
-  if (!task.endAt || newStart.getTime() >= Date.parse(task.endAt)) {
-    task.endAt = endOfLocalDay(newStart).toISOString();
-  }
-  task.startEventHandled = false;
-  task.updatedAt = new Date().toISOString();
-
-  await saveTasks(settings.activeWorkspaceId, 'active', active);
-  await scheduleNextWake();
-  return task;
-});
-
-handleLocked(
-  'task:update',
-  async (_event, id: string, input: TaskInput, bucket: 'active' | 'error' = 'active') => {
-    const settings = await getSettings();
-    const tasks = await getTasks(settings.activeWorkspaceId, bucket);
-    const index = tasks.findIndex((t) => t.id === id);
-    if (index < 0) throw new Error('Task not found.');
-
-    const existing = tasks[index];
-    const normalized = normalizeTaskInput(input, existing);
-    const startTimeChanged = normalized.startAt !== existing.startAt;
-    const updated: Task = {
-      ...existing,
-      ...normalized,
-      updatedAt: new Date().toISOString(),
-      startEventHandled:
-        bucket === 'active' && normalized.taskType === 'scheduled' && !startTimeChanged
-          ? existing.startEventHandled
-          : false,
-    };
-
-    tasks[index] = updated;
-    await saveTasks(settings.activeWorkspaceId, bucket, tasks);
-    if (bucket === 'active') await scheduleNextWake();
-    return updated;
-  },
-);
-
-handleLocked('task:recover', async (_event, id: string, input: TaskInput) => {
-  const settings = await getSettings();
-  const errors = await getTasks(settings.activeWorkspaceId, 'error');
-  const task = errors.find((t) => t.id === id);
-  if (!task) throw new Error('Error task not found.');
-
-  const normalized = normalizeTaskInput(input, task);
-  const recovered: Task = {
-    ...task,
-    ...normalized,
-    errorMessage: undefined,
-    startEventHandled: false,
-    updatedAt: new Date().toISOString(),
-  };
-
-  await saveTasks(settings.activeWorkspaceId, 'active', [
-    ...(await getTasks(settings.activeWorkspaceId, 'active')),
-    recovered,
-  ]);
-  await saveTasks(settings.activeWorkspaceId, 'error', errors.filter((t) => t.id !== id));
-  await scheduleNextWake();
-  return recovered;
-});
-
-handleLocked(
-  'task:delete',
-  async (_event, id: string, bucket: 'active' | 'completed' | 'error') => {
-    const settings = await getSettings();
-    await saveTasks(
-      settings.activeWorkspaceId,
-      bucket,
-      (await getTasks(settings.activeWorkspaceId, bucket)).filter((t) => t.id !== id),
-    );
-    if (bucket === 'active') await scheduleNextWake();
-    return true;
-  },
-);
-
-handleLocked('task:pin', async (_event, id: string, isPinned: boolean) => {
-  const settings = await getSettings();
-  const active = await getTasks(settings.activeWorkspaceId, 'active');
-  const index = active.findIndex((task) => task.id === id);
-  if (index < 0) throw new Error('Active task not found.');
-  active[index] = {
-    ...active[index],
-    isPinned,
-    updatedAt: new Date().toISOString(),
-  };
-  await saveTasks(settings.activeWorkspaceId, 'active', active);
-  return active[index];
+  await saveLogEntries([entry, ...entries]);
+  return snapshot();
 });
 
 // ---------------------------------------------------------------------------
-// IPC — bulk task operations (multiselect)
+// V3: Launchpad Handlers
 // ---------------------------------------------------------------------------
 
-handleLocked('task:complete-many', async (_event, ids: string[]) => {
-  const settings = await getSettings();
-  const wsId = settings.activeWorkspaceId;
-  if (!wsId) throw new Error('No workspace selected.');
-
-  let active = await getTasks(wsId, 'active');
-  const existing = await getTasks(wsId, 'completed');
-  const now = new Date().toISOString();
-
-  const completed = ids
-    .map((id) => active.find((t) => t.id === id))
-    .filter((t): t is Task => t !== undefined)
-    .map((t) => ({ ...t, completedAt: now, updatedAt: now }));
-
-  active = active.filter((t) => !ids.includes(t.id));
-
-  await saveTasks(wsId, 'completed', [...existing, ...completed]);
-  await saveTasks(wsId, 'active', active);
-  await scheduleNextWake();
-  return completed.length;
+handleLocked('launchpad:create', async (_event, name: string, spaceId: string, paths: string[]) => {
+  const trimmedName = (name || '').trim();
+  if (!trimmedName) throw new Error('Launchpad name is required.');
+  const pads = await getLaunchpads();
+  const pad: Launchpad = {
+    id: randomUUID(),
+    name: trimmedName,
+    spaceId,
+    paths: paths.map((p) => p.trim()).filter(Boolean),
+    createdAt: Date.now(),
+  };
+  await saveLaunchpads([...pads, pad]);
+  return snapshot();
 });
 
-handleLocked('task:delete-many', async (_event, ids: string[], bucket: 'active' | 'completed' | 'error') => {
-  const settings = await getSettings();
-  const wsId = settings.activeWorkspaceId;
-  if (!wsId) throw new Error('No workspace selected.');
-
-  const tasks = await getTasks(wsId, bucket);
-  await saveTasks(wsId, bucket, tasks.filter((t) => !ids.includes(t.id)));
-  if (bucket === 'active') await scheduleNextWake();
-  return ids.length;
+handleLocked('launchpad:delete', async (_event, id: string) => {
+  const pads = await getLaunchpads();
+  await saveLaunchpads(pads.filter((p) => p.id !== id));
+  return snapshot();
 });
 
-ipcMain.handle('quickadd:close', () => {
-  quickAddWindow?.close();
+ipcMain.handle('launchpad:launch', async (_event, id: string) => {
+  const pads = await getLaunchpads();
+  const pad = pads.find((p) => p.id === id);
+  if (!pad) return { ok: false, errors: ['Launchpad not found'] };
+  const errors: string[] = [];
+  for (const target of pad.paths) {
+    const trimmed = target.trim();
+    if (!trimmed) continue;
+    if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
+      try {
+        await shell.openExternal(trimmed);
+      } catch (err) {
+        errors.push(`${trimmed}: ${String(err)}`);
+      }
+    } else {
+      const err = await shell.openPath(trimmed);
+      if (err) errors.push(`${trimmed}: ${err}`);
+    }
+  }
+  return { ok: errors.length === 0, errors };
+});
+
+// ---------------------------------------------------------------------------
+// V3: Quick Actions (VS Code / Terminal)
+// ---------------------------------------------------------------------------
+
+ipcMain.handle('code:open', async (_event, targetPath: string) => {
+  try {
+    const cp = await import('node:child_process');
+    cp.spawn('code', [targetPath], { shell: true, detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('terminal:open', async (_event, targetPath: string) => {
+  try {
+    const cp = await import('node:child_process');
+    let folder = targetPath;
+    try {
+      const stat = await fs.stat(targetPath);
+      if (!stat.isDirectory()) folder = path.dirname(targetPath);
+    } catch {
+      // fallback
+    }
+    const child = cp.spawn('wt', ['-d', folder], { shell: true, detached: true, stdio: 'ignore' });
+    child.on('error', () => {
+      cp.spawn('cmd', ['/c', 'start', 'cmd', '/k', `cd /d "${folder}"`], { shell: true, detached: true, stdio: 'ignore' }).unref();
+    });
+    child.unref();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 });
