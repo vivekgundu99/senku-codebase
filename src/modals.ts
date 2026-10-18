@@ -1,3 +1,4 @@
+import type { Launchpad } from '../electron/types';
 import { setState, state } from './state';
 import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
 import pkg from '../package.json';
@@ -293,18 +294,24 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
 // Launchpad form modal (V3)
 // ---------------------------------------------------------------------------
 
-export function openLaunchpadFormModal(load: (path?: string) => Promise<void>): void {
+export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, existing?: Launchpad): void {
   const currentPath = state.currentPath || state.workspace?.masterFolder || '';
+  const isEditing = Boolean(existing);
+  const kicker = isEditing ? 'EDIT LAUNCHPAD' : 'NEW LAUNCHPAD';
+  const heading = isEditing ? 'Update your Launchpad' : 'Bundle and launch context in 1-click';
+  const defaultPaths = existing ? existing.paths.join('\n') : '';
+  const defaultName = existing ? existing.name : '';
+  const submitText = isEditing ? 'Save Changes' : 'Create Launchpad';
 
   const overlay = createOverlay(`
     <form class="modal-card">
       <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">NEW LAUNCHPAD</span>
-      <h2>Bundle and launch context in 1-click</h2>
+      <span class="section-kicker">${kicker}</span>
+      <h2>${heading}</h2>
       <p class="modal-copy">Add folder paths, file paths, or URLs. One click opens them all simultaneously.</p>
 
       <label>Launchpad Name
-        <input name="name" required placeholder="e.g. DSA Grind, College Lab, WebDev Project" autocomplete="off" />
+        <input name="name" required value="${escapeHtml(defaultName)}" placeholder="e.g. DSA Grind, College Lab, WebDev Project" autocomplete="off" />
       </label>
 
       <label>Resources (Files, Folders, URLs — one per line)
@@ -318,11 +325,11 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>): 
           rows="5"
           placeholder="https://neetcode.io&#10;C:\\Users\\you\\projects\\dsa&#10;https://github.com"
           style="font-family:monospace;font-size:12px;line-height:1.4;"
-        ></textarea>
+        >${escapeHtml(defaultPaths)}</textarea>
       </label>
 
       <p class="form-error" id="lp-error"></p>
-      <button class="primary-button" type="submit">Create Launchpad <span>→</span></button>
+      <button class="primary-button" type="submit">${submitText} <span>→</span></button>
     </form>`);
 
   const textarea = overlay.querySelector<HTMLTextAreaElement>('#lp-paths-input')!;
@@ -355,12 +362,16 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>): 
       .filter(Boolean);
 
     try {
-      const spaceId = state.workspace?.id ?? '';
-      await window.senku.createLaunchpad(name, spaceId, paths);
+      if (existing) {
+        await window.senku.updateLaunchpad(existing.id, name, paths);
+      } else {
+        const spaceId = state.workspace?.id ?? '';
+        await window.senku.createLaunchpad(name, spaceId, paths);
+      }
       overlay.remove();
       await load(state.currentPath);
     } catch (err) {
-      showFormError(overlay, '#lp-error', err instanceof Error ? err.message : 'Could not create launchpad.');
+      showFormError(overlay, '#lp-error', err instanceof Error ? err.message : 'Could not save launchpad.');
     }
   });
 }

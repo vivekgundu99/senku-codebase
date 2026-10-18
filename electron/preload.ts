@@ -58,6 +58,9 @@ const api = {
   createLaunchpad: (name: string, spaceId: string, paths: string[]) =>
     ipcRenderer.invoke('launchpad:create', name, spaceId, paths) as Promise<AppSnapshot>,
 
+  updateLaunchpad: (id: string, name: string, paths: string[]) =>
+    ipcRenderer.invoke('launchpad:update', id, name, paths) as Promise<AppSnapshot>,
+
   deleteLaunchpad: (id: string) =>
     ipcRenderer.invoke('launchpad:delete', id) as Promise<AppSnapshot>,
 

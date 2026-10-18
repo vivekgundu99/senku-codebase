@@ -894,6 +894,24 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   color: var(--orange);
 }
 
+.lp-edit-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .12s;
+}
+
+.lp-edit-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-pale);
+}
+
 .lp-paths {
   display: flex;
   flex-wrap: wrap;

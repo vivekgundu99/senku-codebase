@@ -183,17 +183,8 @@ function bindLogBar(load: LoadFn, render: RenderFn): void {
     const spaceId = state.workspace?.id;
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
-    // If on Log view, stay there; else just reload silently
     if (currentView === 'Log') render();
   });
-
-  // Ctrl+Enter from anywhere focuses the log bar
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key === 'Enter') {
-      e.preventDefault();
-      input.focus();
-    }
-  }, { capture: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +204,14 @@ function bindLaunchpadActions(load: LoadFn): void {
     }),
   );
 
+  document.querySelectorAll<HTMLElement>('[data-edit-lp]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.editLp!;
+      const lp = state.launchpads?.find((p) => p.id === id);
+      if (lp) openLaunchpadFormModal(load, lp);
+    }),
+  );
+
   document.querySelectorAll<HTMLElement>('[data-delete-lp]').forEach((btn) =>
     btn.addEventListener('click', async () => {
       if (!confirm('Delete this Launchpad? Your files are not affected.')) return;
@@ -228,6 +227,14 @@ function bindLaunchpadActions(load: LoadFn): void {
 
 export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
   registerShortcuts(load, render);
+
+  // Global Ctrl+Enter focuses Quick Log bar
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      document.querySelector<HTMLInputElement>('#quick-log-input')?.focus();
+    }
+  }, { capture: true });
 
   document.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;

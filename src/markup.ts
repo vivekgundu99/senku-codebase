@@ -334,6 +334,7 @@ function launchpadCardMarkup(lp: Launchpad): string {
         <h3 class="lp-name">${escapeHtml(lp.name)}</h3>
         <div class="lp-card-actions">
           <button class="lp-launch-btn" data-launch-id="${lp.id}" title="Open all resources">▷ Launch</button>
+          <button class="lp-edit-btn" data-edit-lp="${lp.id}" title="Edit launchpad">✎ Edit</button>
           <button class="lp-delete-btn" data-delete-lp="${lp.id}" title="Delete launchpad">✕</button>
         </div>
       </div>

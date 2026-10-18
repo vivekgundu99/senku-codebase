@@ -176,7 +176,41 @@ function getWorkspace(workspaces: Workspace[], id: string): Workspace | null {
 // File browser
 // ---------------------------------------------------------------------------
 
-const IGNORED_NAMES = new Set(['desktop.ini', 'thumbs.db', '$recycle.bin', 'system volume information']);
+function isIgnoredEntry(name: string): boolean {
+  const lower = name.toLowerCase();
+
+  // OS & system metadata
+  if (
+    lower === 'desktop.ini' ||
+    lower === 'thumbs.db' ||
+    lower === 'ehthumbs.db' ||
+    lower === '$recycle.bin' ||
+    lower === 'system volume information' ||
+    lower === '.ds_store'
+  ) {
+    return true;
+  }
+
+  // Office lock/owner files: ~$Document.docx, ~$Book.xlsx
+  if (lower.startsWith('~$')) return true;
+
+  // Temp working files: ~WRL0001.tmp, any .tmp file
+  if (lower.startsWith('~') && lower.endsWith('.tmp')) return true;
+  if (lower.endsWith('.tmp')) return true;
+
+  // Google Drive & Cloud sync temporary download/upload markers
+  if (lower.includes('.tmp.drive') || lower.endsWith('.tmp.driveupload') || lower.endsWith('.tmp.drivedownload')) {
+    return true;
+  }
+
+  // Incomplete browser downloads
+  if (lower.endsWith('.crdownload') || lower.endsWith('.part')) {
+    return true;
+  }
+
+  return false;
+}
+
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -201,7 +235,7 @@ async function readFolderEntries(dir: string): Promise<FileEntry[]> {
   if (cached && cached.mtimeMs === dirStat.mtimeMs && Date.now() - cached.at < 15_000) return cached.entries;
 
   const items = (await fs.readdir(dir, { withFileTypes: true })).filter(
-    (item) => !IGNORED_NAMES.has(item.name.toLowerCase()) && !item.name.startsWith('~$'),
+    (item) => !isIgnoredEntry(item.name),
   );
 
   const found = await mapLimit(items, 48, async (item): Promise<FileEntry | null> => {
@@ -622,6 +656,21 @@ handleLocked('launchpad:create', async (_event, name: string, spaceId: string, p
     createdAt: Date.now(),
   };
   await saveLaunchpads([...pads, pad]);
+  return snapshot();
+});
+
+handleLocked('launchpad:update', async (_event, id: string, name: string, paths: string[]) => {
+  const trimmedName = (name || '').trim();
+  if (!trimmedName) throw new Error('Launchpad name is required.');
+  const pads = await getLaunchpads();
+  const index = pads.findIndex((p) => p.id === id);
+  if (index < 0) throw new Error('Launchpad not found.');
+  pads[index] = {
+    ...pads[index],
+    name: trimmedName,
+    paths: paths.map((p) => p.trim()).filter(Boolean),
+  };
+  await saveLaunchpads(pads);
   return snapshot();
 });
 
