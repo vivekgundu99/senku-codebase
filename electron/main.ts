@@ -35,10 +35,12 @@ let isQuitting = false;
 
 if (!app.isPackaged) {
   dotenv.config();
+  app.setName('senku-dev');
+  app.setPath('userData', path.join(app.getPath('appData'), 'senku-dev'));
 }
 const isTesting = process.env.testing === '1';
 
-// Only one Senku at a time
+// Only one Senku at a time per environment (isolated lock for dev vs installed)
 const gotSingleInstanceLock = isTesting || app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) app.quit();
 app.on('second-instance', () => showMainWindow());
@@ -384,11 +386,13 @@ app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
   }
 
-  const startupSettings = await getSettings();
-  app.setLoginItemSettings({
-    openAtLogin: startupSettings.launchAtStartup,
-    openAsHidden: false,
-  });
+  if (app.isPackaged) {
+    const startupSettings = await getSettings();
+    app.setLoginItemSettings({
+      openAtLogin: startupSettings.launchAtStartup,
+      openAsHidden: false,
+    });
+  }
 
   await createWindow();
 
@@ -397,7 +401,7 @@ app.whenReady().then(async () => {
     .resize({ width: 16, height: 16 });
 
   tray = new Tray(trayIcon);
-  tray.setToolTip('Senku');
+  tray.setToolTip(app.isPackaged ? 'Senku' : 'Senku (Dev v3)');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Open Senku', click: showMainWindow },
@@ -433,7 +437,9 @@ handleLocked('app:get-snapshot', (_event, requestedPath?: string) =>
 
 handleLocked('settings:save', async (_event, settings: Settings) => {
   await writeJson(settingsFile(), settings);
-  app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup, openAsHidden: false });
+  if (app.isPackaged) {
+    app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup, openAsHidden: false });
+  }
   return snapshot();
 });
 
