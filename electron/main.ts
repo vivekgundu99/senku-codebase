@@ -16,7 +16,6 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
   AppSnapshot,
-  DailyNote,
   FileEntry,
   Launchpad,
   LogEntry,
@@ -65,7 +64,6 @@ const logFile = () => path.join(dataDir(), 'log.json');
 const launchpadsFile = () => path.join(dataDir(), 'launchpads.json');
 const trashFile = () => path.join(dataDir(), 'trash-workspaces.json');
 const workspaceDir = (id: string) => path.join(dataDir(), 'workspaces', id);
-const dailyNoteFile = (id: string) => path.join(workspaceDir(id), 'daily-note.json');
 const notesFile = () => path.join(dataDir(), 'notes.json');
 
 // ---------------------------------------------------------------------------
@@ -136,15 +134,7 @@ async function getWorkspaces(): Promise<Workspace[]> {
   return workspaces.map((ws) => ({ ...ws, pinnedPaths: ws.pinnedPaths ?? [] }));
 }
 
-async function getDailyNote(id: string): Promise<string> {
-  const note = await readJson<DailyNote | null>(dailyNoteFile(id), null);
-  return note?.content ?? '';
-}
 
-async function saveDailyNote(id: string, content: string): Promise<void> {
-  const note: DailyNote = { workspaceId: id, content, updatedAt: new Date().toISOString() };
-  await writeJson(dailyNoteFile(id), note);
-}
 
 async function getLogEntries(): Promise<LogEntry[]> {
   const entries = await readJson<LogEntry[]>(logFile(), []);
@@ -361,7 +351,6 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       workspace: null,
       entries: [],
       currentPath: '',
-      dailyNote: '',
       logEntries,
       launchpads,
       trashWorkspaces,
@@ -383,10 +372,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     await writeJson(workspacesFile(), workspaces);
   }
 
-  const [entries, dailyNote] = await Promise.all([
-    listFolder(workspace.masterFolder, currentPath, workspace.pinnedPaths),
-    getDailyNote(workspace.id),
-  ]);
+  const entries = await listFolder(workspace.masterFolder, currentPath, workspace.pinnedPaths);
 
   return {
     settings,
@@ -395,7 +381,6 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     workspace,
     entries,
     currentPath,
-    dailyNote,
     logEntries,
     launchpads,
     trashWorkspaces,
@@ -578,14 +563,11 @@ handleLocked('workspace:delete', async (_event, id: string) => {
   const next = workspaces.filter((ws) => ws.id !== id);
   await writeJson(workspacesFile(), next);
 
-  // Preserve daily note content in trash before deleting
-  const note = await getDailyNote(id);
   const trash = await getTrashWorkspaces();
   const item: TrashWorkspace = {
     id: target.id,
     name: target.name,
     masterFolder: target.masterFolder,
-    dailyNote: note,
     deletedAt: Date.now(),
   };
   await saveTrashWorkspaces([item, ...trash.filter((t) => t.id !== id)]);
@@ -615,10 +597,6 @@ handleLocked('workspace:restore', async (_event, id: string) => {
     createdAt: new Date().toISOString(),
   };
   await writeJson(workspacesFile(), [...workspaces, restored]);
-
-  if (item.dailyNote) {
-    await saveDailyNote(item.id, item.dailyNote);
-  }
 
   const settings = await getSettings();
   await writeJson(settingsFile(), { ...settings, activeWorkspaceId: restored.id });
@@ -718,11 +696,7 @@ handleLocked('path:unpin', async (_event, target: string) => {
   return snapshot();
 });
 
-handleLocked('note:save', async (_event, content: string) => {
-  const settings = await getSettings();
-  if (!settings.activeWorkspaceId) return;
-  await saveDailyNote(settings.activeWorkspaceId, content);
-});
+
 
 // ---------------------------------------------------------------------------
 // V3: Quiet Log Handlers
@@ -887,6 +861,17 @@ handleLocked('notes:create', async (_event, name: string) => {
     updatedAt: now,
   };
   await saveNotes([note, ...notes]);
+  return snapshot();
+});
+
+handleLocked('notes:rename', async (_event, id: string, name: string) => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Note name cannot be empty.');
+  const notes = await getNotes();
+  const idx = notes.findIndex((n) => n.id === id);
+  if (idx < 0) throw new Error('Note not found.');
+  notes[idx] = { ...notes[idx], name: trimmed, updatedAt: Date.now() };
+  await saveNotes(notes);
   return snapshot();
 });
 

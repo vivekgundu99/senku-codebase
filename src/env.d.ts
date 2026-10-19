@@ -1,4 +1,4 @@
-import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile } from '../electron/types';
+import type { AppSnapshot, Settings } from '../electron/types';
 
 declare global {
   interface Window {
@@ -19,7 +19,6 @@ declare global {
       copyPath(path: string): Promise<boolean>;
       pinPath(path: string): Promise<AppSnapshot>;
       unpinPath(path: string): Promise<AppSnapshot>;
-      saveNote(content: string): Promise<void>;
       // V3: Log
       addLogEntry(text: string, spaceId?: string): Promise<AppSnapshot>;
       deleteLogEntry(id: string): Promise<AppSnapshot>;
@@ -34,6 +33,7 @@ declare global {
       openInTerminal(path: string): Promise<{ ok: boolean; error?: string }>;
       // Notes
       createNote(name: string): Promise<AppSnapshot>;
+      renameNote(id: string, name: string): Promise<AppSnapshot>;
       updateNote(id: string, content: string): Promise<AppSnapshot>;
       appendToNote(id: string, snippet: string): Promise<AppSnapshot>;
       deleteNote(id: string): Promise<AppSnapshot>;

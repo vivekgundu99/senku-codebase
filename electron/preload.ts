@@ -52,10 +52,6 @@ const api = {
   unpinPath: (path: string) =>
     ipcRenderer.invoke('path:unpin', path) as Promise<AppSnapshot>,
 
-  // --- Daily note ---
-  saveNote: (content: string) =>
-    ipcRenderer.invoke('note:save', content) as Promise<void>,
-
   // --- V3: Quiet Log ---
   addLogEntry: (text: string, spaceId?: string) =>
     ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,
@@ -89,6 +85,9 @@ const api = {
   // --- Notes ---
   createNote: (name: string) =>
     ipcRenderer.invoke('notes:create', name) as Promise<AppSnapshot>,
+
+  renameNote: (id: string, name: string) =>
+    ipcRenderer.invoke('notes:rename', id, name) as Promise<AppSnapshot>,
 
   updateNote: (id: string, content: string) =>
     ipcRenderer.invoke('notes:update', id, content) as Promise<AppSnapshot>,

@@ -7,9 +7,6 @@ import type { AppSnapshot, FileEntry, LogEntry } from '../electron/types';
 export let state = {} as AppSnapshot;
 export let currentView = 'Home';
 export let currentPath = '';
-export let dailyNote = '';
-
-let noteDirty = false;
 
 export const FILE_PAGE = 150;
 export let fileFilter = '';
@@ -28,19 +25,10 @@ export function setState(snapshot: AppSnapshot): void {
   }
   state = snapshot;
   currentPath = snapshot.currentPath;
-  if (!noteDirty) dailyNote = snapshot.dailyNote;
 }
 
 export function setView(view: string): void {
   currentView = view;
-}
-
-export function setDailyNote(content: string): void {
-  dailyNote = content;
-}
-
-export function setNoteDirty(value: boolean): void {
-  noteDirty = value;
 }
 
 export function setFileFilter(value: string): void {

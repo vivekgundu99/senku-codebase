@@ -3,8 +3,6 @@ import {
   setState,
   currentView,
   setView,
-  setDailyNote,
-  setNoteDirty,
   setFileFilter,
   showMoreFiles,
   setLogFilter,
@@ -27,35 +25,6 @@ import {
 
 type LoadFn = (path?: string) => Promise<void>;
 type RenderFn = () => void;
-
-// ---------------------------------------------------------------------------
-// Daily note autosave
-// ---------------------------------------------------------------------------
-
-let noteSaveTimer: ReturnType<typeof setTimeout> | null = null;
-
-export function bindDailyNote(): void {
-  const textarea = document.querySelector<HTMLTextAreaElement>('#daily-note');
-  const savedEl = document.querySelector<HTMLElement>('#note-saved');
-  if (!textarea) return;
-  if (savedEl) savedEl.style.opacity = '0';
-
-  textarea.addEventListener('input', () => {
-    const content = textarea.value;
-    setDailyNote(content);
-    setNoteDirty(true);
-    if (noteSaveTimer) clearTimeout(noteSaveTimer);
-    if (savedEl) { savedEl.textContent = 'saving…'; savedEl.style.opacity = '1'; }
-    noteSaveTimer = setTimeout(async () => {
-      await window.senku.saveNote(content);
-      if (textarea.value === content) setNoteDirty(false);
-      if (savedEl) {
-        savedEl.textContent = 'saved';
-        setTimeout(() => { if (savedEl) savedEl.style.opacity = '0'; }, 2000);
-      }
-    }, 1500);
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Main event binding (runs after each render)
@@ -87,6 +56,29 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     }),
   );
 
+  // Note title rename
+  const titleInput = panel.querySelector<HTMLInputElement>('#notes-title-input');
+  if (titleInput) {
+    const saveTitle = async () => {
+      const noteId = titleInput.dataset.noteId!;
+      const newName = titleInput.value.trim();
+      if (!newName) return;
+      const note = state.notes?.find((n) => n.id === noteId);
+      if (note && note.name !== newName) {
+        const snap = await window.senku.renameNote(noteId, newName);
+        setState(snap);
+        render();
+      }
+    };
+    titleInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        titleInput.blur();
+      }
+    });
+    titleInput.addEventListener('blur', () => void saveTitle());
+  }
+
   // Editor autosave
   const textarea = panel.querySelector<HTMLTextAreaElement>('#notes-editor');
   const statusEl = panel.querySelector<HTMLElement>('#note-save-status');
@@ -117,6 +109,14 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
       const snap = await window.senku.appendToNote(noteId, snippet);
       setState(snap);
       render();
+      // Auto-scroll editor to bottom so user sees appended text
+      requestAnimationFrame(() => {
+        const updatedEditor = document.querySelector<HTMLTextAreaElement>('#notes-editor');
+        if (updatedEditor) {
+          updatedEditor.scrollTop = updatedEditor.scrollHeight;
+        }
+        document.querySelector<HTMLInputElement>('#notes-append-input')?.focus();
+      });
     });
   }
 
@@ -132,7 +132,8 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     const id = (e.currentTarget as HTMLElement).dataset.noteId!;
     if (!confirm('Delete this note? This cannot be undone.')) return;
     const snap = await window.senku.deleteNote(id);
-    setActiveNoteId(null);
+    const remaining = snap.notes ?? [];
+    setActiveNoteId(remaining[0]?.id ?? null);
     setState(snap);
     render();
   });
@@ -191,10 +192,15 @@ function bindFileActions(load: LoadFn): void {
       event.stopPropagation();
       const action = fileAction.dataset.fileAction!;
       const filePath = fileAction.dataset.path!;
+      if (action === 'code') {
+        const res = await window.senku.openInVSCode(filePath);
+        if (!res.ok) alert(res.error ?? 'Could not open in VS Code.');
+        return;
+      }
       if (action === 'copy') {
         await window.senku.copyPath(filePath);
         fileAction.textContent = 'Copied';
-        setTimeout(() => { fileAction.textContent = 'Copy path'; }, 1200);
+        setTimeout(() => { fileAction.textContent = 'Copy'; }, 1200);
         return;
       }
       const here = state.currentPath;

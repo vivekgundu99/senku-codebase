@@ -40,12 +40,6 @@ export interface Launchpad {
   createdAt: number;
 }
 
-export interface DailyNote {
-  workspaceId: string;
-  content: string;
-  updatedAt: string;
-}
-
 export interface NoteFile {
   id: string;
   name: string;
@@ -69,9 +63,9 @@ export interface AppSnapshot {
   workspace: Workspace | null;
   entries: FileEntry[];
   currentPath: string;
-  dailyNote: string;
   logEntries: LogEntry[];
   launchpads: Launchpad[];
   trashWorkspaces: TrashWorkspace[];
   notes: NoteFile[];
 }
+

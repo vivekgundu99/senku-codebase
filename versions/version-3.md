@@ -132,3 +132,41 @@
   - Immediately restored the split screen file manager on Home (and Launchpads): Home has its left panel + right column with full File Manager (`filePanelMarkup()`).
   - Restored clean nav items in Sidebar: Home (`H`), My Log (`L`), Launchpads (`P`), Notes (`N`).
   - Restored space clicks so they switch space and stay on Home with the selected space's files right there in the right column!
+
+---
+
+### Prompt 7 — Complete Feature Audit & Honest Architectural Review
+- **Date / Time**: 2026-10-20T01:14:42+05:30
+- **User Prompt**:
+> bro once go through each senku feature, page and tell me honest review. because there is unnessesary things added in past by agents which are either useless now or irrelevent and safely removed.
+> first do your job and then we will discurss
+
+- **Audit Findings**:
+  1. *Legacy Dead Weight*: `dailyNote` (from V2) still had active IPC handlers, snapshot fields, and orphaned renderer markup (`dailyNotePanelMarkup`), even though V3 fully migrated to multi-file `Notes` (`notes.json`).
+  2. *Incomplete Notes Panel*: No note rename feature; notes append did not auto-scroll; no auto-selection fallback on delete.
+  3. *Home Screen Glitch*: `quickLaunchHtml` was computed in `homePanelMarkup` but never included in the returned template, leaving Launchpads unreachable from Home.
+  4. *File Explorer Underutilization*: File sizes and modification dates were gathered in Electron backend (`fs.stat`) but never rendered on file rows; no direct "Open in VS Code" on file items.
+  5. *CSS Duplication*: Multiple duplicated selector blocks (e.g. `.home-panel-v3` declared twice) contributing to the 1,450-line stylesheet.
+
+---
+
+### Prompt 8 — Systematic Iterative Overhaul (One Task at a Time)
+- **Date / Time**: 2026-10-20T01:26:01+05:30
+- **User Prompt**:
+> bro this is senku and I am developing it with the help of agentic ai.
+> senku got majour changes and many works and implementations are imcomplete. so slowly go through senku and do what ever you like.
+> you can change anything, add features, delete features litereally do anything. you can check you own work and redesin it.
+> brecause many things are missing in senku.
+> so one task at a time,
+
+- **Task 1 Scope — Core Foundation & Friction Elimination**:
+  1. *Purge Legacy V2 DailyNote*: Remove orphaned `dailyNote` from backend snapshot, IPC channels, and renderer, unifying notes entirely on the modern `NoteFile` system.
+  2. *Complete the Notes Feature*:
+     - Add `notes:rename` IPC handler, preload binding, and inline double-click / button rename in editor header.
+     - Auto-scroll editor to bottom when snippets are appended.
+     - Autofocus note name field in create modal.
+     - Auto-select remaining note after deletion.
+  3. *Restore Quick Launchpads on Home*: Wire `quickLaunchHtml` into `homePanelMarkup` so students can launch their primary contexts directly from Home.
+  4. *Enrich File Explorer Rows*: Display human-readable file sizes (`12 KB`, `4.1 MB`) and relative modified times on file rows. Add direct VS Code opening for code/doc files and folders.
+  5. *Clean CSS Duplication*: Eliminate duplicate `.home-panel-v3` rules and tidy related style tokens.
+

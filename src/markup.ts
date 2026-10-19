@@ -2,7 +2,6 @@ import type { FileEntry, LogEntry, Launchpad, NoteFile } from '../electron/types
 import {
   state,
   currentView,
-  dailyNote,
   fileFilter,
   visibleEntries,
   getLogEntries,
@@ -165,23 +164,48 @@ function fileKind(entry: FileEntry): string {
 const iconSvg = (kind: string): string =>
   `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind === 'pdf' ? 'doc' : kind] ?? ICONS.file}</svg>`;
 
+function formatRelativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function formatFileSize(bytes?: number): string {
+  if (bytes === undefined || bytes === null) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
 export function fileEntryMarkup(entry: FileEntry): string {
   const kind = fileKind(entry);
   const pinAction = entry.pinned
     ? `data-file-action="unpin" title="Unpin"`
     : `data-file-action="pin" title="Pin to top"`;
 
+  const sizeLabel = entry.kind === 'file' ? formatFileSize(entry.size) : '';
+  const timeLabel = entry.modifiedAt ? formatRelativeTime(new Date(entry.modifiedAt).getTime()) : '';
+  const metaParts = [sizeLabel, timeLabel].filter(Boolean).join(' · ');
+
   return `
     <div class="file-row ${entry.pinned ? 'pinned' : ''}" data-path="${escapeHtml(entry.path)}" data-kind="${entry.kind}">
       <button class="file-open" data-open-path="${escapeHtml(entry.path)}" data-kind="${entry.kind}">
         <span class="file-icon ${kind}">${iconSvg(kind)}</span>
-        <span class="file-name">${escapeHtml(entry.name)}</span>
+        <div class="file-info-block">
+          <span class="file-name">${escapeHtml(entry.name)}</span>
+          ${metaParts ? `<span class="file-meta">${escapeHtml(metaParts)}</span>` : ''}
+        </div>
         ${entry.pinned ? '<span class="pinned-indicator">pinned</span>' : ''}
       </button>
       <span class="file-actions">
+        <button data-file-action="code" data-path="${escapeHtml(entry.path)}" class="quick-code-btn" title="Open in VS Code">Code</button>
         <button data-path="${escapeHtml(entry.path)}" ${pinAction}
           class="pin-button ${entry.pinned ? 'active' : ''}" aria-label="${entry.pinned ? 'Unpin' : 'Pin'}">${entry.pinned ? '★' : '☆'}</button>
-        <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" title="Copy path">Copy path</button>
+        <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" title="Copy path">Copy</button>
       </span>
     </div>`;
 }
@@ -256,19 +280,6 @@ export function filePanelMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Shared time helpers
-// ---------------------------------------------------------------------------
-
-function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  const d = new Date(ts);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-// ---------------------------------------------------------------------------
 // Home panel — dashboard
 // ---------------------------------------------------------------------------
 
@@ -333,12 +344,22 @@ export function homePanelMarkup(): string {
         ${statCard('◎', 'Log entries', logCount, 'Log')}
       </div>
 
-      <div class="home-recent-deck">
-        <div class="home-deck-header">
-          <span class="home-section-label">RECENT LOG</span>
-          <button class="home-deck-link" data-view="Log">See all →</button>
+      <div class="home-decks-container">
+        <div class="home-recent-deck">
+          <div class="home-deck-header">
+            <span class="home-section-label">RECENT LOG</span>
+            <button class="home-deck-link" data-view="Log">See all →</button>
+          </div>
+          <div class="home-recent-logs">${recentLogsHtml}</div>
         </div>
-        <div class="home-recent-logs">${recentLogsHtml}</div>
+
+        <div class="home-recent-deck home-lp-deck">
+          <div class="home-deck-header">
+            <span class="home-section-label">QUICK LAUNCHPADS</span>
+            <button class="home-deck-link" data-view="Launchpads">See all →</button>
+          </div>
+          <div class="home-launchpads-wrap">${quickLaunchHtml}</div>
+        </div>
       </div>
     </section>`;
 }
@@ -468,29 +489,6 @@ export function launchpadsPanelMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Daily note panel (legacy Rough Note — now hidden behind Notes)
-// ---------------------------------------------------------------------------
-
-export function dailyNotePanelMarkup(): string {
-  return `
-    <section class="tasks-panel note-panel">
-      <div class="section-heading">
-        <div>
-          <span class="section-kicker">ROUGH NOTE</span>
-          <h2>Today's thoughts</h2>
-        </div>
-        <span class="note-saved-indicator" id="note-saved"></span>
-      </div>
-      <textarea
-        id="daily-note"
-        class="note-textarea"
-        placeholder="Dump thoughts, half-formed ideas, things to remember. This is only yours."
-        spellcheck="false"
-      >${escapeHtml(dailyNote)}</textarea>
-    </section>`;
-}
-
-// ---------------------------------------------------------------------------
 // Notes panel — full note manager
 // ---------------------------------------------------------------------------
 
@@ -510,7 +508,18 @@ export function notesPanelMarkup(): string {
 
   const editorArea = active ? `
     <div class="notes-editor-head">
-      <span class="notes-editor-title">${escapeHtml(active.name)}</span>
+      <div class="notes-title-wrap">
+        <input
+          id="notes-title-input"
+          class="notes-editor-title-input"
+          data-note-id="${active.id}"
+          value="${escapeHtml(active.name)}"
+          placeholder="Note title..."
+          maxlength="100"
+          spellcheck="false"
+          title="Click to rename note"
+        />
+      </div>
       <div class="notes-editor-actions">
         <span class="note-save-status" id="note-save-status"></span>
         <button class="notes-action-btn" id="notes-export-btn" data-note-id="${active.id}" title="Export as .txt">↓ Export</button>

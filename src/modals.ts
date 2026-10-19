@@ -461,11 +461,15 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
       <h2>Name your note</h2>
       <p class="modal-copy">A new text file will be created inside Senku. You can write, append snippets, and export anytime.</p>
       <label>Note name
-        <input name="name" required placeholder="e.g. DSA Ideas, Daily Plan, Resources" autocomplete="off" />
+        <input name="name" id="new-note-name-input" required placeholder="e.g. DSA Ideas, Daily Plan, Resources" autocomplete="off" autofocus />
       </label>
       <p class="form-error" id="note-create-error"></p>
       <button class="primary-button" type="submit">Create Note <span>→</span></button>
     </form>`);
+
+  requestAnimationFrame(() => {
+    overlay.querySelector<HTMLInputElement>('#new-note-name-input')?.focus();
+  });
 
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();

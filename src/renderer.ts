@@ -6,10 +6,9 @@ import {
   homePanelMarkup,
   logPanelMarkup,
   launchpadsPanelMarkup,
-  dailyNotePanelMarkup,
   notesPanelMarkup,
 } from './markup';
-import { bindAll, initGlobalListeners, bindDailyNote, bindNotesPanel } from './events';
+import { bindAll, initGlobalListeners, bindNotesPanel } from './events';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -18,7 +17,6 @@ function render(): void {
   if (currentView === 'Notes') leftPanel = notesPanelMarkup();
   else if (currentView === 'Log') leftPanel = logPanelMarkup();
   else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
-  else if (currentView === 'Note') leftPanel = dailyNotePanelMarkup();
   else leftPanel = homePanelMarkup();
 
   // Notes and Log get full width; Home and Launchpads show the File Manager on the right
@@ -43,7 +41,6 @@ function render(): void {
     </div>`;
 
   bindAll(load, render);
-  if (currentView === 'Note') bindDailyNote();
   if (currentView === 'Notes') bindNotesPanel(load, render);
 
   // Keep active space visible in sidebar
