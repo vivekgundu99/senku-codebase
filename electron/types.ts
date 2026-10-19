@@ -26,6 +26,7 @@ export interface FileEntry {
 
 export interface LogEntry {
   id: string;
+  seq: number;
   text: string;
   createdAt: number;
   spaceId?: string;

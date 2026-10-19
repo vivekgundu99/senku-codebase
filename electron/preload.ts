@@ -60,6 +60,9 @@ const api = {
   addLogEntry: (text: string, spaceId?: string) =>
     ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,
 
+  deleteLogEntry: (id: string) =>
+    ipcRenderer.invoke('log:delete', id) as Promise<AppSnapshot>,
+
   // --- V3: Launchpads ---
   createLaunchpad: (name: string, spaceId: string, paths: string[]) =>
     ipcRenderer.invoke('launchpad:create', name, spaceId, paths) as Promise<AppSnapshot>,

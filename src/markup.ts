@@ -312,8 +312,12 @@ export function logListMarkup(): string {
 
   const more = matched - items.length;
   return items.map((e: LogEntry) => `
-      <div class="log-entry">
-        <span class="log-time">${formatLogTime(e.createdAt)}</span>
+      <div class="log-entry" data-id="${e.id}">
+        <div class="log-entry-head">
+          <span class="log-seq">#${e.seq ?? '·'}</span>
+          <span class="log-time">${formatLogTime(e.createdAt)}</span>
+          <button type="button" class="log-delete-btn" data-delete-log="${e.id}" title="Delete log #${e.seq ?? ''}">✕</button>
+        </div>
         <p class="log-text">${escapeHtml(e.text)}</p>
       </div>`).join('') +
     (more > 0 ? `<button class="show-more" id="show-more-logs">Show ${Math.min(more, 40)} more · ${more} remaining</button>` : '');

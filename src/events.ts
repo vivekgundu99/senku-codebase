@@ -1,5 +1,6 @@
 import {
   state,
+  setState,
   currentView,
   setView,
   setDailyNote,
@@ -86,7 +87,6 @@ function bindNavigation(render: RenderFn): void {
 
 function bindSidebarButtons(load: LoadFn, render: RenderFn): void {
   document.querySelector('#workspace-settings')?.addEventListener('click', () => openWorkspaceSettingsModal(load, render));
-  document.querySelector('#add-space')?.addEventListener('click', () => openWorkspaceFormModal(load));
   document.querySelector('#open-trash')?.addEventListener('click', () => openTrashModal(load));
 }
 
@@ -212,11 +212,28 @@ function bindLogPanel(): void {
     timer = setTimeout(() => { setLogFilter(value); refreshList(); }, 80);
   });
 
-  panel.addEventListener('click', (e) => {
+  panel.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
     if (target.closest('#show-more-logs')) {
       showMoreLogs();
       refreshList();
+      return;
+    }
+    const delBtn = target.closest<HTMLElement>('[data-delete-log]');
+    if (delBtn) {
+      const id = delBtn.dataset.deleteLog;
+      if (!id) return;
+      delBtn.style.pointerEvents = 'none';
+      delBtn.style.opacity = '0.3';
+      try {
+        const snap = await window.senku.deleteLogEntry(id);
+        setState(snap);
+        refreshList();
+      } catch (err) {
+        delBtn.style.pointerEvents = '';
+        delBtn.style.opacity = '';
+        alert(`Could not delete log: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   });
 }
@@ -304,7 +321,6 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       const spaceId = switchSpaceBtn.dataset.switchSpace;
       if (spaceId) {
         await window.senku.switchWorkspace(spaceId);
-        setView('Home');
         await load();
       }
       return;

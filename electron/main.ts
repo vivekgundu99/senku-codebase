@@ -145,7 +145,19 @@ async function saveDailyNote(id: string, content: string): Promise<void> {
 }
 
 async function getLogEntries(): Promise<LogEntry[]> {
-  return readJson<LogEntry[]>(logFile(), []);
+  const entries = await readJson<LogEntry[]>(logFile(), []);
+  if (entries.some((e) => typeof e.seq !== 'number')) {
+    const sorted = [...entries].sort((a, b) => a.createdAt - b.createdAt);
+    let cur = 1;
+    for (const e of sorted) {
+      if (typeof e.seq !== 'number') {
+        e.seq = cur;
+      }
+      cur = Math.max(cur, e.seq) + 1;
+    }
+    await writeJson(logFile(), entries);
+  }
+  return entries;
 }
 
 async function saveLogEntries(entries: LogEntry[]): Promise<void> {
@@ -707,13 +719,26 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   const trimmed = (text || '').trim();
   if (!trimmed) return snapshot();
   const entries = await getLogEntries();
+  const settings = await getSettings();
+  const maxExisting = entries.reduce((max, e) => (typeof e.seq === 'number' && e.seq > max ? e.seq : max), 0);
+  const nextSeq = Math.max((settings as any).lastLogSeq || 0, maxExisting) + 1;
+
   const entry: LogEntry = {
     id: randomUUID(),
+    seq: nextSeq,
     text: trimmed,
     createdAt: Date.now(),
     spaceId,
   };
+  (settings as any).lastLogSeq = nextSeq;
+  await writeJson(settingsFile(), settings);
   await saveLogEntries([entry, ...entries]);
+  return snapshot();
+});
+
+handleLocked('log:delete', async (_event, id: string) => {
+  const entries = await getLogEntries();
+  await saveLogEntries(entries.filter((e) => e.id !== id));
   return snapshot();
 });
 

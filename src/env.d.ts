@@ -22,6 +22,7 @@ declare global {
       saveNote(content: string): Promise<void>;
       // V3: Log
       addLogEntry(text: string, spaceId?: string): Promise<AppSnapshot>;
+      deleteLogEntry(id: string): Promise<AppSnapshot>;
       // V3: Launchpads
       createLaunchpad(name: string, spaceId: string, paths: string[]): Promise<AppSnapshot>;
       updateLaunchpad(id: string, name: string, paths: string[]): Promise<AppSnapshot>;
