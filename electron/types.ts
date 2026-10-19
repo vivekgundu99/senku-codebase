@@ -46,6 +46,14 @@ export interface DailyNote {
   updatedAt: string;
 }
 
+export interface NoteFile {
+  id: string;
+  name: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface TrashWorkspace {
   id: string;
   name: string;
@@ -65,4 +73,5 @@ export interface AppSnapshot {
   logEntries: LogEntry[];
   launchpads: Launchpad[];
   trashWorkspaces: TrashWorkspace[];
+  notes: NoteFile[];
 }

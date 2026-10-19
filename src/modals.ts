@@ -1,5 +1,5 @@
 import type { Launchpad } from '../electron/types';
-import { setState, state } from './state';
+import { setState, state, setActiveNoteId, setView } from './state';
 import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
 import pkg from '../package.json';
 
@@ -446,5 +446,44 @@ export function openTrashModal(load: () => Promise<void>): void {
     await window.senku.purgeTrash();
     overlay.remove();
     await load();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Create Note modal
+// ---------------------------------------------------------------------------
+
+export function openCreateNoteModal(load: (path?: string) => Promise<void>, render: () => void): void {
+  const overlay = createOverlay(`
+    <form class="modal-card" style="width:min(400px,100%)">
+      <button type="button" class="modal-close" id="close-modal">×</button>
+      <span class="section-kicker">NEW NOTE</span>
+      <h2>Name your note</h2>
+      <p class="modal-copy">A new text file will be created inside Senku. You can write, append snippets, and export anytime.</p>
+      <label>Note name
+        <input name="name" required placeholder="e.g. DSA Ideas, Daily Plan, Resources" autocomplete="off" />
+      </label>
+      <p class="form-error" id="note-create-error"></p>
+      <button class="primary-button" type="submit">Create Note <span>→</span></button>
+    </form>`);
+
+  overlay.querySelector('form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = String(new FormData(e.currentTarget as HTMLFormElement).get('name')).trim();
+    if (!name) {
+      showFormError(overlay, '#note-create-error', 'Enter a note name.');
+      return;
+    }
+    try {
+      const snap = await window.senku.createNote(name);
+      setState(snap);
+      const newNote = snap.notes?.[0];
+      if (newNote) setActiveNoteId(newNote.id);
+      setView('Notes');
+      overlay.remove();
+      render();
+    } catch (err) {
+      showFormError(overlay, '#note-create-error', err instanceof Error ? err.message : 'Could not create note.');
+    }
   });
 }

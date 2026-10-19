@@ -18,6 +18,9 @@ export let fileLimit = FILE_PAGE;
 // Quick log bar pending input
 export let quickLogText = '';
 
+// Active note for Notes panel
+export let activeNoteId: string | null = null;
+
 export function setState(snapshot: AppSnapshot): void {
   if (snapshot.currentPath !== currentPath) {
     fileFilter = '';
@@ -51,6 +54,10 @@ export function showMoreFiles(): void {
 
 export function setQuickLogText(value: string): void {
   quickLogText = value;
+}
+
+export function setActiveNoteId(id: string | null): void {
+  activeNoteId = id;
 }
 
 // ---------------------------------------------------------------------------

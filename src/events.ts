@@ -10,6 +10,8 @@ import {
   setLogFilter,
   showMoreLogs,
   visibleLogEntries,
+  setActiveNoteId,
+  activeNoteId,
 } from './state';
 import { fileCountLabel, fileListMarkup, logListMarkup } from './markup';
 import { isSamePath, parentOf } from './utils';
@@ -20,6 +22,7 @@ import {
   openWorkspaceSettingsModal,
   openLaunchpadFormModal,
   openTrashModal,
+  openCreateNoteModal,
 } from './modals';
 
 type LoadFn = (path?: string) => Promise<void>;
@@ -66,6 +69,73 @@ export function bindAll(load: LoadFn, render: RenderFn): void {
   bindLogBar(load, render);
   bindLogPanel();
   bindLaunchpadActions(load);
+}
+
+export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
+  const panel = document.querySelector<HTMLElement>('.notes-panel');
+  if (!panel) return;
+
+  // Create note button
+  panel.querySelector('#create-note-btn')?.addEventListener('click', () => openCreateNoteModal(load, render));
+
+  // Open a note from the list
+  panel.querySelectorAll<HTMLElement>('[data-open-note]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.openNote!;
+      setActiveNoteId(id);
+      render();
+    }),
+  );
+
+  // Editor autosave
+  const textarea = panel.querySelector<HTMLTextAreaElement>('#notes-editor');
+  const statusEl = panel.querySelector<HTMLElement>('#note-save-status');
+  if (textarea) {
+    let saveTimer: ReturnType<typeof setTimeout> | undefined;
+    textarea.addEventListener('input', () => {
+      const noteId = textarea.dataset.noteId!;
+      const content = textarea.value;
+      if (statusEl) { statusEl.textContent = 'saving…'; }
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        const snap = await window.senku.updateNote(noteId, content);
+        setState(snap);
+        if (statusEl && textarea.value === content) { statusEl.textContent = 'saved'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000); }
+      }, 1200);
+    });
+  }
+
+  // Quick append input
+  const appendInput = panel.querySelector<HTMLInputElement>('#notes-append-input');
+  if (appendInput) {
+    appendInput.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') return;
+      const snippet = appendInput.value.trim();
+      if (!snippet) return;
+      const noteId = appendInput.dataset.noteId!;
+      appendInput.value = '';
+      const snap = await window.senku.appendToNote(noteId, snippet);
+      setState(snap);
+      render();
+    });
+  }
+
+  // Export
+  panel.querySelector('#notes-export-btn')?.addEventListener('click', async (e) => {
+    const id = (e.currentTarget as HTMLElement).dataset.noteId!;
+    const res = await window.senku.exportNote(id);
+    if (!res.ok && res.error && res.error !== 'Cancelled.') alert(`Export failed: ${res.error}`);
+  });
+
+  // Delete note
+  panel.querySelector('#notes-delete-btn')?.addEventListener('click', async (e) => {
+    const id = (e.currentTarget as HTMLElement).dataset.noteId!;
+    if (!confirm('Delete this note? This cannot be undone.')) return;
+    const snap = await window.senku.deleteNote(id);
+    setActiveNoteId(null);
+    setState(snap);
+    render();
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -85,6 +85,22 @@ const api = {
 
   openInTerminal: (path: string) =>
     ipcRenderer.invoke('terminal:open', path) as Promise<{ ok: boolean; error?: string }>,
+
+  // --- Notes ---
+  createNote: (name: string) =>
+    ipcRenderer.invoke('notes:create', name) as Promise<AppSnapshot>,
+
+  updateNote: (id: string, content: string) =>
+    ipcRenderer.invoke('notes:update', id, content) as Promise<AppSnapshot>,
+
+  appendToNote: (id: string, snippet: string) =>
+    ipcRenderer.invoke('notes:append', id, snippet) as Promise<AppSnapshot>,
+
+  deleteNote: (id: string) =>
+    ipcRenderer.invoke('notes:delete', id) as Promise<AppSnapshot>,
+
+  exportNote: (id: string) =>
+    ipcRenderer.invoke('notes:export', id) as Promise<{ ok: boolean; error?: string }>,
 };
 
 contextBridge.exposeInMainWorld('senku', api);

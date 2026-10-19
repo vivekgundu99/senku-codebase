@@ -20,6 +20,7 @@ import type {
   FileEntry,
   Launchpad,
   LogEntry,
+  NoteFile,
   Settings,
   TrashWorkspace,
   Workspace,
@@ -65,6 +66,7 @@ const launchpadsFile = () => path.join(dataDir(), 'launchpads.json');
 const trashFile = () => path.join(dataDir(), 'trash-workspaces.json');
 const workspaceDir = (id: string) => path.join(dataDir(), 'workspaces', id);
 const dailyNoteFile = (id: string) => path.join(workspaceDir(id), 'daily-note.json');
+const notesFile = () => path.join(dataDir(), 'notes.json');
 
 // ---------------------------------------------------------------------------
 // JSON helpers
@@ -178,6 +180,14 @@ async function getTrashWorkspaces(): Promise<TrashWorkspace[]> {
 
 async function saveTrashWorkspaces(items: TrashWorkspace[]): Promise<void> {
   await writeJson(trashFile(), items);
+}
+
+async function getNotes(): Promise<NoteFile[]> {
+  return readJson<NoteFile[]>(notesFile(), []);
+}
+
+async function saveNotes(notes: NoteFile[]): Promise<void> {
+  await writeJson(notesFile(), notes);
 }
 
 // ---------------------------------------------------------------------------
@@ -336,10 +346,11 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     })),
   );
   const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
-  const [logEntries, launchpads, trashWorkspaces] = await Promise.all([
+  const [logEntries, launchpads, trashWorkspaces, notes] = await Promise.all([
     getLogEntries(),
     getLaunchpads(),
     getTrashWorkspaces(),
+    getNotes(),
   ]);
 
   if (!workspace) {
@@ -354,6 +365,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       logEntries,
       launchpads,
       trashWorkspaces,
+      notes,
     };
   }
 
@@ -387,6 +399,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     logEntries,
     launchpads,
     trashWorkspaces,
+    notes,
   };
 }
 
@@ -856,3 +869,70 @@ ipcMain.handle('terminal:open', async (_event, targetPath: string) => {
     return { ok: false, error: String(err) };
   }
 });
+
+// ---------------------------------------------------------------------------
+// Notes Handlers
+// ---------------------------------------------------------------------------
+
+handleLocked('notes:create', async (_event, name: string) => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Note name is required.');
+  const notes = await getNotes();
+  const now = Date.now();
+  const note: NoteFile = {
+    id: randomUUID(),
+    name: trimmed,
+    content: '',
+    createdAt: now,
+    updatedAt: now,
+  };
+  await saveNotes([note, ...notes]);
+  return snapshot();
+});
+
+handleLocked('notes:update', async (_event, id: string, content: string) => {
+  const notes = await getNotes();
+  const idx = notes.findIndex((n) => n.id === id);
+  if (idx < 0) throw new Error('Note not found.');
+  notes[idx] = { ...notes[idx], content, updatedAt: Date.now() };
+  await saveNotes(notes);
+  return snapshot();
+});
+
+handleLocked('notes:append', async (_event, id: string, snippet: string) => {
+  const trimmed = (snippet || '').trim();
+  if (!trimmed) return snapshot();
+  const notes = await getNotes();
+  const idx = notes.findIndex((n) => n.id === id);
+  if (idx < 0) throw new Error('Note not found.');
+  const sep = notes[idx].content ? '\n' : '';
+  const ts = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  notes[idx] = {
+    ...notes[idx],
+    content: notes[idx].content + sep + `[${ts}] ${trimmed}`,
+    updatedAt: Date.now(),
+  };
+  await saveNotes(notes);
+  return snapshot();
+});
+
+handleLocked('notes:delete', async (_event, id: string) => {
+  const notes = await getNotes();
+  await saveNotes(notes.filter((n) => n.id !== id));
+  return snapshot();
+});
+
+ipcMain.handle('notes:export', async (_event, id: string) => {
+  const notes = await getNotes();
+  const note = notes.find((n) => n.id === id);
+  if (!note) return { ok: false, error: 'Note not found.' };
+  const result = await dialog.showSaveDialog({
+    title: 'Export Note',
+    defaultPath: path.join(app.getPath('desktop'), `${note.name}.txt`),
+    filters: [{ name: 'Text Files', extensions: ['txt'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
+  await fs.writeFile(result.filePath, note.content, 'utf8');
+  return { ok: true };
+});
+

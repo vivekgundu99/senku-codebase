@@ -1,4 +1,4 @@
-import type { AppSnapshot, Settings, LogEntry, Launchpad } from '../electron/types';
+import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile } from '../electron/types';
 
 declare global {
   interface Window {
@@ -32,6 +32,12 @@ declare global {
       // V3: Open in VS Code / Terminal
       openInVSCode(path: string): Promise<{ ok: boolean; error?: string }>;
       openInTerminal(path: string): Promise<{ ok: boolean; error?: string }>;
+      // Notes
+      createNote(name: string): Promise<AppSnapshot>;
+      updateNote(id: string, content: string): Promise<AppSnapshot>;
+      appendToNote(id: string, snippet: string): Promise<AppSnapshot>;
+      deleteNote(id: string): Promise<AppSnapshot>;
+      exportNote(id: string): Promise<{ ok: boolean; error?: string }>;
     };
   }
 }

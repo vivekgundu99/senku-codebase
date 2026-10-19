@@ -10,7 +10,7 @@ const shortcuts = [
   { key: 'h', run: ({ render }: ShortcutContext) => { setView('Home'); render(); } },
   { key: 'l', run: ({ render }: ShortcutContext) => { setView('Log'); render(); } },
   { key: 'p', run: ({ render }: ShortcutContext) => { setView('Launchpads'); render(); } },
-  { key: 'n', run: ({ render }: ShortcutContext) => { setView('Note'); render(); } },
+  { key: 'n', run: ({ render }: ShortcutContext) => { setView('Notes'); render(); } },
   {
     key: 'r',
     run: ({ load }: ShortcutContext) => {

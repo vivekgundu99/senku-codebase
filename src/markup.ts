@@ -1,4 +1,4 @@
-import type { FileEntry, LogEntry, Launchpad } from '../electron/types';
+import type { FileEntry, LogEntry, Launchpad, NoteFile } from '../electron/types';
 import {
   state,
   currentView,
@@ -8,6 +8,7 @@ import {
   getLogEntries,
   logFilter,
   visibleLogEntries,
+  activeNoteId,
 } from './state';
 import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
 
@@ -46,6 +47,8 @@ export function sidebarMarkup(): string {
          <button class="empty-space-add-btn" id="add-space-empty">+ Create first Space</button>
        </div>`;
 
+  const noteCount = state.notes?.length ?? 0;
+
   return `
     <aside class="sidebar">
       <div class="brand">
@@ -58,7 +61,7 @@ export function sidebarMarkup(): string {
         ${navItem('Home', '⌂', 'Home', 'H')}
         ${navItem('Log', '◎', 'My Log', 'L')}
         ${navItem('Launchpads', '▷', 'Launchpads', 'P')}
-        ${navItem('Note', '✎', 'Rough Note', 'N')}
+        ${navItem('Notes', '✎', 'Notes', 'N')}
       </nav>
 
       <div class="spaces-head">
@@ -250,38 +253,62 @@ export function filePanelMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Home panel (V3: just file explorer + quick log teaser)
+// Shared time helpers
+// ---------------------------------------------------------------------------
+
+function formatRelativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// ---------------------------------------------------------------------------
+// Home panel — dashboard
 // ---------------------------------------------------------------------------
 
 export function homePanelMarkup(): string {
   const ws = state.workspace;
+  const logEntries = getLogEntries();
   const logCount = state.logEntries?.length ?? 0;
   const launchpadCount = state.launchpads?.length ?? 0;
+  const noteCount = state.notes?.length ?? 0;
+  const recentLogs = logEntries.slice(0, 5);
+
+  const statCard = (icon: string, label: string, val: number | string, view: string) => `
+    <button class="home-stat-card" data-view="${view}">
+      <span class="home-stat-icon">${icon}</span>
+      <span class="home-stat-val">${val}</span>
+      <span class="home-stat-label">${label}</span>
+    </button>`;
+
+  const recentLogsHtml = recentLogs.length
+    ? recentLogs.map((e) => `
+        <div class="home-recent-log-item">
+          <span class="home-log-seq">#${e.seq ?? '·'}</span>
+          <span class="home-log-text">${escapeHtml(e.text)}</span>
+          <span class="home-log-time">${formatRelativeTime(e.createdAt)}</span>
+        </div>`).join('')
+    : `<p class="home-log-empty">No log entries yet. Use the bar below to log something.</p>`;
 
   return `
     <section class="home-panel-v3">
-      <div class="home-welcome">
-        <p class="home-welcome-sub">Your workspace. Ready when you are.</p>
-        <div class="home-quick-actions">
-          <button class="home-quick-btn" data-view="Launchpads">
-            <span class="hq-icon">▷</span>
-            <span class="hq-label">Launchpads</span>
-            <span class="hq-count">${launchpadCount}</span>
-          </button>
-          <button class="home-quick-btn" data-view="Log">
-            <span class="hq-icon">◎</span>
-            <span class="hq-label">My Log</span>
-            <span class="hq-count">${logCount}</span>
-          </button>
-          <button class="home-quick-btn" data-view="Note">
-            <span class="hq-icon">✎</span>
-            <span class="hq-label">Rough Note</span>
-          </button>
-        </div>
-        ${!ws ? `<div class="home-no-space-hint">
-          <p>No Space selected. <button class="inline-link" id="home-add-space">Create your first Space →</button></p>
-        </div>` : ''}
+      <div class="home-stats">
+        ${statCard('▷', 'Launchpads', launchpadCount, 'Launchpads')}
+        ${statCard('◎', 'Log entries', logCount, 'Log')}
+        ${statCard('✎', 'Notes', noteCount, 'Notes')}
+        ${ws ? statCard('📁', 'Space', escapeHtml(ws.name), 'Files') : ''}
       </div>
+      <div class="home-section-label">RECENT LOG</div>
+      <div class="home-recent-logs">
+        ${recentLogsHtml}
+        ${logCount > 5 ? `<button class="home-see-all" data-view="Log">See all ${logCount} entries →</button>` : ''}
+      </div>
+      ${!ws ? `<div class="home-no-space-hint">
+        <p>No Space selected. <button class="inline-link" id="home-add-space">Create your first Space →</button></p>
+      </div>` : ''}
     </section>`;
 }
 
@@ -402,7 +429,7 @@ export function launchpadsPanelMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Daily note panel
+// Daily note panel (legacy Rough Note — now hidden behind Notes)
 // ---------------------------------------------------------------------------
 
 export function dailyNotePanelMarkup(): string {
@@ -421,5 +448,70 @@ export function dailyNotePanelMarkup(): string {
         placeholder="Dump thoughts, half-formed ideas, things to remember. This is only yours."
         spellcheck="false"
       >${escapeHtml(dailyNote)}</textarea>
+    </section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Notes panel — full note manager
+// ---------------------------------------------------------------------------
+
+export function notesPanelMarkup(): string {
+  const notes: NoteFile[] = state.notes ?? [];
+  const active = notes.find((n) => n.id === activeNoteId) ?? notes[0] ?? null;
+
+  const noteListItems = notes.map((n) => `
+    <button class="notes-list-item ${active?.id === n.id ? 'active' : ''}" data-open-note="${n.id}">
+      <span class="notes-item-name">${escapeHtml(n.name)}</span>
+      <span class="notes-item-meta">${formatRelativeTime(n.updatedAt)}</span>
+    </button>`).join('');
+
+  const notesList = notes.length
+    ? noteListItems
+    : `<div class="notes-empty-list"><p>No notes yet.</p><small>Create one to start.</small></div>`;
+
+  const editorArea = active ? `
+    <div class="notes-editor-head">
+      <span class="notes-editor-title">${escapeHtml(active.name)}</span>
+      <div class="notes-editor-actions">
+        <span class="note-save-status" id="note-save-status"></span>
+        <button class="notes-action-btn" id="notes-export-btn" data-note-id="${active.id}" title="Export as .txt">↓ Export</button>
+        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${active.id}" title="Delete note">✕</button>
+      </div>
+    </div>
+    <textarea
+      id="notes-editor"
+      class="notes-textarea"
+      data-note-id="${active.id}"
+      placeholder="Start writing..."
+      spellcheck="false"
+    >${escapeHtml(active.content)}</textarea>
+    <div class="notes-append-bar">
+      <input
+        id="notes-append-input"
+        type="text"
+        placeholder="Quick append — type and hit Enter to add a timestamped snippet"
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="500"
+        data-note-id="${active.id}"
+      />
+    </div>` : `
+    <div class="notes-editor-placeholder">
+      <span>✎</span>
+      <p>${notes.length ? 'Select a note to edit it.' : 'Create your first note.'}</p>
+    </div>`;
+
+  return `
+    <section class="notes-panel">
+      <div class="notes-sidebar">
+        <div class="notes-sidebar-head">
+          <span class="section-kicker">NOTES</span>
+          <button class="add-button small" id="create-note-btn" title="New note">+</button>
+        </div>
+        <div class="notes-list">${notesList}</div>
+      </div>
+      <div class="notes-main">
+        ${editorArea}
+      </div>
     </section>`;
 }

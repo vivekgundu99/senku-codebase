@@ -7,20 +7,22 @@ import {
   logPanelMarkup,
   launchpadsPanelMarkup,
   dailyNotePanelMarkup,
+  notesPanelMarkup,
 } from './markup';
-import { bindAll, initGlobalListeners, bindDailyNote } from './events';
+import { bindAll, initGlobalListeners, bindDailyNote, bindNotesPanel } from './events';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
 function render(): void {
   let leftPanel = '';
   if (currentView === 'Note') leftPanel = dailyNotePanelMarkup();
+  else if (currentView === 'Notes') leftPanel = notesPanelMarkup();
   else if (currentView === 'Log') leftPanel = logPanelMarkup();
   else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
   else leftPanel = homePanelMarkup();
 
-  // Home shows file explorer on the right; Log/Launchpads show it too
-  const showFiles = currentView !== 'Log';
+  // Notes gets full width; Log gets full width; files panel shows otherwise
+  const showFiles = currentView !== 'Log' && currentView !== 'Notes';
 
   const mainContent = showFiles
     ? `<div class="content-grid">
@@ -52,6 +54,7 @@ function render(): void {
 
   bindAll(load, render);
   bindDailyNote();
+  bindNotesPanel(load, render);
 
   // Keep active space visible in sidebar
   requestAnimationFrame(() => {
