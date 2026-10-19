@@ -31,6 +31,7 @@ import type {
 
 let mainWindow: BrowserWindow | null = null;
 let guideWindow: BrowserWindow | null = null;
+let overlayWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 
@@ -434,6 +435,69 @@ async function createWindow(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Floating Quick Note Overlay Window
+// ---------------------------------------------------------------------------
+
+async function createOverlayWindow(): Promise<BrowserWindow> {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    return overlayWindow;
+  }
+
+  overlayWindow = new BrowserWindow({
+    width: 480,
+    height: 160,
+    minWidth: 320,
+    minHeight: 120,
+    frame: false,
+    backgroundColor: '#f5f2ea',
+    alwaysOnTop: true,
+    resizable: true,
+    movable: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  const devUrl = process.env.VITE_DEV_SERVER_URL;
+  if (devUrl) {
+    await overlayWindow.loadURL(`${devUrl}/overlay.html`);
+  } else {
+    await overlayWindow.loadFile(path.join(__dirname, '../renderer/overlay.html'));
+  }
+
+  overlayWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      overlayWindow?.hide();
+    }
+  });
+
+  return overlayWindow;
+}
+
+async function showOverlayWindow(): Promise<void> {
+  const win = await createOverlayWindow();
+  win.show();
+  win.focus();
+  win.webContents.send('overlay:refresh');
+}
+
+function hideOverlayWindow(): void {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.hide();
+  }
+}
+
+function minimizeOverlayWindow(): void {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.minimize();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // App Lifecycle
 // ---------------------------------------------------------------------------
 
@@ -475,8 +539,7 @@ app.whenReady().then(async () => {
       {
         label: 'Quick Note Overlay',
         click: () => {
-          showMainWindow();
-          mainWindow?.webContents.send('action:open-quick-note');
+          void showOverlayWindow();
         },
       },
       { type: 'separator' },
@@ -488,6 +551,9 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.destroy();
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -926,5 +992,93 @@ ipcMain.handle('notes:export', async (_event, id: string) => {
   if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
   await fs.writeFile(result.filePath, note.content, 'utf8');
   return { ok: true };
+});
+
+// ---------------------------------------------------------------------------
+// Floating Overlay IPC Handlers
+// ---------------------------------------------------------------------------
+
+ipcMain.handle('overlay:show', async () => {
+  await showOverlayWindow();
+  return { ok: true };
+});
+
+ipcMain.handle('overlay:hide', async () => {
+  hideOverlayWindow();
+  return { ok: true };
+});
+
+ipcMain.handle('overlay:minimize', async () => {
+  minimizeOverlayWindow();
+  return { ok: true };
+});
+
+ipcMain.handle('notes:get-active', async () => {
+  const notes = await getNotes();
+  const settings = await getSettings();
+  let active = notes.find((n) => n.id === settings.activeNoteId) ?? notes[0];
+  if (!active) {
+    const now = Date.now();
+    active = {
+      id: randomUUID(),
+      name: 'Quick Notes',
+      content: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+    notes.unshift(active);
+    settings.activeNoteId = active.id;
+    await saveNotes(notes);
+    await writeJson(settingsFile(), settings);
+  }
+  return {
+    activeId: active.id,
+    activeName: active.name,
+    notes: notes.map((n) => ({ id: n.id, name: n.name })),
+  };
+});
+
+handleLocked('notes:set-active', async (_event, id: string) => {
+  const settings = await getSettings();
+  settings.activeNoteId = id;
+  await writeJson(settingsFile(), settings);
+  return { ok: true };
+});
+
+handleLocked('notes:append-active', async (_event, snippet: string, targetId?: string) => {
+  const trimmed = (snippet || '').trim();
+  if (!trimmed) return { ok: false, error: 'Snippet cannot be empty.' };
+  const notes = await getNotes();
+  const settings = await getSettings();
+  const noteId = targetId || settings.activeNoteId;
+  let active = notes.find((n) => n.id === noteId);
+
+  if (!active) {
+    if (notes.length > 0) {
+      active = notes[0];
+    } else {
+      const now = Date.now();
+      active = {
+        id: randomUUID(),
+        name: 'Quick Notes',
+        content: '',
+        createdAt: now,
+        updatedAt: now,
+      };
+      notes.unshift(active);
+    }
+    settings.activeNoteId = active.id;
+    await writeJson(settingsFile(), settings);
+  }
+
+  const sep = active.content ? '\n' : '';
+  const ts = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  active.content = active.content + sep + `[${ts}] ${trimmed}`;
+  active.updatedAt = Date.now();
+  await saveNotes(notes);
+
+  mainWindow?.webContents.send('snapshot:updated');
+
+  return { ok: true, noteName: active.name };
 });
 

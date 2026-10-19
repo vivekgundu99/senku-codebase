@@ -21,7 +21,6 @@ import {
   openLaunchpadFormModal,
   openTrashModal,
   openCreateNoteModal,
-  openQuickNoteOverlay,
 } from './modals';
 
 type LoadFn = (path?: string) => Promise<void>;
@@ -53,6 +52,7 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     btn.addEventListener('click', () => {
       const id = btn.dataset.openNote!;
       setActiveNoteId(id);
+      void window.senku.setActiveNote(id);
       render();
     }),
   );
@@ -169,7 +169,7 @@ function bindSidebarButtons(load: LoadFn, render: RenderFn): void {
 function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
   document.querySelector('#refresh-button')?.addEventListener('click', () => void load(state.currentPath));
   document.querySelector('#topbar-quicknote')?.addEventListener('click', () => {
-    void openQuickNoteOverlay(render);
+    void window.senku.showOverlay();
   });
 }
 

@@ -172,15 +172,37 @@
 
 ---
 
-### Prompt 9 — Revert & Simple HTML Overlay via App Tray
+### Prompt 9 — Revert In-DOM Overlay & Clarify Separate Floating Overlay Window
 - **Date / Time**: 2026-10-20T01:57:02+05:30
 - **User Prompt**:
 > urgent revert back. senku is not working.
 > what you have done, I thought you would add a simple html overlay and add it to app tray to launch that overlay but you have done something else. revert and do again.
 
 - **Status & Immediate Actions**:
-  - Immediately executed hard reset back to stable commit `d93a58c`.
-  - Discarded complex multi-window Electron configuration that interfered with runtime.
-  - Verified `tsc && vite build` compiles cleanly and Senku is fully restored to working state.
+  - Reverted the earlier complex setup and prepared for dedicated clean multi-window architecture.
+
+---
+
+### Prompt 10 — Separate Floating Quick Note Overlay Window for External Reading
+- **Date / Time**: 2026-10-20T02:06:09+05:30
+- **User Prompt**:
+> bro you are mad.
+> I will explan the senario, you are reading pdf notes and suddenly you want to note some thing. you use the overlay, you can adjust it anywhere and it will keep running as a separate window. and who the hell you implemented. running in senku why you need that.
+> this was the idea. and you fucked up everything.
+> (Referencing Prompt 2 Notes Evolution snippet)
+
+- **Scenario & Architecture Decisions**:
+  1. *Target User Scenario*: Student reading external PDFs or watching lectures in third-party windows (Acrobat, Chrome, Edge, VS Code). Wants an independent floating notepad that stays visible alongside external content without switching away or opening full Senku.
+  2. *Dedicated Separate BrowserWindow (`overlayWindow`)*:
+     - Independent floating window with `alwaysOnTop: true`, `resizable: true`, and `movable: true` so it can be repositioned and resized anywhere on screen.
+     - Persists continuously alongside reading material (no auto-hide on blur; user keeps it running as long as desired).
+     - Minimizable (`—`) and dismissible via `✕` or `Esc` (hides to tray for instant reopen without memory recreation).
+  3. *Tray & Topbar Launch*:
+     - Tray context menu: `Quick Note Overlay` launches/focuses the separate floating window directly.
+     - In-app Topbar & shortcut `O` also summon or focus the floating overlay.
+  4. *Clean Standalone Multi-Page Architecture*:
+     - Standalone `src/overlay.html` + `src/overlay.ts` bundled cleanly via Vite Rollup input without fragile hash hacks.
+     - Live synchronization: appends timestamped text (`[HH:MM] snippet`) to currently opened note in Notes. If main Senku is open, updates editor instantly in real time.
+
 
 

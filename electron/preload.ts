@@ -101,6 +101,37 @@ const api = {
   exportNote: (id: string) =>
     ipcRenderer.invoke('notes:export', id) as Promise<{ ok: boolean; error?: string }>,
 
+  // --- Floating Quick Note Overlay ---
+  showOverlay: () =>
+    ipcRenderer.invoke('overlay:show') as Promise<{ ok: boolean }>,
+
+  hideOverlay: () =>
+    ipcRenderer.invoke('overlay:hide') as Promise<{ ok: boolean }>,
+
+  minimizeOverlay: () =>
+    ipcRenderer.invoke('overlay:minimize') as Promise<{ ok: boolean }>,
+
+  getActiveNote: () =>
+    ipcRenderer.invoke('notes:get-active') as Promise<{ activeId: string; activeName: string; notes: Array<{ id: string; name: string }> }>,
+
+  setActiveNote: (id: string) =>
+    ipcRenderer.invoke('notes:set-active', id) as Promise<{ ok: boolean }>,
+
+  appendToActiveNote: (snippet: string, targetId?: string) =>
+    ipcRenderer.invoke('notes:append-active', snippet, targetId) as Promise<{ ok: boolean; noteName?: string; error?: string }>,
+
+  onOverlayRefresh: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('overlay:refresh', handler);
+    return () => { ipcRenderer.removeListener('overlay:refresh', handler); };
+  },
+
+  onSnapshotUpdated: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('snapshot:updated', handler);
+    return () => { ipcRenderer.removeListener('snapshot:updated', handler); };
+  },
+
   onOpenQuickNote: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on('action:open-quick-note', handler);

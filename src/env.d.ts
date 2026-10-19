@@ -38,6 +38,15 @@ declare global {
       appendToNote(id: string, snippet: string): Promise<AppSnapshot>;
       deleteNote(id: string): Promise<AppSnapshot>;
       exportNote(id: string): Promise<{ ok: boolean; error?: string }>;
+      // Floating Overlay
+      showOverlay(): Promise<{ ok: boolean }>;
+      hideOverlay(): Promise<{ ok: boolean }>;
+      minimizeOverlay(): Promise<{ ok: boolean }>;
+      getActiveNote(): Promise<{ activeId: string; activeName: string; notes: Array<{ id: string; name: string }> }>;
+      setActiveNote(id: string): Promise<{ ok: boolean }>;
+      appendToActiveNote(snippet: string, targetId?: string): Promise<{ ok: boolean; noteName?: string; error?: string }>;
+      onOverlayRefresh(callback: () => void): () => void;
+      onSnapshotUpdated(callback: () => void): () => void;
       onOpenQuickNote(callback: () => void): () => void;
     };
   }

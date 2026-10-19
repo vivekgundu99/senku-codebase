@@ -1,6 +1,7 @@
 export interface Settings {
   userName: string;
   activeWorkspaceId: string;
+  activeNoteId?: string;
   launchAtStartup: boolean;
   greeting: string;
 }
