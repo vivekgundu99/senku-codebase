@@ -36,9 +36,6 @@ const api = {
   setMasterFolder: (id: string, folder: string) =>
     ipcRenderer.invoke('workspace:set-master-folder', id, folder) as Promise<AppSnapshot>,
 
-  setWorkspaceFolderTarget: (id: string, target: 'explorer' | 'vscode') =>
-    ipcRenderer.invoke('workspace:set-folder-target', id, target) as Promise<AppSnapshot>,
-
   // --- File system ---
   openPath: (path: string) =>
     ipcRenderer.invoke('path:open', path) as Promise<{ ok: boolean; error?: string }>,
@@ -76,8 +73,8 @@ const api = {
   launchLaunchpad: (id: string) =>
     ipcRenderer.invoke('launchpad:launch', id) as Promise<{ ok: boolean; errors: string[] }>,
 
-  openItem: (target: string, spaceId?: string) =>
-    ipcRenderer.invoke('path:open-item', target, spaceId) as Promise<{ ok: boolean; error?: string }>,
+  openItem: (target: string) =>
+    ipcRenderer.invoke('path:open-item', target) as Promise<{ ok: boolean; error?: string }>,
 
   // --- V3: Quick Actions ---
   openInVSCode: (path: string) =>

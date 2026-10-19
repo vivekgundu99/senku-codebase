@@ -235,7 +235,7 @@ function bindLaunchpadActions(load: LoadFn): void {
       if (!target) return;
       chip.classList.add('opening');
       try {
-        const res = await window.senku.openItem(target, state.workspace?.id);
+        const res = await window.senku.openItem(target);
         if (!res.ok && res.error) {
           alert(`Could not open item:\n${res.error}`);
         }

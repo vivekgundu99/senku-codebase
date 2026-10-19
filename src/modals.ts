@@ -244,18 +244,6 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
           <button type="button" id="browse-space-folder" class="ghost-button">Browse</button>
         </div>
       </label>
-
-      <div class="space-toggle-row">
-        <label class="toggle-control">
-          <input type="checkbox" name="openInVsCode" ${ws.defaultFolderTarget === 'vscode' ? 'checked' : ''} />
-          <span class="toggle-slider"></span>
-        </label>
-        <div class="toggle-info">
-          <span class="toggle-title">Open folders in VS Code whenever possible</span>
-          <span class="toggle-desc">Automatically tries to open folders in VS Code; falls back to File Explorer if VS Code is unavailable.</span>
-        </div>
-      </div>
-
       <p class="form-error" id="workspace-settings-error"></p>
       <button class="primary-button" type="submit">Save Space settings <span>→</span></button>
       <button type="button" class="danger-button" id="delete-workspace">Delete this Space</button>
@@ -279,13 +267,8 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
 
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formEl = e.currentTarget as HTMLFormElement;
-    const data = new FormData(formEl);
-    const name = String(data.get('name') ?? '').trim();
-    const folder = String(data.get('folder') ?? '').trim();
-    const openInVsCode = formEl.querySelector<HTMLInputElement>('[name="openInVsCode"]')?.checked;
-    const defaultFolderTarget = openInVsCode ? 'vscode' : 'explorer';
-
+    const name = String(new FormData(e.currentTarget as HTMLFormElement).get('name')).trim();
+    const folder = String(new FormData(e.currentTarget as HTMLFormElement).get('folder')).trim();
     if (!name) {
       showFormError(overlay, '#workspace-settings-error', 'Space name is required.');
       return;
@@ -298,7 +281,6 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
     try {
       let snapshot = await window.senku.setMasterFolder(ws.id, folder);
       snapshot = await window.senku.renameWorkspace(ws.id, name);
-      snapshot = await window.senku.setWorkspaceFolderTarget(ws.id, defaultFolderTarget);
       setState(snapshot);
       overlay.remove();
       render();

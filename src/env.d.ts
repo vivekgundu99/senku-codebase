@@ -14,7 +14,6 @@ declare global {
       purgeTrash(id?: string): Promise<AppSnapshot>;
       renameWorkspace(id: string, name: string): Promise<AppSnapshot>;
       setMasterFolder(id: string, folder: string): Promise<AppSnapshot>;
-      setWorkspaceFolderTarget(id: string, target: 'explorer' | 'vscode'): Promise<AppSnapshot>;
       openPath(path: string): Promise<{ ok: boolean; error?: string }>;
       openUserGuide(): Promise<{ ok: boolean; error?: string }>;
       copyPath(path: string): Promise<boolean>;
@@ -28,7 +27,7 @@ declare global {
       updateLaunchpad(id: string, name: string, paths: string[]): Promise<AppSnapshot>;
       deleteLaunchpad(id: string): Promise<AppSnapshot>;
       launchLaunchpad(id: string): Promise<{ ok: boolean; errors: string[] }>;
-      openItem(target: string, spaceId?: string): Promise<{ ok: boolean; error?: string }>;
+      openItem(target: string): Promise<{ ok: boolean; error?: string }>;
       // V3: Open in VS Code / Terminal
       openInVSCode(path: string): Promise<{ ok: boolean; error?: string }>;
       openInTerminal(path: string): Promise<{ ok: boolean; error?: string }>;

@@ -545,15 +545,6 @@ handleLocked('workspace:set-master-folder', async (_event, id: string, folder: s
   return snapshot(workspace.masterFolder);
 });
 
-handleLocked('workspace:set-folder-target', async (_event, id: string, target: 'explorer' | 'vscode') => {
-  const workspaces = await getWorkspaces();
-  const workspace = getWorkspace(workspaces, id);
-  if (!workspace) throw new Error('Space not found.');
-  workspace.defaultFolderTarget = target;
-  await writeJson(workspacesFile(), workspaces);
-  return snapshot();
-});
-
 handleLocked('workspace:delete', async (_event, id: string) => {
   const workspaces = await getWorkspaces();
   const target = workspaces.find((ws) => ws.id === id);
@@ -727,10 +718,10 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
 });
 
 // ---------------------------------------------------------------------------
-// V3: Resource Opening with VS Code & Explorer fallback
+// V3: Resource Opening (Web URL or default OS handler)
 // ---------------------------------------------------------------------------
 
-async function openSingleItem(target: string, folderTarget?: 'explorer' | 'vscode'): Promise<{ ok: boolean; error?: string }> {
+async function openSingleItem(target: string): Promise<{ ok: boolean; error?: string }> {
   const trimmed = target.trim();
   if (!trimmed) return { ok: true };
 
@@ -744,41 +735,7 @@ async function openSingleItem(target: string, folderTarget?: 'explorer' | 'vscod
     }
   }
 
-  // 2. Check if folder
-  let isDir = false;
-  try {
-    const stat = await fs.stat(trimmed);
-    isDir = stat.isDirectory();
-  } catch {
-    // If stat fails, continue to shell.openPath
-  }
-
-  // 3. If folder and preference is VS Code: try opening in VS Code with File Explorer fallback
-  if (isDir && folderTarget === 'vscode') {
-    try {
-      const cp = await import('node:child_process');
-      const child = cp.spawn('code', [`"${trimmed}"`], { shell: true, detached: true, stdio: 'ignore' });
-      let failed = false;
-      const doFallback = async () => {
-        if (!failed) {
-          failed = true;
-          await shell.openPath(trimmed);
-        }
-      };
-      child.on('error', doFallback);
-      child.on('exit', (code) => {
-        if (code !== 0) doFallback();
-      });
-      child.unref();
-      await new Promise((r) => setTimeout(r, 150));
-      if (!failed) return { ok: true };
-    } catch {
-      const err = await shell.openPath(trimmed);
-      return { ok: !err, error: err || undefined };
-    }
-  }
-
-  // 4. Default: open with File Explorer or default program
+  // 2. Local folder or file: open with default OS application / File Explorer
   const err = await shell.openPath(trimmed);
   return { ok: !err, error: err || undefined };
 }
@@ -828,26 +785,16 @@ ipcMain.handle('launchpad:launch', async (_event, id: string) => {
   const pad = pads.find((p) => p.id === id);
   if (!pad) return { ok: false, errors: ['Launchpad not found'] };
 
-  const workspaces = await getWorkspaces();
-  const space = workspaces.find((w) => w.id === pad.spaceId);
-  const targetPref = space?.defaultFolderTarget ?? 'explorer';
-
   const errors: string[] = [];
   for (const target of pad.paths) {
-    const res = await openSingleItem(target, targetPref);
+    const res = await openSingleItem(target);
     if (!res.ok && res.error) errors.push(`${target}: ${res.error}`);
   }
   return { ok: errors.length === 0, errors };
 });
 
-ipcMain.handle('path:open-item', async (_event, target: string, spaceId?: string) => {
-  let targetPref: 'explorer' | 'vscode' = 'explorer';
-  if (spaceId) {
-    const workspaces = await getWorkspaces();
-    const space = workspaces.find((w) => w.id === spaceId);
-    if (space?.defaultFolderTarget) targetPref = space.defaultFolderTarget;
-  }
-  return openSingleItem(target, targetPref);
+ipcMain.handle('path:open-item', async (_event, target: string) => {
+  return openSingleItem(target);
 });
 
 // ---------------------------------------------------------------------------
