@@ -170,3 +170,17 @@
   4. *Enrich File Explorer Rows*: Display human-readable file sizes (`12 KB`, `4.1 MB`) and relative modified times on file rows. Add direct VS Code opening for code/doc files and folders.
   5. *Clean CSS Duplication*: Eliminate duplicate `.home-panel-v3` rules and tidy related style tokens.
 
+---
+
+### Prompt 9 — Revert & Simple HTML Overlay via App Tray
+- **Date / Time**: 2026-10-20T01:57:02+05:30
+- **User Prompt**:
+> urgent revert back. senku is not working.
+> what you have done, I thought you would add a simple html overlay and add it to app tray to launch that overlay but you have done something else. revert and do again.
+
+- **Status & Immediate Actions**:
+  - Immediately executed hard reset back to stable commit `d93a58c`.
+  - Discarded complex multi-window Electron configuration that interfered with runtime.
+  - Verified `tsc && vite build` compiles cleanly and Senku is fully restored to working state.
+
+
