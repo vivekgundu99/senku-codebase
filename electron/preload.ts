@@ -100,6 +100,12 @@ const api = {
 
   exportNote: (id: string) =>
     ipcRenderer.invoke('notes:export', id) as Promise<{ ok: boolean; error?: string }>,
+
+  onOpenQuickNote: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('action:open-quick-note', handler);
+    return () => { ipcRenderer.removeListener('action:open-quick-note', handler); };
+  },
 };
 
 contextBridge.exposeInMainWorld('senku', api);

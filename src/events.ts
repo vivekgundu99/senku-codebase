@@ -21,6 +21,7 @@ import {
   openLaunchpadFormModal,
   openTrashModal,
   openCreateNoteModal,
+  openQuickNoteOverlay,
 } from './modals';
 
 type LoadFn = (path?: string) => Promise<void>;
@@ -33,7 +34,7 @@ type RenderFn = () => void;
 export function bindAll(load: LoadFn, render: RenderFn): void {
   bindNavigation(render);
   bindSidebarButtons(load, render);
-  bindTopbarButtons(load);
+  bindTopbarButtons(load, render);
   bindFileActions(load);
   bindHomeActions(load, render);
   bindLogPanel(load);
@@ -165,8 +166,11 @@ function bindSidebarButtons(load: LoadFn, render: RenderFn): void {
 // Topbar
 // ---------------------------------------------------------------------------
 
-function bindTopbarButtons(load: LoadFn): void {
+function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
   document.querySelector('#refresh-button')?.addEventListener('click', () => void load(state.currentPath));
+  document.querySelector('#topbar-quicknote')?.addEventListener('click', () => {
+    void openQuickNoteOverlay(render);
+  });
 }
 
 // ---------------------------------------------------------------------------

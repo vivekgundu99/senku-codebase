@@ -118,6 +118,10 @@ export function topbarMarkup(): string {
       </div>
       <div class="top-actions">
         ${spacePill}
+        <button class="topbar-quicknote-btn" id="topbar-quicknote" title="Quick Note Overlay (O)">
+          <span class="quicknote-btn-icon">✎</span>
+          <span>Quick Note</span>
+        </button>
         <button class="icon-button" id="refresh-button" title="Refresh">↻</button>
         <button class="avatar-button" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
           ${escapeHtml(userInitial)}

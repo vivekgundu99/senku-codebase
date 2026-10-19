@@ -1,5 +1,6 @@
 import { currentPath, setView, state } from './state';
 import { isSamePath, parentOf } from './utils';
+import { openQuickNoteOverlay } from './modals';
 
 type ShortcutContext = {
   load: (path?: string) => Promise<void>;
@@ -11,6 +12,7 @@ const shortcuts = [
   { key: 'l', run: ({ render }: ShortcutContext) => { setView('Log'); render(); } },
   { key: 'p', run: ({ render }: ShortcutContext) => { setView('Launchpads'); render(); } },
   { key: 'n', run: ({ render }: ShortcutContext) => { setView('Notes'); render(); } },
+  { key: 'o', run: ({ render }: ShortcutContext) => { void openQuickNoteOverlay(render); } },
   {
     key: 'r',
     run: ({ load }: ShortcutContext) => {

@@ -38,6 +38,7 @@ declare global {
       appendToNote(id: string, snippet: string): Promise<AppSnapshot>;
       deleteNote(id: string): Promise<AppSnapshot>;
       exportNote(id: string): Promise<{ ok: boolean; error?: string }>;
+      onOpenQuickNote(callback: () => void): () => void;
     };
   }
 }

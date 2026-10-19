@@ -9,6 +9,7 @@ import {
   notesPanelMarkup,
 } from './markup';
 import { bindAll, initGlobalListeners, bindNotesPanel } from './events';
+import { openQuickNoteOverlay } from './modals';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -77,4 +78,7 @@ async function load(pathToShow?: string): Promise<void> {
 }
 
 initGlobalListeners(load, render);
+window.senku.onOpenQuickNote(() => {
+  void openQuickNoteOverlay(render);
+});
 void load();

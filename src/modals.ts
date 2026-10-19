@@ -1,5 +1,5 @@
 import type { Launchpad } from '../electron/types';
-import { setState, state, setActiveNoteId, setView } from './state';
+import { setState, state, setActiveNoteId, setView, activeNoteId } from './state';
 import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
 import pkg from '../package.json';
 
@@ -489,5 +489,65 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
     } catch (err) {
       showFormError(overlay, '#note-create-error', err instanceof Error ? err.message : 'Could not create note.');
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Quick Note Overlay Modal
+// ---------------------------------------------------------------------------
+
+export async function openQuickNoteOverlay(render: () => void): Promise<void> {
+  const notes = state.notes ?? [];
+  let targetNote = notes.find((n) => n.id === activeNoteId) ?? notes[0] ?? null;
+
+  if (!targetNote) {
+    const snap = await window.senku.createNote('Quick Notes');
+    setState(snap);
+    targetNote = snap.notes?.[0] ?? null;
+    if (targetNote) setActiveNoteId(targetNote.id);
+  }
+
+  if (!targetNote) return;
+
+  // Dismiss any existing open modal first
+  document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+
+  const overlay = createOverlay(`
+    <form class="modal-card quick-note-overlay-card">
+      <button type="button" class="modal-close" id="close-modal">×</button>
+      <div class="quick-overlay-head">
+        <span class="quick-overlay-icon">✎</span>
+        <span class="quick-overlay-target" title="Currently active note">${escapeHtml(targetNote.name)}</span>
+      </div>
+      <input
+        id="quick-overlay-input"
+        class="quick-overlay-input"
+        type="text"
+        placeholder="Type note snippet and hit Enter..."
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="500"
+        autofocus
+      />
+      <div class="quick-overlay-foot">
+        <small>Hit <strong>Enter</strong> to append · <strong>Esc</strong> to cancel</small>
+        <button type="submit" class="primary-button mini">Append ↵</button>
+      </div>
+    </form>`);
+
+  const input = overlay.querySelector<HTMLInputElement>('#quick-overlay-input');
+  requestAnimationFrame(() => input?.focus());
+
+  overlay.querySelector('form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = input?.value.trim() ?? '';
+    if (!text) {
+      overlay.remove();
+      return;
+    }
+    const snap = await window.senku.appendToNote(targetNote!.id, text);
+    setState(snap);
+    overlay.remove();
+    render();
   });
 }

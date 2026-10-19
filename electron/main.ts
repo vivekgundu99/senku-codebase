@@ -472,6 +472,13 @@ app.whenReady().then(async () => {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Open Senku', click: showMainWindow },
+      {
+        label: 'Quick Note Overlay',
+        click: () => {
+          showMainWindow();
+          mainWindow?.webContents.send('action:open-quick-note');
+        },
+      },
       { type: 'separator' },
       { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
     ]),
