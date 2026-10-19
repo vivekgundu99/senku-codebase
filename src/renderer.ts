@@ -15,18 +15,18 @@ const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
 function render(): void {
   let leftPanel = '';
-  if (currentView === 'Note') leftPanel = dailyNotePanelMarkup();
-  else if (currentView === 'Notes') leftPanel = notesPanelMarkup();
+  if (currentView === 'Notes') leftPanel = notesPanelMarkup();
   else if (currentView === 'Log') leftPanel = logPanelMarkup();
   else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
+  else if (currentView === 'Note') leftPanel = dailyNotePanelMarkup();
   else leftPanel = homePanelMarkup();
 
-  // Notes gets full width; Log gets full width; files panel shows otherwise
+  // Notes and Log get full width; Home and Launchpads show the File Manager on the right
   const showFiles = currentView !== 'Log' && currentView !== 'Notes';
 
   const mainContent = showFiles
     ? `<div class="content-grid">
-         ${leftPanel}
+         <div class="tasks-panel">${leftPanel}</div>
          <div class="right-column">${filePanelMarkup()}</div>
        </div>`
     : `<div class="content-grid content-grid-full">
@@ -39,22 +39,12 @@ function render(): void {
       <main class="main-area">
         ${topbarMarkup()}
         ${mainContent}
-        <div class="quick-log-bar">
-          <input
-            id="quick-log-input"
-            type="text"
-            placeholder="What just happened? Hit Enter to log it."
-            autocomplete="off"
-            spellcheck="false"
-            maxlength="500"
-          />
-        </div>
       </main>
     </div>`;
 
   bindAll(load, render);
-  bindDailyNote();
-  bindNotesPanel(load, render);
+  if (currentView === 'Note') bindDailyNote();
+  if (currentView === 'Notes') bindNotesPanel(load, render);
 
   // Keep active space visible in sidebar
   requestAnimationFrame(() => {

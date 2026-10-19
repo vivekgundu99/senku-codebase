@@ -62,3 +62,73 @@
   3. Fixed space creation modal duplicate overlay bug.
   4. Added permanent sequential numbering (`#1`, `#2`...) to Quiet Log entries (stored and monotonically incremented; deleting an entry never rewrites previous sequence numbers).
   5. Added lightweight log delete capability (`✕` on hover/click) with zero performance impact.
+
+---
+
+### Prompt 3 — Free-form Improvement Pass
+- **Date / Time**: 2026-10-20T00:25:17+05:30
+- **User Prompt**:
+> bro as senku is simple, go ahead. add what ever you want, ui ux changes etc etc. and code them all, logic and ui should be future proof. lets go, first make a commit to save the current code. and then do what ever you want. improve, do anything.
+
+- **Actions Taken**:
+  1. Committed previous checkpoint.
+  2. **Notes system**: `NoteFile` type + `notes.json` persistence + IPC handlers (`notes:create`, `notes:update`, `notes:append`, `notes:delete`, `notes:export`). Exposed via preload.
+  3. **Notes panel UI**: Two-column layout (sidebar list + main editor with autosave + quick-append bar + Export/Delete actions). N shortcut navigates to Notes.
+  4. **Home dashboard**: Replaced empty home with clickable stat cards (Launchpads, Log, Notes, Space) + "Recent Log" showing last 5 entries with relative timestamps.
+  5. Shared `formatRelativeTime` helper used across Home and Notes.
+  6. All TypeScript types updated. Build passes cleanly. Committed as `senku-v3-notes-home-dashboard`.
+
+---
+
+### Prompt 4 — Session Continuity, CSS Bloat & UI/UX Audit
+- **Date / Time**: 2026-10-20T00:38:13+05:30
+- **User Prompt**:
+> bro, claude has done some work and its credits over. and it stopped.
+> and I am shocked to know that our css file has 1000+ lines of code.
+> and UI and UX sucks. bro first tell me do you came in to my context.
+
+- **Status & Continuity**:
+  - Context fully restored and verified across Senku V3 architecture, prompts 1–3, file safety rules, and isolated storage.
+  - Audit initiated on `src/style.css` (1,392 lines) to identify duplicate/dead rules, oversized monolithic styles, and layout clutter.
+  - UI/UX review underway for Home, Notes, Launchpads, and Logs to replace piecemeal tacked-on styling with a clean, cohesive design system.
+
+---
+
+### Prompt 5 — Core UI/UX Redesign: Minimalist Layout, First-Class Files View & Clean Architecture
+- **Date / Time**: 2026-10-20T00:54:16+05:30
+- **User Prompt**:
+> the greeting line, the date, the full search bar bottom add log bar,
+> everything in senku are not too detailed not minimalistic.
+> and what is the use of space side bar, if everying are global.
+> spaces are only for file manage. 
+> lots of newly implemented need work and do everything you want.
+> fix all the bugs
+
+- **Decisions & Architectural Plan**:
+  1. **Top Bar Redesign**: Replace loud 2-line greeting and giant date from global header. Make the topbar a clean, minimal ~44px utility header (clean view title, sleek space indicator, subtle status, action icons). Greeting moved to Home dashboard where it belongs.
+  2. **Removal of Omnipresent Bottom Quick-Log Bar**: Remove the 100vw bottom input bar from every view. Place a dedicated, beautiful compose bar directly inside Log (`+ Add an entry...`), a quick capture card in Home, and a clean global shortcut (`Ctrl+Enter` / `L`).
+  3. **Decouple Spaces & Elevate "Files" to First-Class View**:
+     - Spaces are explicitly for file management. Make `Files` (`F`) its own dedicated view in navigation.
+     - Clicking a space opens that space directly inside the full-screen Files explorer (no more squeezing files into the right 50% of Home and Launchpads!).
+     - Home and Launchpads now have full-width space to breathe.
+  4. **CSS Consolidation & Clean Aesthetics**:
+     - Consolidate bloated `src/style.css`, eliminate dead styles and overlapping rules, unify design tokens.
+     - Modern typography, calm warm background `#f6f4ee`, crisp subtle borders, beautiful glass cards, zero visual noise.
+  5. **Bug Fixes**:
+     - Note title inline renaming.
+     - Space selection synchronization.
+     - Quick append auto-scroll & instant preview.
+     - Shortcut `F` for Files.
+
+---
+
+### Prompt 6 — Restore File Manager to Home Screen
+- **Date / Time**: 2026-10-20T01:03:08+05:30
+- **User Prompt**:
+> bro what you have done, by removing file manager from home.
+> keep file manager in home screen as it was before. and you can leave that full file manager view for now.
+
+- **Action**:
+  - Immediately restored the split screen file manager on Home (and Launchpads): Home has its left panel + right column with full File Manager (`filePanelMarkup()`).
+  - Restored clean nav items in Sidebar: Home (`H`), My Log (`L`), Launchpads (`P`), Notes (`N`).
+  - Restored space clicks so they switch space and stay on Home with the selected space's files right there in the right column!

@@ -47,13 +47,11 @@ export function sidebarMarkup(): string {
          <button class="empty-space-add-btn" id="add-space-empty">+ Create first Space</button>
        </div>`;
 
-  const noteCount = state.notes?.length ?? 0;
-
   return `
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark">S</span>
-        <span>senku</span>
+        <span class="brand-text">senku</span>
       </div>
 
       <div class="sidebar-section-label">VIEWS</div>
@@ -80,27 +78,33 @@ export function sidebarMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Topbar
+// Topbar (clean, minimalist utility header)
 // ---------------------------------------------------------------------------
 
 export function topbarMarkup(): string {
   const ws = state.workspace;
-  const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
   const dateFormatted = new Intl.DateTimeFormat(undefined, {
-    weekday: 'long',
-    month: 'long',
+    weekday: 'short',
+    month: 'short',
     day: 'numeric',
   }).format(new Date());
 
+  const viewTitles: Record<string, string> = {
+    Home: '⌂ Home',
+    Notes: '✎ Notes',
+    Launchpads: '▷ Launchpads',
+    Log: '◎ Quiet Log',
+  };
+  const title = viewTitles[currentView] ?? currentView;
+
   const spacePill = ws
-    ? `<span class="topbar-space-pill" title="Folder: ${escapeHtml(ws.masterFolder)}">
+    ? `<span class="topbar-space-pill" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">
         <span class="space-dot">●</span>
         <span class="space-pill-label">Space:</span>
         <strong class="space-pill-name">${escapeHtml(ws.name)}</strong>
       </span>`
     : `<button class="topbar-space-pill empty-pill" id="topbar-create-space" title="Click to create your first Space">
         <span class="space-dot empty">○</span>
-        <span class="space-pill-label">Space:</span>
         <strong class="space-pill-name">+ Add Space</strong>
       </button>`;
 
@@ -108,14 +112,13 @@ export function topbarMarkup(): string {
 
   return `
     <header class="topbar">
-      <div>
-        <h1>${greeting}</h1>
-        <div class="topbar-subline">
-          <p class="date-line">${dateFormatted}</p>
-          ${spacePill}
-        </div>
+      <div class="topbar-left">
+        <span class="topbar-view-title">${title}</span>
+        <span class="topbar-dot-sep">·</span>
+        <span class="date-line">${dateFormatted}</span>
       </div>
       <div class="top-actions">
+        ${spacePill}
         <button class="icon-button" id="refresh-button" title="Refresh">↻</button>
         <button class="avatar-button" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
           ${escapeHtml(userInitial)}
@@ -271,17 +274,21 @@ function formatRelativeTime(ts: number): string {
 
 export function homePanelMarkup(): string {
   const ws = state.workspace;
+  const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
   const logEntries = getLogEntries();
   const logCount = state.logEntries?.length ?? 0;
-  const launchpadCount = state.launchpads?.length ?? 0;
+  const launchpads = state.launchpads ?? [];
+  const launchpadCount = launchpads.length;
   const noteCount = state.notes?.length ?? 0;
   const recentLogs = logEntries.slice(0, 5);
 
-  const statCard = (icon: string, label: string, val: number | string, view: string) => `
-    <button class="home-stat-card" data-view="${view}">
+  const statCard = (icon: string, label: string, val: number | string, view: string, extraClass = '') => `
+    <button class="home-stat-card ${extraClass}" data-view="${view}">
       <span class="home-stat-icon">${icon}</span>
-      <span class="home-stat-val">${val}</span>
-      <span class="home-stat-label">${label}</span>
+      <div class="home-stat-body">
+        <span class="home-stat-val">${val}</span>
+        <span class="home-stat-label">${label}</span>
+      </div>
     </button>`;
 
   const recentLogsHtml = recentLogs.length
@@ -291,24 +298,48 @@ export function homePanelMarkup(): string {
           <span class="home-log-text">${escapeHtml(e.text)}</span>
           <span class="home-log-time">${formatRelativeTime(e.createdAt)}</span>
         </div>`).join('')
-    : `<p class="home-log-empty">No log entries yet. Use the bar below to log something.</p>`;
+    : `<p class="home-log-empty">No entries logged yet. Type above to record what you just did.</p>`;
+
+  const quickLaunchHtml = launchpads.length
+    ? launchpads.slice(0, 3).map(launchpadCardMarkup).join('')
+    : `<div class="home-lp-empty">
+         <p>No launchpads yet.</p>
+         <button class="secondary-button mini" data-view="Launchpads">+ Create a Launchpad</button>
+       </div>`;
 
   return `
     <section class="home-panel-v3">
-      <div class="home-stats">
+      <div class="home-hero">
+        <h1 class="home-greeting">${greeting}</h1>
+        <p class="home-sub">Your personal student workspace.</p>
+      </div>
+
+      <div class="home-capture-card">
+        <span class="home-capture-icon">◎</span>
+        <input
+          id="home-capture-input"
+          type="text"
+          placeholder="Capture what you just did... (Hit Enter)"
+          autocomplete="off"
+          spellcheck="false"
+          maxlength="500"
+        />
+        <button class="home-capture-btn" id="home-capture-submit">Log ↵</button>
+      </div>
+
+      <div class="home-stats-grid">
         ${statCard('▷', 'Launchpads', launchpadCount, 'Launchpads')}
-        ${statCard('◎', 'Log entries', logCount, 'Log')}
         ${statCard('✎', 'Notes', noteCount, 'Notes')}
-        ${ws ? statCard('📁', 'Space', escapeHtml(ws.name), 'Files') : ''}
+        ${statCard('◎', 'Log entries', logCount, 'Log')}
       </div>
-      <div class="home-section-label">RECENT LOG</div>
-      <div class="home-recent-logs">
-        ${recentLogsHtml}
-        ${logCount > 5 ? `<button class="home-see-all" data-view="Log">See all ${logCount} entries →</button>` : ''}
+
+      <div class="home-recent-deck">
+        <div class="home-deck-header">
+          <span class="home-section-label">RECENT LOG</span>
+          <button class="home-deck-link" data-view="Log">See all →</button>
+        </div>
+        <div class="home-recent-logs">${recentLogsHtml}</div>
       </div>
-      ${!ws ? `<div class="home-no-space-hint">
-        <p>No Space selected. <button class="inline-link" id="home-add-space">Create your first Space →</button></p>
-      </div>` : ''}
     </section>`;
 }
 
@@ -330,7 +361,7 @@ export function logListMarkup(): string {
   if (total === 0) {
     return `<div class="log-empty">
          <p>Nothing logged yet.</p>
-         <small>Use the bar below to capture what you just did. No pressure.</small>
+         <small>Type what you just did in the box above. No pressure, just quick capture.</small>
        </div>`;
   }
   if (matched === 0) {
@@ -359,15 +390,23 @@ export function logPanelMarkup(): string {
       <div class="section-heading">
         <div>
           <span class="section-kicker">QUIET LOG</span>
-          <h2>What happened</h2>
+          <h2>Timeline</h2>
         </div>
         <span class="log-count-badge">${countLabel}</span>
       </div>
-      <div class="log-tools">
+      <div class="log-input-row">
+        <input
+          id="log-compose-input"
+          type="text"
+          placeholder="What just happened? Type and hit Enter to log..."
+          autocomplete="off"
+          spellcheck="false"
+          maxlength="500"
+        />
         <input
           id="log-search"
           type="search"
-          placeholder="Search your log..."
+          placeholder="Filter logs..."
           value="${escapeHtml(logFilter)}"
           autocomplete="off"
           spellcheck="false"

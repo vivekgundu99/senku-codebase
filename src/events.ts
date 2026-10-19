@@ -66,8 +66,8 @@ export function bindAll(load: LoadFn, render: RenderFn): void {
   bindSidebarButtons(load, render);
   bindTopbarButtons(load);
   bindFileActions(load);
-  bindLogBar(load, render);
-  bindLogPanel();
+  bindHomeActions(load, render);
+  bindLogPanel(load);
   bindLaunchpadActions(load);
 }
 
@@ -244,26 +244,30 @@ function bindFileActions(load: LoadFn): void {
 }
 
 // ---------------------------------------------------------------------------
-// Quick Log bar (always visible at bottom)
+// Home actions: Quick capture
 // ---------------------------------------------------------------------------
 
-function bindLogBar(load: LoadFn, render: RenderFn): void {
-  const input = document.querySelector<HTMLInputElement>('#quick-log-input');
+function bindHomeActions(load: LoadFn, _render: RenderFn): void {
+  const input = document.querySelector<HTMLInputElement>('#home-capture-input');
+  const btn = document.querySelector<HTMLButtonElement>('#home-capture-submit');
   if (!input) return;
 
-  input.addEventListener('keydown', async (e) => {
-    if (e.key !== 'Enter') return;
+  const submit = async () => {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
     const spaceId = state.workspace?.id;
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
-    if (currentView === 'Log') render();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') void submit();
   });
+  btn?.addEventListener('click', () => void submit());
 }
 
-function bindLogPanel(): void {
+function bindLogPanel(load: LoadFn): void {
   const panel = document.querySelector<HTMLElement>('.log-panel');
   if (!panel) return;
 
@@ -274,6 +278,20 @@ function bindLogPanel(): void {
     const { matched, total } = visibleLogEntries();
     if (count) count.textContent = matched === total ? `${total} entries` : `${matched} of ${total}`;
   };
+
+  const composeInput = panel.querySelector<HTMLInputElement>('#log-compose-input');
+  if (composeInput) {
+    composeInput.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') return;
+      const text = composeInput.value.trim();
+      if (!text) return;
+      composeInput.value = '';
+      const spaceId = state.workspace?.id;
+      await window.senku.addLogEntry(text, spaceId);
+      await load(state.currentPath);
+      refreshList();
+    });
+  }
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   panel.querySelector<HTMLInputElement>('#log-search')?.addEventListener('input', (event) => {
@@ -368,11 +386,21 @@ function bindLaunchpadActions(load: LoadFn): void {
 export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
   registerShortcuts(load, render);
 
-  // Global Ctrl+Enter focuses Quick Log bar
+  // Global Ctrl+Enter focuses quick capture or navigates to Log
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'Enter') {
       e.preventDefault();
-      document.querySelector<HTMLInputElement>('#quick-log-input')?.focus();
+      const homeInput = document.querySelector<HTMLInputElement>('#home-capture-input');
+      const logInput = document.querySelector<HTMLInputElement>('#log-compose-input');
+      if (homeInput) {
+        homeInput.focus();
+      } else if (logInput) {
+        logInput.focus();
+      } else {
+        setView('Log');
+        render();
+        setTimeout(() => document.querySelector<HTMLInputElement>('#log-compose-input')?.focus(), 50);
+      }
     }
   }, { capture: true });
 
