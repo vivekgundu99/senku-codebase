@@ -1481,10 +1481,10 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 .notes-editor-placeholder p { margin: 0; font-size: 13px; color: var(--muted); }
 
 /* ==========================================================================
-   FLOATING QUICK NOTE OVERLAY (SEPARATE WINDOW)
+   MINIMALIST FLOATING QUICK NOTE OVERLAY
    ========================================================================== */
 
-body.overlay-window-body {
+body.overlay-mini-body {
   background: var(--bg);
   margin: 0;
   padding: 0;
@@ -1492,206 +1492,96 @@ body.overlay-window-body {
   height: 100vh;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1px solid var(--line);
   display: flex;
-  flex-direction: column;
+  align-items: center;
   user-select: none;
 }
 
-.overlay-window-container {
+.overlay-mini-bar {
   display: flex;
-  flex-direction: column;
-  height: 100%;
+  align-items: center;
   width: 100%;
-}
-
-.overlay-drag-header {
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px 0 12px;
+  height: 100%;
+  padding: 4px 6px 4px 10px;
+  box-sizing: border-box;
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  -webkit-app-region: drag;
+  border: 1px solid var(--line);
+  gap: 8px;
 }
 
-.overlay-header-left {
+.overlay-mini-drag {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
+  gap: 6px;
+  -webkit-app-region: drag;
+  cursor: grab;
+  flex-shrink: 0;
 }
 
-.overlay-pen-badge {
+.overlay-mini-icon {
   font-size: 13px;
   color: var(--green);
   font-weight: 800;
 }
 
-.overlay-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--soft);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.overlay-target-selector {
-  -webkit-app-region: no-drag;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.overlay-mini-note {
+  font: 700 11px var(--mono);
+  color: var(--muted);
   background: var(--green-pale);
-  border: 1px solid rgba(95, 128, 95, 0.25);
-  border-radius: 6px;
   padding: 2px 7px;
-  font: 700 11.5px var(--mono);
-  color: var(--ink);
-  cursor: pointer;
-  max-width: 200px;
-}
-
-.overlay-target-selector:hover {
-  border-color: var(--green);
-}
-
-.overlay-target-name {
+  border-radius: 4px;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.overlay-arrow {
-  font-size: 10px;
-  color: var(--muted);
-}
-
-.overlay-target-select {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.overlay-header-actions {
-  -webkit-app-region: no-drag;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.overlay-ctrl-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 12px;
-  display: grid;
-  place-items: center;
-  transition: all .1s;
-}
-
-.overlay-ctrl-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--ink);
-}
-
-.overlay-ctrl-close:hover {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.overlay-content-area {
-  padding: 10px 12px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-sizing: border-box;
-}
-
-.overlay-input-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.overlay-input-field {
-  flex: 1;
-  height: 40px;
+.overlay-mini-input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 34px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 12px;
+  border-radius: 6px;
+  padding: 0 10px;
   outline: none;
   background: #fff;
-  font-size: 13.5px;
   color: var(--ink);
+  font-size: 13px;
   font-weight: 500;
   font-family: inherit;
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+  -webkit-app-region: no-drag;
 }
 
-.overlay-input-field:focus {
+.overlay-mini-input:focus {
   border-color: var(--green);
   box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
 }
 
-.overlay-send-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+.overlay-mini-input.saved-flash {
+  border-color: var(--green);
+  background: var(--green-pale);
+}
+
+.overlay-mini-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   border: none;
-  background: var(--ink);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 800;
+  background: transparent;
+  color: var(--soft);
   cursor: pointer;
+  font-size: 13px;
   display: grid;
   place-items: center;
-  transition: background .12s, transform .1s;
+  transition: all .1s;
   flex-shrink: 0;
+  -webkit-app-region: no-drag;
 }
 
-.overlay-send-btn:hover {
-  background: var(--green);
-  transform: scale(1.03);
-}
-
-.overlay-footer-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: 11px;
-}
-
-.overlay-status-pill {
-  font: 700 11px var(--mono);
-  color: var(--green);
-  opacity: 0;
-  transition: opacity .2s;
-}
-
-.overlay-status-pill.visible {
-  opacity: 1;
-}
-
-.overlay-status-pill.error {
+.overlay-mini-close:hover {
+  background: #fee2e2;
   color: #dc2626;
-}
-
-.overlay-footer-hint {
-  color: var(--soft);
-  font-size: 10.5px;
 }
 
 /* Topbar Quick Note Trigger */

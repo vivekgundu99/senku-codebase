@@ -5,46 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f5f2ea" />
     <link rel="stylesheet" href="/style.css" />
-    <title>Senku - Quick Note Overlay</title>
+    <title>Senku Overlay</title>
   </head>
-  <body class="overlay-window-body">
-    <div class="overlay-window-container">
-      <header class="overlay-drag-header">
-        <div class="overlay-header-left">
-          <span class="overlay-pen-badge">✎</span>
-          <span class="overlay-label">Note to:</span>
-          <div class="overlay-target-selector" title="Current note (click to change)">
-            <span class="overlay-target-name" id="overlay-target-name">Quick Notes</span>
-            <span class="overlay-arrow">▾</span>
-            <select id="overlay-target-select" class="overlay-target-select" title="Change target note"></select>
-          </div>
-        </div>
-        <div class="overlay-header-actions">
-          <button type="button" class="overlay-ctrl-btn" id="overlay-min-btn" title="Minimize">—</button>
-          <button type="button" class="overlay-ctrl-btn overlay-ctrl-close" id="overlay-close-btn" title="Close (Esc)">✕</button>
-        </div>
-      </header>
-
-      <main class="overlay-content-area">
-        <div class="overlay-input-row">
-          <input
-            type="text"
-            id="overlay-input"
-            class="overlay-input-field"
-            placeholder="Type your note snippet & hit Enter..."
-            autocomplete="off"
-            spellcheck="false"
-            maxlength="1000"
-            autofocus
-          />
-          <button type="button" id="overlay-send-btn" class="overlay-send-btn" title="Append to note (Enter)">↵</button>
-        </div>
-
-        <div class="overlay-footer-row">
-          <span class="overlay-status-pill" id="overlay-status"></span>
-          <span class="overlay-footer-hint">Enter ↵ to append &bull; Esc to hide &bull; Drag top to move</span>
-        </div>
-      </main>
+  <body class="overlay-mini-body">
+    <div class="overlay-mini-bar">
+      <div class="overlay-mini-drag" title="Drag to move">
+        <span class="overlay-mini-icon">✎</span>
+        <span class="overlay-mini-note" id="overlay-target-name">Notes</span>
+      </div>
+      <input
+        type="text"
+        id="overlay-input"
+        class="overlay-mini-input"
+        placeholder="Write note & hit Enter..."
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="1000"
+        autofocus
+      />
+      <button type="button" class="overlay-mini-close" id="overlay-close-btn" title="Close (Esc)">✕</button>
     </div>
     <script type="module" src="/overlay.ts"></script>
   </body>

@@ -202,7 +202,24 @@
      - In-app Topbar & shortcut `O` also summon or focus the floating overlay.
   4. *Clean Standalone Multi-Page Architecture*:
      - Standalone `src/overlay.html` + `src/overlay.ts` bundled cleanly via Vite Rollup input without fragile hash hacks.
-     - Live synchronization: appends timestamped text (`[HH:MM] snippet`) to currently opened note in Notes. If main Senku is open, updates editor instantly in real time.
+     - Live synchronization: appends text directly to currently opened note in Notes. If main Senku is open, updates editor instantly in real time.
+
+---
+
+### Prompt 11 — Ultra-Minimalist Overlay Bar & Timestamp Removal
+- **Date / Time**: 2026-10-20T02:25:24+05:30
+- **User Prompt**:
+> little improvements,
+> dont add any times, and I have said overlay shoud be minimal, why it has unwanted data, revome make it as simple as you can.
+
+- **Refinements**:
+  1. *Timestamp Removal*: Removed `[HH:MM]` timestamp prefix when appending snippets in both `notes:append` and `notes:append-active`. Snippets append raw note text directly.
+  2. *Ultra-Minimalist Floating Bar*:
+     - Reduced overlay window from 160px height down to a sleek 48px compact floating bar (`height: 48, minHeight: 44`).
+     - Stripped away unnecessary labels, dropdown arrows, help hint footers, status pills, and minimize buttons.
+     - Kept only: draggable pen icon + active note name badge (`✎ [NoteName]`), single clean input field, and subtle dismiss `✕`.
+  3. *Immediate Interaction*: Type snippet -> hit `Enter` -> appends raw snippet to active note -> instant visual flash feedback -> input clears and remains focused.
+
 
 
 

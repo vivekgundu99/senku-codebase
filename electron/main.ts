@@ -445,9 +445,9 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
 
   overlayWindow = new BrowserWindow({
     width: 480,
-    height: 160,
-    minWidth: 320,
-    minHeight: 120,
+    height: 48,
+    minWidth: 260,
+    minHeight: 44,
     frame: false,
     backgroundColor: '#f5f2ea',
     alwaysOnTop: true,
@@ -964,10 +964,9 @@ handleLocked('notes:append', async (_event, id: string, snippet: string) => {
   const idx = notes.findIndex((n) => n.id === id);
   if (idx < 0) throw new Error('Note not found.');
   const sep = notes[idx].content ? '\n' : '';
-  const ts = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   notes[idx] = {
     ...notes[idx],
-    content: notes[idx].content + sep + `[${ts}] ${trimmed}`,
+    content: notes[idx].content + sep + trimmed,
     updatedAt: Date.now(),
   };
   await saveNotes(notes);
@@ -1072,8 +1071,7 @@ handleLocked('notes:append-active', async (_event, snippet: string, targetId?: s
   }
 
   const sep = active.content ? '\n' : '';
-  const ts = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  active.content = active.content + sep + `[${ts}] ${trimmed}`;
+  active.content = active.content + sep + trimmed;
   active.updatedAt = Date.now();
   await saveNotes(notes);
 
