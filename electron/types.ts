@@ -44,6 +44,7 @@ export interface LogEntry {
   createdAt: number;
   spaceId?: string;
   spaceName?: string;
+  refId?: string;
 }
 
 export interface Launchpad {

@@ -12,8 +12,17 @@ export const FILE_PAGE = 150;
 export let fileFilter = '';
 export let fileLimit = FILE_PAGE;
 
-// Quick log bar pending input
+// Quick log draft inputs
 export let quickLogText = '';
+export let homeLogDraft = '';
+export function setHomeLogDraft(text: string): void {
+  homeLogDraft = text;
+}
+
+export let logPageDraft = '';
+export function setLogPageDraft(text: string): void {
+  logPageDraft = text;
+}
 
 // Active note for Notes panel
 export let activeNoteId: string | null = null;

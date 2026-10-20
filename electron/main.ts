@@ -48,6 +48,10 @@ import {
   updateLog,
   deleteLog,
   restoreLog,
+  addGlobalLog,
+  listGlobalLogs,
+  deleteGlobalLogRef,
+  deleteFromGlobalAndSpace,
   renumberLog,
   readLaunchpads,
   writeLaunchpads,
@@ -1131,17 +1135,7 @@ handleLocked('path:unpin', async (_event, target: string) => {
 // ---------------------------------------------------------------------------
 
 handleLocked('log:list-all', async () => {
-  const workspaces = await getWorkspaces();
-  const allLogs: LogEntry[] = [];
-  for (const ws of workspaces) {
-    const sLogDir = path.join(spaceDir(ws.id), 'log');
-    const logs = await listLog(sLogDir);
-    for (const l of logs) {
-      allLogs.push({ ...l, spaceId: ws.id, spaceName: ws.name });
-    }
-  }
-  allLogs.sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
-  return allLogs;
+  return listGlobalLogs(baseDir());
 });
 
 handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
@@ -1152,18 +1146,31 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   const trimmed = (text || '').trim();
   if (!trimmed) return snapshot();
 
+  const ws = workspaces.find((w) => w.id === targetSpaceId);
   const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
-  await addLog(spaceLogDir, trimmed);
+  const spaceEntry = await addLog(spaceLogDir, trimmed);
+
+  // Redundant global log with its own independent global numbering
+  await addGlobalLog(baseDir(), trimmed, targetSpaceId, spaceEntry.id, ws?.name || 'Space').catch(() => undefined);
+
   mainWindow?.webContents.send('snapshot:updated');
   return snapshot();
 });
 
 handleLocked('log:delete', async (_event, id: string, spaceId?: string) => {
-  const workspaces = await getWorkspaces();
-  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
-  if (!targetSpaceId) return snapshot();
-  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
-  await deleteLog(spaceLogDir, id);
+  if (spaceId) {
+    const spaceLogDir = path.join(spaceDir(spaceId), 'log');
+    await deleteLog(spaceLogDir, id);
+    await deleteGlobalLogRef(baseDir(), spaceId, id).catch(() => undefined);
+  } else {
+    // Check if deleting directly via global log or active space
+    await deleteFromGlobalAndSpace(baseDir(), id, (sId) => spaceDir(sId)).catch(() => undefined);
+    const activeId = await activeSpaceId();
+    if (activeId) {
+      await deleteLog(path.join(spaceDir(activeId), 'log'), id).catch(() => undefined);
+      await deleteGlobalLogRef(baseDir(), activeId, id).catch(() => undefined);
+    }
+  }
   return snapshot();
 });
 

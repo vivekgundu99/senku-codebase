@@ -1385,39 +1385,211 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   color: var(--ink);
 }
 
-.home-capture-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 6px 4px 10px;
+/* Home Capture Box (multiline full box with draft) */
+.home-capture-box {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 9px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   flex: 0 0 auto;
-  transition: border-color .15s ease, box-shadow .15s ease;
 }
-.home-capture-card:focus-within {
-  border-color: var(--green);
-  box-shadow: 0 0 0 3px rgba(95, 128, 95, .1);
+
+.home-capture-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.home-capture-icon {
-  font-size: 14px;
+
+.home-capture-title {
+  font: 700 9.5px var(--mono);
+  color: var(--soft);
+  letter-spacing: .08em;
+}
+
+.draft-indicator {
+  font: 600 10px var(--mono);
   color: var(--green);
+  background: var(--green-pale);
+  padding: 1px 6px;
+  border-radius: 4px;
 }
-#home-capture-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 12.5px;
+
+.home-capture-textarea {
+  width: 100%;
+  min-height: 68px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: 500 13px var(--sans);
   color: var(--ink);
+  background: #fff;
+  resize: vertical;
+  outline: none;
+  line-height: 1.45;
+  box-sizing: border-box;
+  transition: border-color .15s, box-shadow .15s;
 }
-#home-capture-input::placeholder {
+
+.home-capture-textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
+}
+
+.home-capture-box-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home-capture-shortcut-tip {
+  font: 500 11px var(--mono);
   color: var(--soft);
 }
 
-/* Global Home Panel */
+/* Log Panel Top Bar & Scope Switcher */
+.log-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex: 0 0 auto;
+}
+
+.log-scope-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.log-scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 12px var(--sans);
+  cursor: pointer;
+  transition: all .12s;
+}
+
+.log-scope-btn:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.log-scope-btn.active {
+  background: var(--green-pale);
+  border-color: var(--green);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.log-space-name {
+  font: 700 10.5px var(--mono);
+  color: var(--green);
+}
+
+.log-tools-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-search-small {
+  width: 130px;
+  max-width: 130px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 8px;
+  font: 500 12px var(--sans);
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+  transition: border-color .15s;
+}
+
+.log-search-small:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
+}
+
+/* Log Compose Box */
+.log-compose-box {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex: 0 0 auto;
+}
+
+.log-compose-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.log-compose-title {
+  font: 700 9.5px var(--mono);
+  color: var(--soft);
+  letter-spacing: .08em;
+}
+
+.log-compose-textarea {
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: 500 13px var(--sans);
+  color: var(--ink);
+  background: #fff;
+  resize: vertical;
+  outline: none;
+  line-height: 1.45;
+  box-sizing: border-box;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.log-compose-textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
+}
+
+.log-compose-box-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.log-compose-shortcut-tip {
+  font: 500 11px var(--mono);
+  color: var(--soft);
+}
+
+.log-row-edit-textarea {
+  width: 100%;
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font: 500 12.5px var(--sans);
+  line-height: 1.4;
+  outline: none;
+  background: #fff;
+  color: var(--ink);
+  resize: vertical;
+}
 .global-home-panel {
   display: flex;
   flex-direction: column;
@@ -1674,9 +1846,9 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 .home-log-text {
   font-size: 12px;
   color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .home-log-time {
   font: 500 10px var(--mono);

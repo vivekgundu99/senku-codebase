@@ -11,6 +11,8 @@ import {
   getCachedPathAvailability,
   activeNoteId,
   collapsedBundles,
+  homeLogDraft,
+  logPageDraft,
 } from './state';
 import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
 
@@ -20,50 +22,29 @@ import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from '
 
 export function sidebarMarkup(): string {
   const ws = state.workspace;
-  const isGlobal = currentView === 'Home' || currentView === 'AllLog';
 
-  const subNavItem = (view: string, label: string) => `
-    <button class="space-sub-item ${!isGlobal && currentView === view ? 'selected' : ''}" data-view="${view}">
-      ${label}
-    </button>`;
+  // Spaces arranged in alphabetical order
+  const sortedWorkspaces = [...(state.workspaces ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
 
   const spaceRow = (space: (typeof state.workspaces)[number]) => {
     const isActive = ws ? space.id === ws.id : false;
     const missing = state.workspaceFolderAvailability[space.id] === false;
 
-    if (isActive) {
-      return `
-        <div class="space-tree-group">
-          <div class="space-row current ${isGlobal ? 'not-highlighted' : ''}">
-            <button class="space-item" data-switch-space="${space.id}" title="${escapeHtml(space.name)} · ${escapeHtml(space.masterFolder)}${missing ? ' [Folder missing]' : ''}">
-              <span class="space-chevron">▾</span>
-              <span class="space-badge ${missing ? 'missing' : ''}">${escapeHtml(space.name.charAt(0).toUpperCase() || '?')}</span>
-              <span class="space-name">${escapeHtml(space.name)}</span>
-              ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
-            </button>
-            <button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">⚙</button>
-          </div>
-          <div class="space-sub-nav">
-            ${subNavItem('Overview', 'Overview')}
-            ${subNavItem('Log', 'Log')}
-            ${subNavItem('Launchpads', 'Launchpads')}
-            ${subNavItem('Notes', 'Notes')}
-          </div>
-        </div>`;
-    }
-
     return `
-      <div class="space-row">
+      <div class="space-row ${isActive ? 'current' : ''}">
         <button class="space-item" data-switch-space="${space.id}" title="${escapeHtml(space.name)} · ${escapeHtml(space.masterFolder)}${missing ? ' [Folder missing]' : ''}">
           <span class="space-badge ${missing ? 'missing' : ''}">${escapeHtml(space.name.charAt(0).toUpperCase() || '?')}</span>
           <span class="space-name">${escapeHtml(space.name)}</span>
           ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
         </button>
+        ${isActive ? '<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">⚙</button>' : ''}
       </div>`;
   };
 
-  const spacesContent = state.workspaces?.length > 0
-    ? state.workspaces.map(spaceRow).join('')
+  const spacesContent = sortedWorkspaces.length > 0
+    ? sortedWorkspaces.map(spaceRow).join('')
     : `<div class="empty-spaces-box">
          <p class="empty-spaces-text">No Spaces yet</p>
          <button class="empty-space-add-btn" id="add-space-empty">+ Create first Space</button>
@@ -76,14 +57,26 @@ export function sidebarMarkup(): string {
         <span class="brand-text">senku</span>
       </div>
 
-      <div class="sidebar-home-item">
+      <div class="nav-list">
         <button class="nav-item ${currentView === 'Home' || currentView === 'Overview' ? 'selected' : ''}" data-view="Home" title="Home (H)">
           <span class="nav-icon">⌂</span>
           <span class="nav-label">Home</span>
+          <span class="nav-key">H</span>
+        </button>
+        <button class="nav-item ${currentView === 'Launchpads' ? 'selected' : ''}" data-view="Launchpads" title="Launchpads (L)">
+          <span class="nav-icon">▷</span>
+          <span class="nav-label">Launchpads</span>
+          <span class="nav-key">L</span>
+        </button>
+        <button class="nav-item ${currentView === 'Log' || currentView === 'AllLog' ? 'selected' : ''}" data-view="Log" title="Logs (G)">
+          <span class="nav-icon">≡</span>
+          <span class="nav-label">Logs</span>
+          <span class="nav-key">G</span>
         </button>
         <button class="nav-item ${currentView === 'Notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
           <span class="nav-icon">✎</span>
           <span class="nav-label">Notes</span>
+          <span class="nav-key">N</span>
         </button>
       </div>
 
@@ -339,16 +332,22 @@ export function overviewPanelMarkup(): string {
         <h1 class="home-greeting">${greeting}</h1>
       </div>
 
-      <div class="home-capture-card">
-        <span class="home-capture-icon">◎</span>
-        <input
-          id="home-capture-input"
-          type="text"
-          placeholder="Log what you did…"
-          autocomplete="off"
+      <div class="home-capture-box">
+        <div class="home-capture-box-head">
+          <span class="home-capture-title">LOG WHAT YOU DID</span>
+          ${homeLogDraft.trim() ? '<span class="draft-indicator">Draft saved</span>' : ''}
+        </div>
+        <textarea
+          id="home-capture-textarea"
+          class="home-capture-textarea"
+          placeholder="Log what you did… (Enter for new line)"
           spellcheck="false"
-          maxlength="500"
-        />
+          rows="3"
+        >${escapeHtml(homeLogDraft)}</textarea>
+        <div class="home-capture-box-foot">
+          <span class="home-capture-shortcut-tip">Enter makes new line</span>
+          <button class="primary-button mini" id="home-capture-submit">+ Add Log</button>
+        </div>
       </div>
 
       <div class="home-decks-container">
@@ -561,35 +560,57 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
   const { matched, total } = visibleLogEntries(scope);
   const countLabel = logFilter.trim() || logDay ? `${matched} of ${total}` : '';
 
-  const composeInputHtml = scope === 'space'
-    ? `<input
-        id="log-compose-input"
-        type="text"
-        placeholder="Log what you did…"
-        autocomplete="off"
-        spellcheck="false"
-        maxlength="500"
-      />`
+  const composeBoxHtml = scope === 'space'
+    ? `
+      <div class="log-compose-box">
+        <div class="log-compose-box-head">
+          <span class="log-compose-title">LOG WHAT YOU DID</span>
+          ${logPageDraft.trim() ? '<span class="draft-indicator">Draft saved</span>' : ''}
+        </div>
+        <textarea
+          id="log-compose-textarea"
+          class="log-compose-textarea"
+          placeholder="Log what you did… (Enter for new line)"
+          spellcheck="false"
+          rows="2"
+        >${escapeHtml(logPageDraft)}</textarea>
+        <div class="log-compose-box-foot">
+          <span class="log-compose-shortcut-tip">Enter makes new line</span>
+          <button class="primary-button mini" id="log-compose-submit">+ Add Log</button>
+        </div>
+      </div>`
     : '';
 
   return `
     <section class="log-panel" data-scope="${scope}">
-      <div class="log-input-row">
-        ${composeInputHtml}
-        <input
-          id="log-search"
-          type="search"
-          placeholder="Search"
-          value="${escapeHtml(logFilter)}"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <div class="log-date-wrap">
-          <input type="date" id="log-day" value="${escapeHtml(logDay)}" class="log-date-picker" title="Filter by date" />
-          <button id="clear-log-day" class="log-clear-day-btn" title="Clear date filter" style="${logDay ? '' : 'display:none;'}">✕</button>
+      <div class="log-top-bar">
+        <div class="log-scope-nav">
+          <button class="log-scope-btn ${scope === 'space' ? 'active' : ''}" data-log-scope="space" title="Space Logs">
+            <span>Space Log</span>
+            ${state.workspace ? `<span class="log-space-name">${escapeHtml(state.workspace.name)}</span>` : ''}
+          </button>
+          <button class="log-scope-btn ${scope === 'all' ? 'active' : ''}" data-log-scope="all" title="View Full Global Logs">
+            <span>Global Log</span>
+          </button>
         </div>
-        <span class="log-count-badge">${countLabel}</span>
+        <div class="log-tools-right">
+          <input
+            id="log-search"
+            class="log-search-small"
+            type="search"
+            placeholder="Search"
+            value="${escapeHtml(logFilter)}"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div class="log-date-wrap">
+            <input type="date" id="log-day" value="${escapeHtml(logDay)}" class="log-date-picker" title="Filter by date" />
+            <button id="clear-log-day" class="log-clear-day-btn" title="Clear date filter" style="${logDay ? '' : 'display:none;'}">✕</button>
+          </div>
+          <span class="log-count-badge">${countLabel}</span>
+        </div>
       </div>
+      ${composeBoxHtml}
       <div class="log-entries">${logListMarkup(scope)}</div>
     </section>`;
 }

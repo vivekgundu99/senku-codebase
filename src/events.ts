@@ -16,6 +16,10 @@ import {
   allLog,
   setAllLog,
   toggleBundleCollapsed,
+  homeLogDraft,
+  setHomeLogDraft,
+  logPageDraft,
+  setLogPageDraft,
 } from './state';
 import { fileCountLabel, fileListMarkup, logListMarkup } from './markup';
 import { isSamePath, parentOf } from './utils';
@@ -51,7 +55,7 @@ export function bindAll(load: LoadFn, render: RenderFn): void {
   bindTopbarButtons(load, render);
   bindFileActions(load);
   bindHomeActions(load, render);
-  bindLogPanel(load);
+  bindLogPanel(load, render);
   bindLaunchpadActions(load);
 }
 
@@ -341,24 +345,37 @@ function bindFileActions(load: LoadFn): void {
 // Home actions: Quick capture
 // ---------------------------------------------------------------------------
 
-function bindHomeActions(load: LoadFn, _render: RenderFn): void {
-  const input = document.querySelector<HTMLInputElement>('#home-capture-input');
+function bindHomeActions(load: LoadFn, render: RenderFn): void {
+  const textarea = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
   const btn = document.querySelector<HTMLButtonElement>('#home-capture-submit');
 
+  if (textarea) {
+    textarea.addEventListener('input', () => {
+      setHomeLogDraft(textarea.value);
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.max(68, textarea.scrollHeight)}px`;
+    });
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        void submit();
+      }
+    });
+  }
+
   const submit = async () => {
-    if (!input) return;
-    const text = input.value.trim();
+    const text = homeLogDraft.trim();
     if (!text) return;
-    input.value = '';
+    setHomeLogDraft('');
     const spaceId = state.workspace?.id;
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
-    document.querySelector<HTMLInputElement>('#home-capture-input')?.focus();
+    render();
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLTextAreaElement>('#home-capture-textarea')?.focus();
+    });
   };
 
-  input?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') void submit();
-  });
   btn?.addEventListener('click', () => void submit());
 
   document.querySelectorAll<HTMLElement>('[data-launch-home-id]').forEach((launchBtn) => {
@@ -380,7 +397,7 @@ function bindHomeActions(load: LoadFn, _render: RenderFn): void {
   });
 }
 
-function bindLogPanel(load: LoadFn): void {
+function bindLogPanel(load: LoadFn, render: RenderFn): void {
   const panel = document.querySelector<HTMLElement>('.log-panel');
   if (!panel) return;
 
@@ -396,20 +413,54 @@ function bindLogPanel(load: LoadFn): void {
     if (clearDayBtn) clearDayBtn.style.display = logDay ? '' : 'none';
   };
 
-  const composeInput = panel.querySelector<HTMLInputElement>('#log-compose-input');
-  if (composeInput) {
-    composeInput.addEventListener('keydown', async (e) => {
-      if (e.key !== 'Enter') return;
-      const text = composeInput.value.trim();
-      if (!text) return;
-      composeInput.value = '';
-      const spaceId = state.workspace?.id;
-      await window.senku.addLogEntry(text, spaceId);
-      await load(state.currentPath);
-      refreshList();
-      document.querySelector<HTMLInputElement>('#log-compose-input')?.focus();
+  // Scope switcher
+  panel.querySelectorAll<HTMLElement>('[data-log-scope]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const targetScope = btn.dataset.logScope;
+      if (targetScope === 'all') {
+        setView('AllLog');
+        const all = await window.senku.listAllLogs();
+        setAllLog(all);
+        render();
+      } else {
+        setView('Log');
+        await load(state.currentPath);
+        render();
+      }
+    });
+  });
+
+  const textarea = panel.querySelector<HTMLTextAreaElement>('#log-compose-textarea');
+  const submitBtn = panel.querySelector<HTMLButtonElement>('#log-compose-submit');
+
+  if (textarea) {
+    textarea.addEventListener('input', () => {
+      setLogPageDraft(textarea.value);
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.max(54, textarea.scrollHeight)}px`;
+    });
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        void submit();
+      }
     });
   }
+
+  const submit = async () => {
+    const text = logPageDraft.trim();
+    if (!text) return;
+    setLogPageDraft('');
+    const spaceId = state.workspace?.id;
+    await window.senku.addLogEntry(text, spaceId);
+    await load(state.currentPath);
+    render();
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLTextAreaElement>('#log-compose-textarea')?.focus();
+    });
+  };
+
+  submitBtn?.addEventListener('click', () => void submit());
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   panel.querySelector<HTMLInputElement>('#log-search')?.addEventListener('input', (event) => {
@@ -443,19 +494,19 @@ function bindLogPanel(load: LoadFn): void {
     if (!id) return;
 
     const originalText = textEl.textContent || '';
-    const editInput = document.createElement('input');
-    editInput.type = 'text';
-    editInput.className = 'log-row-edit-input';
-    editInput.value = originalText;
-    textEl.replaceWith(editInput);
-    editInput.focus();
-    editInput.select();
+    const editTextarea = document.createElement('textarea');
+    editTextarea.className = 'log-row-edit-textarea';
+    editTextarea.value = originalText;
+    editTextarea.rows = Math.max(2, originalText.split('\n').length);
+    textEl.replaceWith(editTextarea);
+    editTextarea.focus();
+    editTextarea.select();
 
     let committed = false;
     const save = async () => {
       if (committed) return;
       committed = true;
-      const newText = editInput.value.trim();
+      const newText = editTextarea.value.trim();
       if (newText && newText !== originalText) {
         await window.senku.updateLogEntry(id, newText, spaceId);
         if (scope === 'all') {
@@ -474,8 +525,8 @@ function bindLogPanel(load: LoadFn): void {
       refreshList();
     };
 
-    editInput.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') {
+    editTextarea.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
         ev.preventDefault();
         void save();
       } else if (ev.key === 'Escape') {
@@ -483,7 +534,7 @@ function bindLogPanel(load: LoadFn): void {
         cancel();
       }
     });
-    editInput.addEventListener('blur', () => void save());
+    editTextarea.addEventListener('blur', () => void save());
   });
 
   panel.addEventListener('click', async (e) => {
