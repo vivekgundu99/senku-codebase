@@ -25,6 +25,7 @@ export function setState(snapshot: AppSnapshot): void {
   if (previousWorkspaceId !== newWorkspaceId) {
     activeNoteId = snapshot.activeNoteId ?? (snapshot.notes && snapshot.notes[0]?.id) ?? null;
     logFilter = '';
+    logDay = '';
     logLimit = LOG_PAGE;
     fileFilter = '';
     fileLimit = FILE_PAGE;
@@ -42,6 +43,9 @@ export function setState(snapshot: AppSnapshot): void {
 }
 
 export function setView(view: string): void {
+  if ((currentView === 'Log' && view === 'AllLog') || (currentView === 'AllLog' && view === 'Log')) {
+    logDay = '';
+  }
   currentView = view;
 }
 
@@ -80,6 +84,17 @@ export function visibleEntries(): { items: FileEntry[]; matched: number; total: 
 export const LOG_PAGE = 40;
 export let logFilter = '';
 export let logLimit = LOG_PAGE;
+export let logDay = '';
+export let allLog: LogEntry[] = [];
+
+export function setAllLog(entries: LogEntry[]): void {
+  allLog = entries;
+}
+
+export function setLogDay(day: string): void {
+  logDay = day;
+  logLimit = LOG_PAGE;
+}
 
 export function setLogFilter(value: string): void {
   logFilter = value;
@@ -90,14 +105,38 @@ export function showMoreLogs(): void {
   logLimit += LOG_PAGE;
 }
 
-export function getLogEntries(): LogEntry[] {
-  return [...(state?.logEntries ?? [])].sort((a, b) => b.createdAt - a.createdAt || b.seq - a.seq);
+export function getLogEntries(scope: 'space' | 'all' = 'space'): LogEntry[] {
+  const source = scope === 'all' ? allLog : (state?.logEntries ?? []);
+  return [...source].sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
 }
 
-export function visibleLogEntries(): { items: LogEntry[]; matched: number; total: number } {
-  const all = getLogEntries();
+function toLocalDateString(ts: number): string {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function visibleLogEntries(scope: 'space' | 'all' = 'space'): { items: LogEntry[]; matched: number; total: number } {
+  const all = getLogEntries(scope);
   const q = logFilter.trim().toLowerCase();
-  const matched = q ? all.filter((entry) => entry.text.toLowerCase().includes(q)) : all;
+  const numSearch = /^#?\d+$/.test(q) ? parseInt(q.replace('#', ''), 10) : null;
+
+  const matched = all.filter((entry) => {
+    // 1. Text / number match
+    if (q) {
+      const textMatch = entry.text.toLowerCase().includes(q);
+      const numberMatch = numSearch !== null && entry.seq === numSearch;
+      if (!textMatch && !numberMatch) return false;
+    }
+    // 2. Day match
+    if (logDay) {
+      if (toLocalDateString(entry.createdAt) !== logDay) return false;
+    }
+    return true;
+  });
+
   return { items: matched.slice(0, logLimit), matched: matched.length, total: all.length };
 }
 

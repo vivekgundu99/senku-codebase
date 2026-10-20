@@ -2,6 +2,7 @@ import {
   state,
   setState,
   currentView,
+  setAllLog,
   isPathAvailabilityCacheStale,
   setCachedPathAvailability,
 } from './state';
@@ -37,7 +38,8 @@ function render(): void {
 
   let leftPanel = '';
   if (currentView === 'Notes') leftPanel = notesPanelMarkup();
-  else if (currentView === 'Log' || currentView === 'AllLog') leftPanel = logPanelMarkup();
+  else if (currentView === 'Log') leftPanel = logPanelMarkup('space');
+  else if (currentView === 'AllLog') leftPanel = logPanelMarkup('all');
   else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
   else if (currentView === 'Overview') leftPanel = overviewPanelMarkup();
   else leftPanel = homePanelMarkup();
@@ -142,6 +144,11 @@ async function load(pathToShow?: string): Promise<void> {
     const snapshot = await window.senku.getSnapshot(pathToShow);
     if (seq !== loadSeq) return;
     setState(snapshot);
+    if (currentView === 'AllLog') {
+      const all = await window.senku.listAllLogs();
+      if (seq !== loadSeq) return;
+      setAllLog(all);
+    }
     render();
   } catch (error) {
     if (seq !== loadSeq) return;

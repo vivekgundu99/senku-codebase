@@ -6,6 +6,7 @@ import {
   visibleEntries,
   getLogEntries,
   logFilter,
+  logDay,
   visibleLogEntries,
   getCachedPathAvailability,
   activeNoteId,
@@ -482,16 +483,16 @@ function formatLogTimeOnly(ts: number): string {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-export function logListMarkup(): string {
-  const { items, matched, total } = visibleLogEntries();
+export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
+  const { items, matched, total } = visibleLogEntries(scope);
   if (total === 0) {
     return `<div class="log-empty">
-         <p>Nothing logged yet.</p>
-         <small>Type what you just did in the box above. No pressure, just quick capture.</small>
+         <p>${scope === 'all' ? 'No entries across spaces.' : 'Nothing logged yet.'}</p>
+         ${scope === 'space' ? '<small>Type what you just did in the box above. No pressure, just quick capture.</small>' : ''}
        </div>`;
   }
   if (matched === 0) {
-    return `<div class="log-empty"><p>No log entries matching "${escapeHtml(logFilter)}"</p></div>`;
+    return `<div class="log-empty"><p>No log entries matching current filters.</p></div>`;
   }
 
   const groups: Array<{ dayKey: string; dayLabel: string; entries: LogEntry[] }> = [];
@@ -517,18 +518,26 @@ export function logListMarkup(): string {
       (group) => `
       <div class="log-day-group">
         <div class="log-day-header">${escapeHtml(group.dayLabel)}</div>
-        ${group.entries
-          .map(
-            (e) => `
-          <div class="log-entry" data-id="${e.id}">
-            <div class="log-entry-head">
-              <span class="log-time">${formatLogTimeOnly(e.createdAt)}</span>
-              <button type="button" class="log-delete-btn" data-delete-log="${e.id}" title="Delete log">✕</button>
-            </div>
-            <p class="log-text">${escapeHtml(e.text)}</p>
-          </div>`,
-          )
-          .join('')}
+        <div class="log-day-entries">
+          ${group.entries
+            .map(
+              (e) => {
+                const seqLabel = e.seq && e.seq > 0 ? `#${e.seq}` : '';
+                const spaceBadge = scope === 'all' && e.spaceName
+                  ? `<span class="log-row-space">${escapeHtml(e.spaceName)}</span>`
+                  : '';
+                return `
+                  <div class="log-row-compact" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
+                    <span class="log-row-seq">${seqLabel}</span>
+                    <span class="log-row-time">${formatLogTimeOnly(e.createdAt)}</span>
+                    <span class="log-row-text" title="Double click to edit">${escapeHtml(e.text)}</span>
+                    ${spaceBadge}
+                    <button type="button" class="log-row-del-btn" data-delete-log="${e.id}" data-space-id="${e.spaceId || ''}" title="Delete log">✕</button>
+                  </div>`;
+              },
+            )
+            .join('')}
+        </div>
       </div>`,
     )
     .join('');
@@ -537,8 +546,8 @@ export function logListMarkup(): string {
   return groupsHtml + (more > 0 ? `<button class="show-more" id="show-more-logs">Show ${Math.min(more, 40)} more · ${more} remaining</button>` : '');
 }
 
-export function logPanelMarkup(): string {
-  if (!state.workspace) {
+export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
+  if (scope === 'space' && !state.workspace) {
     return `
     <section class="log-panel">
       <p style="margin-top: 24px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
@@ -546,31 +555,39 @@ export function logPanelMarkup(): string {
     </section>`;
   }
 
-  const { matched, total } = visibleLogEntries();
+  const { matched, total } = visibleLogEntries(scope);
   const countLabel = matched === total ? `${total} entries` : `${matched} of ${total}`;
 
+  const composeInputHtml = scope === 'space'
+    ? `<input
+        id="log-compose-input"
+        type="text"
+        placeholder="What just happened? Type and hit Enter to log..."
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="500"
+      />`
+    : '';
+
   return `
-    <section class="log-panel">
+    <section class="log-panel" data-scope="${scope}">
       <div class="log-input-row">
-        <input
-          id="log-compose-input"
-          type="text"
-          placeholder="What just happened? Type and hit Enter to log..."
-          autocomplete="off"
-          spellcheck="false"
-          maxlength="500"
-        />
+        ${composeInputHtml}
         <input
           id="log-search"
           type="search"
-          placeholder="Filter logs..."
+          placeholder="Filter logs or #N..."
           value="${escapeHtml(logFilter)}"
           autocomplete="off"
           spellcheck="false"
         />
+        <div class="log-date-wrap">
+          <input type="date" id="log-day" value="${escapeHtml(logDay)}" class="log-date-picker" title="Filter by date" />
+          <button id="clear-log-day" class="log-clear-day-btn" title="Clear date filter" style="${logDay ? '' : 'display:none;'}">✕</button>
+        </div>
         <span class="log-count-badge">${countLabel}</span>
       </div>
-      <div class="log-entries">${logListMarkup()}</div>
+      <div class="log-entries">${logListMarkup(scope)}</div>
     </section>`;
 }
 

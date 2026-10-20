@@ -10,6 +10,10 @@ import {
   visibleLogEntries,
   setActiveNoteId,
   activeNoteId,
+  setLogDay,
+  logDay,
+  allLog,
+  setAllLog,
 } from './state';
 import { fileCountLabel, fileListMarkup, logListMarkup } from './markup';
 import { isSamePath, parentOf } from './utils';
@@ -39,7 +43,7 @@ export function isNoteEditorPendingSave(): boolean {
 // ---------------------------------------------------------------------------
 
 export function bindAll(load: LoadFn, render: RenderFn): void {
-  bindNavigation(render);
+  bindNavigation(load, render);
   bindSidebarButtons(load, render);
   bindTopbarButtons(load, render);
   bindFileActions(load);
@@ -179,10 +183,15 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
 // Navigation
 // ---------------------------------------------------------------------------
 
-function bindNavigation(render: RenderFn): void {
+function bindNavigation(load: LoadFn, render: RenderFn): void {
   document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) =>
-    btn.addEventListener('click', () => {
-      setView(btn.dataset.view ?? 'Home');
+    btn.addEventListener('click', async () => {
+      const view = btn.dataset.view ?? 'Home';
+      setView(view);
+      if (view === 'AllLog') {
+        const all = await window.senku.listAllLogs();
+        setAllLog(all);
+      }
       render();
     }),
   );
@@ -335,12 +344,16 @@ function bindLogPanel(load: LoadFn): void {
   const panel = document.querySelector<HTMLElement>('.log-panel');
   if (!panel) return;
 
+  const scope = (panel.dataset.scope as 'space' | 'all') || 'space';
+
   const refreshList = () => {
     const list = panel.querySelector('.log-entries');
-    if (list) list.innerHTML = logListMarkup();
+    if (list) list.innerHTML = logListMarkup(scope);
     const count = panel.querySelector('.log-count-badge');
-    const { matched, total } = visibleLogEntries();
+    const { matched, total } = visibleLogEntries(scope);
     if (count) count.textContent = matched === total ? `${total} entries` : `${matched} of ${total}`;
+    const clearDayBtn = panel.querySelector<HTMLElement>('#clear-log-day');
+    if (clearDayBtn) clearDayBtn.style.display = logDay ? '' : 'none';
   };
 
   const composeInput = panel.querySelector<HTMLInputElement>('#log-compose-input');
@@ -365,6 +378,74 @@ function bindLogPanel(load: LoadFn): void {
     timer = setTimeout(() => { setLogFilter(value); refreshList(); }, 80);
   });
 
+  const dayInput = panel.querySelector<HTMLInputElement>('#log-day');
+  dayInput?.addEventListener('change', (e) => {
+    setLogDay((e.target as HTMLInputElement).value);
+    refreshList();
+  });
+
+  panel.querySelector('#clear-log-day')?.addEventListener('click', () => {
+    setLogDay('');
+    if (dayInput) dayInput.value = '';
+    refreshList();
+  });
+
+  // Double-click inline edit
+  panel.querySelector('.log-entries')?.addEventListener('dblclick', (e) => {
+    const target = e.target as HTMLElement;
+    const textEl = target.closest<HTMLElement>('.log-row-text');
+    if (!textEl) return;
+    const row = textEl.closest<HTMLElement>('.log-row-compact');
+    if (!row) return;
+
+    const id = row.dataset.id;
+    const spaceId = row.dataset.spaceId;
+    if (!id) return;
+
+    const originalText = textEl.textContent || '';
+    const editInput = document.createElement('input');
+    editInput.type = 'text';
+    editInput.className = 'log-row-edit-input';
+    editInput.value = originalText;
+    textEl.replaceWith(editInput);
+    editInput.focus();
+    editInput.select();
+
+    let committed = false;
+    const save = async () => {
+      if (committed) return;
+      committed = true;
+      const newText = editInput.value.trim();
+      if (newText && newText !== originalText) {
+        await window.senku.updateLogEntry(id, newText, spaceId);
+        if (scope === 'all') {
+          const all = await window.senku.listAllLogs();
+          setAllLog(all);
+        } else {
+          await load(state.currentPath);
+        }
+      }
+      refreshList();
+    };
+
+    const cancel = () => {
+      if (committed) return;
+      committed = true;
+      refreshList();
+    };
+
+    editInput.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        void save();
+      } else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        cancel();
+      }
+    });
+    editInput.addEventListener('blur', () => void save());
+  });
+
   panel.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
     if (target.closest('#show-more-logs')) {
@@ -375,13 +456,19 @@ function bindLogPanel(load: LoadFn): void {
     const delBtn = target.closest<HTMLElement>('[data-delete-log]');
     if (delBtn) {
       const id = delBtn.dataset.deleteLog;
+      const spaceId = delBtn.dataset.spaceId;
       if (!id) return;
-      const entryToDelete = state.logEntries?.find((e) => e.id === id);
+      const allEntries = scope === 'all' ? allLog : (state.logEntries ?? []);
+      const entryToDelete = allEntries.find((item) => item.id === id);
       delBtn.style.pointerEvents = 'none';
       delBtn.style.opacity = '0.3';
       try {
-        const snap = await window.senku.deleteLogEntry(id);
+        const snap = await window.senku.deleteLogEntry(id, spaceId);
         setState(snap);
+        if (scope === 'all') {
+          const all = await window.senku.listAllLogs();
+          setAllLog(all);
+        }
         refreshList();
         if (entryToDelete) {
           toast('Deleted', {
@@ -389,6 +476,10 @@ function bindLogPanel(load: LoadFn): void {
             onAction: async () => {
               const restoredSnap = await window.senku.restoreLogEntry(entryToDelete);
               setState(restoredSnap);
+              if (scope === 'all') {
+                const all = await window.senku.listAllLogs();
+                setAllLog(all);
+              }
               refreshList();
             },
           });
