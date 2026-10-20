@@ -1,4 +1,4 @@
-import { state, setView, setActiveNoteId } from './state';
+import { state, setView, setActiveNoteId, currentView } from './state';
 import { fuzzyMatch } from './utils';
 import { toast } from './toast';
 import {
@@ -67,9 +67,11 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
     // 1. Views
     items.push(
       { id: 'view-home', type: 'View', typeOrder: 0, text: 'Home', run: () => { setView('Home'); render(); } },
-      { id: 'view-log', type: 'View', typeOrder: 0, text: 'My Log', run: () => { setView('Log'); render(); } },
+      { id: 'view-overview', type: 'View', typeOrder: 0, text: 'Overview', run: () => { setView('Overview'); render(); } },
+      { id: 'view-log', type: 'View', typeOrder: 0, text: 'Log', run: () => { setView('Log'); render(); } },
       { id: 'view-launchpads', type: 'View', typeOrder: 0, text: 'Launchpads', run: () => { setView('Launchpads'); render(); } },
       { id: 'view-notes', type: 'View', typeOrder: 0, text: 'Notes', run: () => { setView('Notes'); render(); } },
+      { id: 'view-all-logs', type: 'View', typeOrder: 0, text: 'All logs', run: () => { setView('AllLog'); render(); } },
     );
 
     // 2. Spaces
@@ -81,6 +83,9 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         text: ws.name,
         run: async () => {
           await window.senku.switchWorkspace(ws.id);
+          if (currentView === 'Home' || currentView === 'AllLog') {
+            setView('Overview');
+          }
           await load();
         },
       });

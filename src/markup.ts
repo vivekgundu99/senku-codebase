@@ -18,24 +18,45 @@ import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from '
 
 export function sidebarMarkup(): string {
   const ws = state.workspace;
+  const isGlobal = currentView === 'Home' || currentView === 'AllLog';
 
-  const navItem = (view: string, icon: string, label: string, shortcut?: string) => `
-    <button class="nav-item ${currentView === view ? 'selected' : ''}" data-view="${view}" title="${label}${shortcut ? ` (${shortcut})` : ''}">
-      <span class="nav-icon">${icon}</span>
-      <span class="nav-label">${label}</span>
+  const subNavItem = (view: string, label: string) => `
+    <button class="space-sub-item ${!isGlobal && currentView === view ? 'selected' : ''}" data-view="${view}">
+      ${label}
     </button>`;
 
   const spaceRow = (space: (typeof state.workspaces)[number]) => {
-    const current = ws ? space.id === ws.id : false;
+    const isActive = ws ? space.id === ws.id : false;
     const missing = state.workspaceFolderAvailability[space.id] === false;
+
+    if (isActive) {
+      return `
+        <div class="space-tree-group">
+          <div class="space-row current ${isGlobal ? 'not-highlighted' : ''}">
+            <button class="space-item" data-switch-space="${space.id}" title="${escapeHtml(space.name)} · ${escapeHtml(space.masterFolder)}${missing ? ' [Folder missing]' : ''}">
+              <span class="space-chevron">▾</span>
+              <span class="space-badge ${missing ? 'missing' : ''}">${escapeHtml(space.name.charAt(0).toUpperCase() || '?')}</span>
+              <span class="space-name">${escapeHtml(space.name)}</span>
+              ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
+            </button>
+            <button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">⚙</button>
+          </div>
+          <div class="space-sub-nav">
+            ${subNavItem('Overview', 'Overview')}
+            ${subNavItem('Log', 'Log')}
+            ${subNavItem('Launchpads', 'Launchpads')}
+            ${subNavItem('Notes', 'Notes')}
+          </div>
+        </div>`;
+    }
+
     return `
-      <div class="space-row ${current ? 'current' : ''}">
+      <div class="space-row">
         <button class="space-item" data-switch-space="${space.id}" title="${escapeHtml(space.name)} · ${escapeHtml(space.masterFolder)}${missing ? ' [Folder missing]' : ''}">
           <span class="space-badge ${missing ? 'missing' : ''}">${escapeHtml(space.name.charAt(0).toUpperCase() || '?')}</span>
           <span class="space-name">${escapeHtml(space.name)}</span>
           ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
         </button>
-        ${current ? '<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">⚙</button>' : ''}
       </div>`;
   };
 
@@ -53,12 +74,12 @@ export function sidebarMarkup(): string {
         <span class="brand-text">senku</span>
       </div>
 
-      <nav class="nav-list">
-        ${navItem('Home', '⌂', 'Home', 'H')}
-        ${navItem('Log', '◎', 'My Log', 'L')}
-        ${navItem('Launchpads', '▷', 'Launchpads', 'P')}
-        ${navItem('Notes', '✎', 'Notes', 'N')}
-      </nav>
+      <div class="sidebar-home-item">
+        <button class="nav-item ${isGlobal ? 'selected' : ''}" data-view="Home" title="Home (H)">
+          <span class="nav-icon">⌂</span>
+          <span class="nav-label">Home</span>
+        </button>
+      </div>
 
       <div class="spaces-head">
         <span class="workspace-label">SPACES</span>
@@ -81,15 +102,16 @@ export function sidebarMarkup(): string {
 
 export function topbarMarkup(): string {
   const ws = state.workspace;
+  const isSpaceView = currentView === 'Overview' || currentView === 'Log' || currentView === 'Launchpads' || currentView === 'Notes';
   const dateFormatted = new Intl.DateTimeFormat(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   }).format(new Date());
 
-  const spacePill = ws
+  const spacePill = isSpaceView && ws
     ? `<span class="topbar-space-pill" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">${escapeHtml(ws.name)}</span>`
-    : `<button class="topbar-space-pill empty-pill" id="topbar-create-space" title="Click to create your first Space">+ Add Space</button>`;
+    : '';
 
   const userInitial = state.settings?.userName ? state.settings.userName.charAt(0).toUpperCase() : 'S';
 
@@ -268,10 +290,10 @@ export function filePanelMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Home panel — dashboard
+// Overview panel — the current Space's home
 // ---------------------------------------------------------------------------
 
-export function homePanelMarkup(): string {
+export function overviewPanelMarkup(): string {
   const ws = state.workspace;
   const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
 
@@ -340,6 +362,96 @@ export function homePanelMarkup(): string {
           </div>
           <div class="home-launchpads-wrap">${quickLaunchHtml}</div>
         </div>
+      </div>
+    </section>`;
+}
+
+// ---------------------------------------------------------------------------
+// Global Home panel
+// ---------------------------------------------------------------------------
+
+export function homePanelMarkup(): string {
+  const ws = state.workspace;
+  const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
+
+  if (!ws) {
+    return `
+      <section class="global-home-panel">
+        <div class="home-hero">
+          <h1 class="home-greeting">${greeting}</h1>
+          <p style="margin-top: 16px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
+          <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
+        </div>
+      </section>`;
+  }
+
+  const captureInput = `
+    <div class="home-capture-card">
+      <span class="home-capture-icon">◎</span>
+      <input
+        id="home-capture-input"
+        type="text"
+        placeholder="Log to ${escapeHtml(ws.name)}…"
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="500"
+      />
+      <button class="home-capture-btn" id="home-capture-submit">Log ↵</button>
+    </div>`;
+
+  const logs = state.home?.log ?? [];
+  const logRows = logs.length > 0
+    ? logs.map((e) => {
+        const seqHtml = e.seq ? `<span class="home-log-seq">#${e.seq}</span>` : `<span class="home-log-seq"></span>`;
+        const spacePart = e.spaceName ? escapeHtml(e.spaceName) : 'Space';
+        const timePart = formatRelativeTime(e.createdAt);
+        return `
+          <div class="global-home-log-row">
+            ${seqHtml}
+            <span class="global-home-log-text">${escapeHtml(e.text)}</span>
+            <span class="global-home-log-meta">${spacePart} · ${timePart}</span>
+          </div>`;
+      }).join('')
+    : `<p class="home-empty-line">No recent entries across spaces.</p>`;
+
+  const launchpads = state.home?.launchpads ?? [];
+  const padRows = launchpads.length > 0
+    ? launchpads.map((p) => {
+        const starHtml = p.pinned ? `<span class="home-lp-star">★</span>` : '';
+        const spacePart = p.spaceName ? escapeHtml(p.spaceName) : '';
+        return `
+          <div class="global-home-lp-row">
+            <div class="global-home-lp-info">
+              ${starHtml}
+              <span class="global-home-lp-name">${escapeHtml(p.name)}</span>
+              ${spacePart ? `<span class="global-home-lp-space">${spacePart}</span>` : ''}
+            </div>
+            <button class="text-button global-home-lp-launch" data-launch-home-id="${p.id}" data-space-id="${p.spaceId}">Launch</button>
+          </div>`;
+      }).join('')
+    : `<p class="home-empty-line">Pin or launch a launchpad to see it here.</p>`;
+
+  return `
+    <section class="global-home-panel">
+      <div class="home-hero">
+        <h1 class="home-greeting">${greeting}</h1>
+      </div>
+
+      ${captureInput}
+
+      <div class="global-home-section">
+        <div class="global-home-section-head">
+          <span class="home-section-label">RECENT LOG</span>
+          <button class="home-deck-link" data-view="AllLog">All</button>
+        </div>
+        <div class="global-home-log-list">${logRows}</div>
+      </div>
+
+      <div class="global-home-section">
+        <div class="global-home-section-head">
+          <span class="home-section-label">LAUNCHPADS</span>
+        </div>
+        <div class="global-home-lp-list">${padRows}</div>
       </div>
     </section>`;
 }

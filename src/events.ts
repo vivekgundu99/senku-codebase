@@ -295,9 +295,9 @@ function bindFileActions(load: LoadFn): void {
 function bindHomeActions(load: LoadFn, _render: RenderFn): void {
   const input = document.querySelector<HTMLInputElement>('#home-capture-input');
   const btn = document.querySelector<HTMLButtonElement>('#home-capture-submit');
-  if (!input) return;
 
   const submit = async () => {
+    if (!input) return;
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
@@ -307,10 +307,28 @@ function bindHomeActions(load: LoadFn, _render: RenderFn): void {
     document.querySelector<HTMLInputElement>('#home-capture-input')?.focus();
   };
 
-  input.addEventListener('keydown', (e) => {
+  input?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') void submit();
   });
   btn?.addEventListener('click', () => void submit());
+
+  document.querySelectorAll<HTMLElement>('[data-launch-home-id]').forEach((launchBtn) => {
+    launchBtn.addEventListener('click', async () => {
+      const id = launchBtn.dataset.launchHomeId!;
+      const spaceId = launchBtn.dataset.spaceId;
+      const pad = state.home?.launchpads?.find((p) => p.id === id);
+      const name = pad?.name ?? 'Launchpad';
+      launchBtn.textContent = 'Launching…';
+      const res = await window.senku.launchLaunchpad(id, spaceId);
+      if (res.ok) {
+        toast(`Launched ${name}`);
+      } else {
+        const count = res.errors.length;
+        toast(`Launched ${name} · ${count} failed`);
+      }
+      await load();
+    });
+  });
 }
 
 function bindLogPanel(load: LoadFn): void {
@@ -499,11 +517,23 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
     const switchSpaceBtn = target.closest<HTMLElement>('[data-switch-space]');
     if (switchSpaceBtn) {
       e.preventDefault();
-      const spaceId = switchSpaceBtn.dataset.switchSpace;
-      if (spaceId) {
-        await window.senku.switchWorkspace(spaceId);
-        await load();
+      const targetSpaceId = switchSpaceBtn.dataset.switchSpace;
+      if (!targetSpaceId) return;
+
+      const isActive = state.workspace?.id === targetSpaceId;
+      if (isActive) {
+        if (currentView === 'Home' || currentView === 'AllLog') {
+          setView('Overview');
+          render();
+        }
+        return;
       }
+
+      await window.senku.switchWorkspace(targetSpaceId);
+      if (currentView === 'Home' || currentView === 'AllLog') {
+        setView('Overview');
+      }
+      await load();
       return;
     }
 

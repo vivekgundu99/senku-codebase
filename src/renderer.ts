@@ -9,6 +9,7 @@ import {
   sidebarMarkup,
   topbarMarkup,
   filePanelMarkup,
+  overviewPanelMarkup,
   homePanelMarkup,
   logPanelMarkup,
   launchpadsPanelMarkup,
@@ -36,12 +37,13 @@ function render(): void {
 
   let leftPanel = '';
   if (currentView === 'Notes') leftPanel = notesPanelMarkup();
-  else if (currentView === 'Log') leftPanel = logPanelMarkup();
+  else if (currentView === 'Log' || currentView === 'AllLog') leftPanel = logPanelMarkup();
   else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
+  else if (currentView === 'Overview') leftPanel = overviewPanelMarkup();
   else leftPanel = homePanelMarkup();
 
-  // Notes and Log get full width; Home and Launchpads show the File Manager on the right
-  const showFiles = currentView !== 'Log' && currentView !== 'Notes';
+  // The files panel shows for Overview and Launchpads only. Home, Log, Notes, AllLog are single-column.
+  const showFiles = currentView === 'Overview' || currentView === 'Launchpads';
 
   const mainContent = showFiles
     ? `<div class="content-grid">
