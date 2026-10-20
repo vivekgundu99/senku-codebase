@@ -50,6 +50,9 @@ import {
   readSpaceMeta,
   writeSpaceMeta,
   migrateLegacy,
+  buildBookMarkdown,
+  splitBookMarkdown,
+  importTitleFromFile,
 } from './storage';
 
 // ---------------------------------------------------------------------------
@@ -1327,12 +1330,99 @@ ipcMain.handle('notes:export', async (_event, id: string) => {
 
   const result = await dialog.showSaveDialog({
     title: 'Export Note',
-    defaultPath: path.join(app.getPath('desktop'), `${note.name}.txt`),
-    filters: [{ name: 'Text Files', extensions: ['txt'] }],
+    defaultPath: path.join(app.getPath('desktop'), `${note.name}.md`),
+    filters: [{ name: 'Markdown Files', extensions: ['md'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
   await fs.writeFile(result.filePath, note.content, 'utf8');
   return { ok: true };
+});
+
+ipcMain.handle('notes:export-all', async () => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return { ok: false, error: 'Create a Space first.' };
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  const notes = await listNotes(spaceNotesDir);
+  if (notes.length === 0) {
+    return { ok: false, empty: true, error: 'No notes to export' };
+  }
+
+  const workspaces = await getWorkspaces();
+  const space = workspaces.find((w) => w.id === spaceId);
+  const spaceName = space?.name || 'Space';
+
+  const result = await dialog.showSaveDialog({
+    title: 'Export All Notes',
+    defaultPath: path.join(app.getPath('desktop'), `${spaceName} notes.md`),
+    filters: [{ name: 'Markdown Files', extensions: ['md'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
+
+  const bookContent = buildBookMarkdown(spaceName, notes);
+  await fs.writeFile(result.filePath, bookContent, 'utf8');
+  return { ok: true, count: notes.length };
+});
+
+handleLocked('notes:import', async () => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId) throw new Error('Create a Space first.');
+
+  const result = await dialog.showOpenDialog({
+    title: 'Import Notes',
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Markdown / Text Files', extensions: ['md', 'markdown', 'txt'] }],
+  });
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  await fs.mkdir(spaceNotesDir, { recursive: true });
+
+  let importedCount = 0;
+  let firstNoteId: string | undefined;
+
+  for (const filePath of result.filePaths) {
+    let fileText = '';
+    try {
+      fileText = await fs.readFile(filePath, 'utf8');
+    } catch {
+      continue;
+    }
+
+    const pages = splitBookMarkdown(fileText);
+    const existing = (await listNotes(spaceNotesDir)).map((n) => n.name);
+
+    if (pages && pages.length > 0) {
+      for (const page of pages) {
+        const sanitized = sanitizeFileName(page.title);
+        const finalName = uniqueName(sanitized, existing);
+        existing.push(finalName);
+        const notePath = path.join(spaceNotesDir, `${finalName}.md`);
+        await writeFileAtomic(notePath, page.content);
+        importedCount++;
+        if (!firstNoteId) firstNoteId = finalName;
+      }
+    } else {
+      const title = importTitleFromFile(filePath);
+      const finalName = uniqueName(title, existing);
+      existing.push(finalName);
+      const notePath = path.join(spaceNotesDir, `${finalName}.md`);
+      await writeFileAtomic(notePath, fileText);
+      importedCount++;
+      if (!firstNoteId) firstNoteId = finalName;
+    }
+  }
+
+  if (firstNoteId) {
+    const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+    const meta = await readSpaceMeta(spaceMetaFile);
+    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: firstNoteId });
+  }
+
+  const snap = await snapshot();
+  return { snapshot: snap, count: importedCount, firstNoteId };
 });
 
 // ---------------------------------------------------------------------------

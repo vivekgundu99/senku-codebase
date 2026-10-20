@@ -1,4 +1,4 @@
-import { state, setView, setActiveNoteId, currentView } from './state';
+import { state, setState, setView, setActiveNoteId, currentView } from './state';
 import { fuzzyMatch } from './utils';
 import { toast } from './toast';
 import {
@@ -171,6 +171,49 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         typeOrder: 5,
         text: 'New space',
         run: () => { openWorkspaceFormModal(load); },
+      },
+      {
+        id: 'action-import-notes',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'Import notes…',
+        run: async () => {
+          if (!state.workspace) {
+            toast('Create a Space first.');
+            return;
+          }
+          try {
+            const res = await window.senku.importNotes();
+            if (!res) return;
+            setState(res.snapshot);
+            if (res.firstNoteId) setActiveNoteId(res.firstNoteId);
+            setView('Notes');
+            render();
+            toast(`Imported ${res.count} page(s)`);
+          } catch (err) {
+            toast(err instanceof Error ? err.message : 'Could not import notes.');
+          }
+        },
+      },
+      {
+        id: 'action-export-all-notes',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'Export all notes…',
+        run: async () => {
+          if (!state.workspace) {
+            toast('Create a Space first.');
+            return;
+          }
+          const res = await window.senku.exportAllNotes();
+          if (res.ok) {
+            toast(`Exported ${res.count} pages`);
+          } else if (res.empty) {
+            toast('No notes to export');
+          } else if (res.error && res.error !== 'Cancelled.') {
+            toast(res.error);
+          }
+        },
       },
     );
 

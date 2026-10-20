@@ -218,6 +218,81 @@ export async function restoreNote(notesDir: string, note: NoteFile): Promise<Not
 }
 
 // ---------------------------------------------------------------------------
+// Notes Book Markdown Import / Export
+// ---------------------------------------------------------------------------
+
+export function buildBookMarkdown(
+  spaceName: string,
+  notes: Array<{ name?: string; title?: string; content: string }>
+): string {
+  const sorted = [...notes].sort((a, b) => {
+    const nameA = a.title ?? a.name ?? '';
+    const nameB = b.title ?? b.name ?? '';
+    return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const blocks: string[] = [`<!-- senku-book: ${spaceName} -->`];
+
+  for (const note of sorted) {
+    const title = (note.title ?? note.name ?? 'Untitled').trim();
+    const content = (note.content ?? '').replace(/^\n+|\n+$/g, '');
+    if (content.length > 0) {
+      blocks.push(`<!-- page: ${title} -->\n# ${title}\n\n${content}`);
+    } else {
+      blocks.push(`<!-- page: ${title} -->\n# ${title}`);
+    }
+  }
+
+  return blocks.join('\n\n') + '\n';
+}
+
+export function splitBookMarkdown(text: string): { title: string; content: string }[] | null {
+  const lines = text.split(/\r?\n/);
+  const firstNonEmpty = lines.find((l) => l.trim().length > 0);
+  if (!firstNonEmpty || !firstNonEmpty.startsWith('<!-- senku-book')) {
+    return null;
+  }
+
+  const pageMarkerRegex = /^<!-- page: (.+) -->$/;
+  const pages: { title: string; content: string }[] = [];
+  let currentTitle: string | null = null;
+  let currentLines: string[] = [];
+
+  const flushPage = () => {
+    if (currentTitle !== null) {
+      const pageLines = [...currentLines];
+      if (pageLines.length > 0 && pageLines[0].trim() === `# ${currentTitle}`) {
+        pageLines.shift();
+        if (pageLines.length > 0 && pageLines[0].trim() === '') {
+          pageLines.shift();
+        }
+      }
+      const content = pageLines.join('\n').replace(/^\n+|\n+$/g, '');
+      pages.push({ title: currentTitle, content });
+    }
+  };
+
+  for (const line of lines) {
+    const match = line.match(pageMarkerRegex);
+    if (match) {
+      flushPage();
+      currentTitle = match[1].trim();
+      currentLines = [];
+    } else if (currentTitle !== null) {
+      currentLines.push(line);
+    }
+  }
+  flushPage();
+
+  return pages;
+}
+
+export function importTitleFromFile(fileName: string): string {
+  const base = path.basename(fileName, path.extname(fileName));
+  return sanitizeFileName(base);
+}
+
+// ---------------------------------------------------------------------------
 // Log (logDir = <spaceDir>/log)
 // ---------------------------------------------------------------------------
 
