@@ -334,18 +334,15 @@ export function overviewPanelMarkup(): string {
 
       <div class="home-capture-box">
         <div class="home-capture-box-head">
-          <span class="home-capture-title">LOG WHAT YOU DID</span>
           ${homeLogDraft.trim() ? '<span class="draft-indicator">Draft saved</span>' : ''}
         </div>
         <textarea
           id="home-capture-textarea"
           class="home-capture-textarea"
-          placeholder="Log what you did… (Enter for new line)"
           spellcheck="false"
           rows="3"
         >${escapeHtml(homeLogDraft)}</textarea>
         <div class="home-capture-box-foot">
-          <span class="home-capture-shortcut-tip">Enter makes new line</span>
           <button class="primary-button mini" id="home-capture-submit">+ Add Log</button>
         </div>
       </div>
@@ -405,24 +402,24 @@ export function homePanelMarkup(): string {
   const logs = state.home?.log ?? [];
   const logRows = logs.length > 0
     ? logs.map((e) => {
-        const seqHtml = e.seq ? `<span class="home-log-seq">#${e.seq}</span>` : `<span class="home-log-seq"></span>`;
-        const spacePart = e.spaceName ? escapeHtml(e.spaceName) : 'Space';
-        const timePart = formatRelativeTime(e.createdAt);
-        return `
+      const seqHtml = e.seq ? `<span class="home-log-seq">#${e.seq}</span>` : `<span class="home-log-seq"></span>`;
+      const spacePart = e.spaceName ? escapeHtml(e.spaceName) : 'Space';
+      const timePart = formatRelativeTime(e.createdAt);
+      return `
           <div class="global-home-log-row">
             ${seqHtml}
             <span class="global-home-log-text">${escapeHtml(e.text)}</span>
             <span class="global-home-log-meta">${spacePart} · ${timePart}</span>
           </div>`;
-      }).join('')
+    }).join('')
     : `<p class="home-empty-line">No recent entries across spaces.</p>`;
 
   const launchpads = state.home?.launchpads ?? [];
   const padRows = launchpads.length > 0
     ? launchpads.map((p) => {
-        const starHtml = p.pinned ? `<span class="home-lp-star">★</span>` : '';
-        const spacePart = p.spaceName ? escapeHtml(p.spaceName) : '';
-        return `
+      const starHtml = p.pinned ? `<span class="home-lp-star">★</span>` : '';
+      const spacePart = p.spaceName ? escapeHtml(p.spaceName) : '';
+      return `
           <div class="global-home-lp-row">
             <div class="global-home-lp-info">
               ${starHtml}
@@ -431,7 +428,7 @@ export function homePanelMarkup(): string {
             </div>
             <button class="text-button global-home-lp-launch" data-launch-home-id="${p.id}" data-space-id="${p.spaceId}">Launch</button>
           </div>`;
-      }).join('')
+    }).join('')
     : `<p class="home-empty-line">Pin or launch a launchpad to see it here.</p>`;
 
   return `
@@ -522,13 +519,13 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
         <div class="log-day-header">${escapeHtml(group.dayLabel)}</div>
         <div class="log-day-entries">
           ${group.entries
-            .map(
-              (e) => {
-                const seqLabel = e.seq && e.seq > 0 ? `#${e.seq}` : '';
-                const spaceBadge = scope === 'all' && e.spaceName
-                  ? `<span class="log-row-space">${escapeHtml(e.spaceName)}</span>`
-                  : '';
-                return `
+          .map(
+            (e) => {
+              const seqLabel = e.seq && e.seq > 0 ? `#${e.seq}` : '';
+              const spaceBadge = scope === 'all' && e.spaceName
+                ? `<span class="log-row-space">${escapeHtml(e.spaceName)}</span>`
+                : '';
+              return `
                   <div class="log-row-compact" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
                     <span class="log-row-seq">${seqLabel}</span>
                     <span class="log-row-time">${formatLogTimeOnly(e.createdAt)}</span>
@@ -536,9 +533,9 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
                     ${spaceBadge}
                     <button type="button" class="log-row-del-btn" data-delete-log="${e.id}" data-space-id="${e.spaceId || ''}" title="Delete log">✕</button>
                   </div>`;
-              },
-            )
-            .join('')}
+            },
+          )
+          .join('')}
         </div>
       </div>`,
     )
@@ -564,18 +561,15 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
     ? `
       <div class="log-compose-box">
         <div class="log-compose-box-head">
-          <span class="log-compose-title">LOG WHAT YOU DID</span>
           ${logPageDraft.trim() ? '<span class="draft-indicator">Draft saved</span>' : ''}
         </div>
         <textarea
           id="log-compose-textarea"
           class="log-compose-textarea"
-          placeholder="Log what you did… (Enter for new line)"
           spellcheck="false"
           rows="2"
         >${escapeHtml(logPageDraft)}</textarea>
         <div class="log-compose-box-foot">
-          <span class="log-compose-shortcut-tip">Enter makes new line</span>
           <button class="primary-button mini" id="log-compose-submit">+ Add Log</button>
         </div>
       </div>`
@@ -586,11 +580,10 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
       <div class="log-top-bar">
         <div class="log-scope-nav">
           <button class="log-scope-btn ${scope === 'space' ? 'active' : ''}" data-log-scope="space" title="Space Logs">
-            <span>Space Log</span>
-            ${state.workspace ? `<span class="log-space-name">${escapeHtml(state.workspace.name)}</span>` : ''}
+            <span>Local</span>
           </button>
           <button class="log-scope-btn ${scope === 'all' ? 'active' : ''}" data-log-scope="all" title="View Full Global Logs">
-            <span>Global Log</span>
+            <span>Global</span>
           </button>
         </div>
         <div class="log-tools-right">
