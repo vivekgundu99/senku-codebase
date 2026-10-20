@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppSnapshot, Settings } from './types';
+import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile } from './types';
 
 const api = {
   getSnapshot: (path?: string) =>
@@ -59,6 +59,9 @@ const api = {
   deleteLogEntry: (id: string) =>
     ipcRenderer.invoke('log:delete', id) as Promise<AppSnapshot>,
 
+  restoreLogEntry: (entry: LogEntry) =>
+    ipcRenderer.invoke('log:restore', entry) as Promise<AppSnapshot>,
+
   // --- V3: Launchpads ---
   createLaunchpad: (name: string, spaceId: string, paths: string[]) =>
     ipcRenderer.invoke('launchpad:create', name, spaceId, paths) as Promise<AppSnapshot>,
@@ -69,11 +72,17 @@ const api = {
   deleteLaunchpad: (id: string) =>
     ipcRenderer.invoke('launchpad:delete', id) as Promise<AppSnapshot>,
 
+  restoreLaunchpad: (pad: Launchpad) =>
+    ipcRenderer.invoke('launchpad:restore', pad) as Promise<AppSnapshot>,
+
   launchLaunchpad: (id: string) =>
     ipcRenderer.invoke('launchpad:launch', id) as Promise<{ ok: boolean; errors: string[] }>,
 
   openItem: (target: string) =>
     ipcRenderer.invoke('path:open-item', target) as Promise<{ ok: boolean; error?: string }>,
+
+  checkPathsExist: (paths: string[]) =>
+    ipcRenderer.invoke('path:exists-many', paths) as Promise<Record<string, boolean>>,
 
   // --- V3: Quick Actions ---
   openInVSCode: (path: string) =>
@@ -87,7 +96,7 @@ const api = {
     ipcRenderer.invoke('notes:create', name) as Promise<AppSnapshot>,
 
   renameNote: (id: string, name: string) =>
-    ipcRenderer.invoke('notes:rename', id, name) as Promise<AppSnapshot>,
+    ipcRenderer.invoke('notes:rename', id, name) as Promise<{ snapshot: AppSnapshot; id: string }>,
 
   updateNote: (id: string, content: string) =>
     ipcRenderer.invoke('notes:update', id, content) as Promise<AppSnapshot>,
@@ -97,6 +106,9 @@ const api = {
 
   deleteNote: (id: string) =>
     ipcRenderer.invoke('notes:delete', id) as Promise<AppSnapshot>,
+
+  restoreNote: (note: NoteFile) =>
+    ipcRenderer.invoke('notes:restore', note) as Promise<AppSnapshot>,
 
   exportNote: (id: string) =>
     ipcRenderer.invoke('notes:export', id) as Promise<{ ok: boolean; error?: string }>,
@@ -112,7 +124,7 @@ const api = {
     ipcRenderer.invoke('overlay:minimize') as Promise<{ ok: boolean }>,
 
   getActiveNote: () =>
-    ipcRenderer.invoke('notes:get-active') as Promise<{ activeId: string; activeName: string; notes: Array<{ id: string; name: string }> }>,
+    ipcRenderer.invoke('notes:get-active') as Promise<{ activeId: string; activeName: string; workspaceId?: string; notes: Array<{ id: string; name: string }> }>,
 
   setActiveNote: (id: string) =>
     ipcRenderer.invoke('notes:set-active', id) as Promise<{ ok: boolean }>,

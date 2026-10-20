@@ -7,6 +7,7 @@ import {
   getLogEntries,
   logFilter,
   visibleLogEntries,
+  getCachedPathAvailability,
   activeNoteId,
 } from './state';
 import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
@@ -22,7 +23,6 @@ export function sidebarMarkup(): string {
     <button class="nav-item ${currentView === view ? 'selected' : ''}" data-view="${view}" title="${label}${shortcut ? ` (${shortcut})` : ''}">
       <span class="nav-icon">${icon}</span>
       <span class="nav-label">${label}</span>
-      ${shortcut ? `<span class="nav-key">${shortcut}</span>` : ''}
     </button>`;
 
   const spaceRow = (space: (typeof state.workspaces)[number]) => {
@@ -53,7 +53,6 @@ export function sidebarMarkup(): string {
         <span class="brand-text">senku</span>
       </div>
 
-      <div class="sidebar-section-label">VIEWS</div>
       <nav class="nav-list">
         ${navItem('Home', '⌂', 'Home', 'H')}
         ${navItem('Log', '◎', 'My Log', 'L')}
@@ -69,7 +68,7 @@ export function sidebarMarkup(): string {
       ${state.trashWorkspaces && state.trashWorkspaces.length > 0 ? `
         <div class="space-trash-wrap">
           <button class="space-trash-btn" id="open-trash" title="Trash (${state.trashWorkspaces.length} deleted spaces)">
-            <span>🗑 Trash</span>
+            <span>Trash</span>
             <span class="trash-count">${state.trashWorkspaces.length}</span>
           </button>
         </div>` : ''}
@@ -88,40 +87,20 @@ export function topbarMarkup(): string {
     day: 'numeric',
   }).format(new Date());
 
-  const viewTitles: Record<string, string> = {
-    Home: '⌂ Home',
-    Notes: '✎ Notes',
-    Launchpads: '▷ Launchpads',
-    Log: '◎ Quiet Log',
-  };
-  const title = viewTitles[currentView] ?? currentView;
-
   const spacePill = ws
-    ? `<span class="topbar-space-pill" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">
-        <span class="space-dot">●</span>
-        <span class="space-pill-label">Space:</span>
-        <strong class="space-pill-name">${escapeHtml(ws.name)}</strong>
-      </span>`
-    : `<button class="topbar-space-pill empty-pill" id="topbar-create-space" title="Click to create your first Space">
-        <span class="space-dot empty">○</span>
-        <strong class="space-pill-name">+ Add Space</strong>
-      </button>`;
+    ? `<span class="topbar-space-pill" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">${escapeHtml(ws.name)}</span>`
+    : `<button class="topbar-space-pill empty-pill" id="topbar-create-space" title="Click to create your first Space">+ Add Space</button>`;
 
   const userInitial = state.settings?.userName ? state.settings.userName.charAt(0).toUpperCase() : 'S';
 
   return `
     <header class="topbar">
       <div class="topbar-left">
-        <span class="topbar-view-title">${title}</span>
-        <span class="topbar-dot-sep">·</span>
         <span class="date-line">${dateFormatted}</span>
       </div>
       <div class="top-actions">
         ${spacePill}
-        <button class="topbar-quicknote-btn" id="topbar-quicknote" title="Quick Note Overlay (O)">
-          <span class="quicknote-btn-icon">✎</span>
-          <span>Quick Note</span>
-        </button>
+        <button class="icon-button" id="topbar-quicknote" title="Quick note (O)">✎</button>
         <button class="icon-button" id="refresh-button" title="Refresh">↻</button>
         <button class="avatar-button" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
           ${escapeHtml(userInitial)}
@@ -290,26 +269,25 @@ export function filePanelMarkup(): string {
 export function homePanelMarkup(): string {
   const ws = state.workspace;
   const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
-  const logEntries = getLogEntries();
-  const logCount = state.logEntries?.length ?? 0;
-  const launchpads = state.launchpads ?? [];
-  const launchpadCount = launchpads.length;
-  const noteCount = state.notes?.length ?? 0;
-  const recentLogs = logEntries.slice(0, 5);
 
-  const statCard = (icon: string, label: string, val: number | string, view: string, extraClass = '') => `
-    <button class="home-stat-card ${extraClass}" data-view="${view}">
-      <span class="home-stat-icon">${icon}</span>
-      <div class="home-stat-body">
-        <span class="home-stat-val">${val}</span>
-        <span class="home-stat-label">${label}</span>
+  if (!ws) {
+    return `
+    <section class="home-panel-v3">
+      <div class="home-hero">
+        <h1 class="home-greeting">${greeting}</h1>
+        <p style="margin-top: 16px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
+        <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
       </div>
-    </button>`;
+    </section>`;
+  }
+
+  const logEntries = getLogEntries();
+  const launchpads = state.launchpads ?? [];
+  const recentLogs = logEntries.slice(0, 5);
 
   const recentLogsHtml = recentLogs.length
     ? recentLogs.map((e) => `
         <div class="home-recent-log-item">
-          <span class="home-log-seq">#${e.seq ?? '·'}</span>
           <span class="home-log-text">${escapeHtml(e.text)}</span>
           <span class="home-log-time">${formatRelativeTime(e.createdAt)}</span>
         </div>`).join('')
@@ -326,7 +304,6 @@ export function homePanelMarkup(): string {
     <section class="home-panel-v3">
       <div class="home-hero">
         <h1 class="home-greeting">${greeting}</h1>
-        <p class="home-sub">Your personal student workspace.</p>
       </div>
 
       <div class="home-capture-card">
@@ -342,17 +319,11 @@ export function homePanelMarkup(): string {
         <button class="home-capture-btn" id="home-capture-submit">Log ↵</button>
       </div>
 
-      <div class="home-stats-grid">
-        ${statCard('▷', 'Launchpads', launchpadCount, 'Launchpads')}
-        ${statCard('✎', 'Notes', noteCount, 'Notes')}
-        ${statCard('◎', 'Log entries', logCount, 'Log')}
-      </div>
-
       <div class="home-decks-container">
         <div class="home-recent-deck">
           <div class="home-deck-header">
             <span class="home-section-label">RECENT LOG</span>
-            <button class="home-deck-link" data-view="Log">See all →</button>
+            <button class="home-deck-link" data-view="Log">All</button>
           </div>
           <div class="home-recent-logs">${recentLogsHtml}</div>
         </div>
@@ -360,7 +331,7 @@ export function homePanelMarkup(): string {
         <div class="home-recent-deck home-lp-deck">
           <div class="home-deck-header">
             <span class="home-section-label">QUICK LAUNCHPADS</span>
-            <button class="home-deck-link" data-view="Launchpads">See all →</button>
+            <button class="home-deck-link" data-view="Launchpads">All</button>
           </div>
           <div class="home-launchpads-wrap">${quickLaunchHtml}</div>
         </div>
@@ -372,13 +343,26 @@ export function homePanelMarkup(): string {
 // The Quiet Log panel
 // ---------------------------------------------------------------------------
 
-function formatLogTime(ts: number): string {
+function formatDayHeader(ts: number): string {
   const d = new Date(ts);
-  const today = new Date();
-  const isToday = d.toDateString() === today.toDateString();
-  const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  if (isToday) return `Today · ${timeStr}`;
-  return `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${timeStr}`;
+  const now = new Date();
+  const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  if (dMidnight === todayMidnight) return 'Today';
+  if (dMidnight === todayMidnight - oneDayMs) return 'Yesterday';
+
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function formatLogTimeOnly(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 export function logListMarkup(): string {
@@ -393,20 +377,58 @@ export function logListMarkup(): string {
     return `<div class="log-empty"><p>No log entries matching "${escapeHtml(logFilter)}"</p></div>`;
   }
 
+  const groups: Array<{ dayKey: string; dayLabel: string; entries: LogEntry[] }> = [];
+  let currentGroup: { dayKey: string; dayLabel: string; entries: LogEntry[] } | null = null;
+
+  for (const entry of items) {
+    const d = new Date(entry.createdAt);
+    const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!currentGroup || currentGroup.dayKey !== dayKey) {
+      currentGroup = {
+        dayKey,
+        dayLabel: formatDayHeader(entry.createdAt),
+        entries: [entry],
+      };
+      groups.push(currentGroup);
+    } else {
+      currentGroup.entries.push(entry);
+    }
+  }
+
+  const groupsHtml = groups
+    .map(
+      (group) => `
+      <div class="log-day-group">
+        <div class="log-day-header">${escapeHtml(group.dayLabel)}</div>
+        ${group.entries
+          .map(
+            (e) => `
+          <div class="log-entry" data-id="${e.id}">
+            <div class="log-entry-head">
+              <span class="log-time">${formatLogTimeOnly(e.createdAt)}</span>
+              <button type="button" class="log-delete-btn" data-delete-log="${e.id}" title="Delete log">✕</button>
+            </div>
+            <p class="log-text">${escapeHtml(e.text)}</p>
+          </div>`,
+          )
+          .join('')}
+      </div>`,
+    )
+    .join('');
+
   const more = matched - items.length;
-  return items.map((e: LogEntry) => `
-      <div class="log-entry" data-id="${e.id}">
-        <div class="log-entry-head">
-          <span class="log-seq">#${e.seq ?? '·'}</span>
-          <span class="log-time">${formatLogTime(e.createdAt)}</span>
-          <button type="button" class="log-delete-btn" data-delete-log="${e.id}" title="Delete log #${e.seq ?? ''}">✕</button>
-        </div>
-        <p class="log-text">${escapeHtml(e.text)}</p>
-      </div>`).join('') +
-    (more > 0 ? `<button class="show-more" id="show-more-logs">Show ${Math.min(more, 40)} more · ${more} remaining</button>` : '');
+  return groupsHtml + (more > 0 ? `<button class="show-more" id="show-more-logs">Show ${Math.min(more, 40)} more · ${more} remaining</button>` : '');
 }
 
 export function logPanelMarkup(): string {
+  if (!state.workspace) {
+    return `
+    <section class="log-panel">
+      <p style="margin-top: 24px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
+      <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
+    </section>`;
+  }
+
   const { matched, total } = visibleLogEntries();
   const countLabel = matched === total ? `${total} entries` : `${matched} of ${total}`;
 
@@ -446,14 +468,17 @@ export function logPanelMarkup(): string {
 // ---------------------------------------------------------------------------
 
 function launchpadCardMarkup(lp: Launchpad): string {
+  const availability = getCachedPathAvailability();
   const pathChips = lp.paths.map(p => {
     const isUrl = /^https?:\/\//i.test(p);
     const label = isUrl
       ? (() => { try { return new URL(p).hostname; } catch { return p.slice(0, 30); } })()
       : folderName(p);
     const icon = isUrl ? '🌐' : '📁';
-    const titleText = isUrl ? `Open website: ${p}` : `Open item: ${p}`;
-    return `<button type="button" class="lp-path-chip interactive" data-open-item="${escapeHtml(p)}" title="${escapeHtml(titleText)}">${icon} <span>${escapeHtml(label)}</span> <span class="chip-arrow">↗</span></button>`;
+    const isMissing = !isUrl && availability[p] === false;
+    const titleText = isMissing ? 'Missing' : (isUrl ? `Open website: ${p}` : `Open item: ${p}`);
+    const chipClass = `lp-path-chip interactive${isMissing ? ' missing' : ''}`;
+    return `<button type="button" class="${chipClass}" data-open-item="${escapeHtml(p)}" title="${escapeHtml(titleText)}">${icon} <span>${escapeHtml(label)}</span> <span class="chip-arrow">↗</span></button>`;
   }).join('');
 
   return `
@@ -471,6 +496,14 @@ function launchpadCardMarkup(lp: Launchpad): string {
 }
 
 export function launchpadsPanelMarkup(): string {
+  if (!state.workspace) {
+    return `
+    <section class="launchpads-panel">
+      <p style="margin-top: 24px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
+      <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
+    </section>`;
+  }
+
   const launchpads = state.launchpads ?? [];
   const content = launchpads.length
     ? launchpads.map(launchpadCardMarkup).join('')
@@ -497,6 +530,16 @@ export function launchpadsPanelMarkup(): string {
 // ---------------------------------------------------------------------------
 
 export function notesPanelMarkup(): string {
+  if (!state.workspace) {
+    return `
+    <section class="notes-panel">
+      <div style="padding: 24px;">
+        <p style="color: var(--text-muted, #767676);">Create a Space to begin.</p>
+        <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
+      </div>
+    </section>`;
+  }
+
   const notes: NoteFile[] = state.notes ?? [];
   const active = notes.find((n) => n.id === activeNoteId) ?? notes[0] ?? null;
 
@@ -537,17 +580,7 @@ export function notesPanelMarkup(): string {
       placeholder="Start writing..."
       spellcheck="false"
     >${escapeHtml(active.content)}</textarea>
-    <div class="notes-append-bar">
-      <input
-        id="notes-append-input"
-        type="text"
-        placeholder="Quick append — type and hit Enter to add a timestamped snippet"
-        autocomplete="off"
-        spellcheck="false"
-        maxlength="500"
-        data-note-id="${active.id}"
-      />
-    </div>` : `
+    ` : `
     <div class="notes-editor-placeholder">
       <span>✎</span>
       <p>${notes.length ? 'Select a note to edit it.' : 'Create your first note.'}</p>

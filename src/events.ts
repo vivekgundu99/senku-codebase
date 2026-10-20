@@ -14,6 +14,8 @@ import {
 import { fileCountLabel, fileListMarkup, logListMarkup } from './markup';
 import { isSamePath, parentOf } from './utils';
 import { registerShortcuts } from './shortcuts';
+import { toast } from './toast';
+import { openPalette } from './palette';
 import {
   openProfileModal,
   openWorkspaceFormModal,
@@ -25,6 +27,12 @@ import {
 
 type LoadFn = (path?: string) => Promise<void>;
 type RenderFn = () => void;
+
+let noteSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+export function isNoteEditorPendingSave(): boolean {
+  return noteSaveTimer !== undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Main event binding (runs after each render)
@@ -59,6 +67,9 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
 
   // Note title rename
   const titleInput = panel.querySelector<HTMLInputElement>('#notes-title-input');
+  const textarea = panel.querySelector<HTMLTextAreaElement>('#notes-editor');
+  const statusEl = panel.querySelector<HTMLElement>('#note-save-status');
+
   if (titleInput) {
     const saveTitle = async () => {
       const noteId = titleInput.dataset.noteId!;
@@ -66,7 +77,19 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
       if (!newName) return;
       const note = state.notes?.find((n) => n.id === noteId);
       if (note && note.name !== newName) {
-        const snap = await window.senku.renameNote(noteId, newName);
+        if (noteSaveTimer) {
+          clearTimeout(noteSaveTimer);
+          noteSaveTimer = undefined;
+        }
+        if (textarea) {
+          try {
+            await window.senku.updateNote(noteId, textarea.value);
+          } catch {
+            // 'Note not found.' swallowed silently
+          }
+        }
+        const { snapshot: snap, id: newId } = await window.senku.renameNote(noteId, newName);
+        setActiveNoteId(newId);
         setState(snap);
         render();
       }
@@ -81,19 +104,21 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
   }
 
   // Editor autosave
-  const textarea = panel.querySelector<HTMLTextAreaElement>('#notes-editor');
-  const statusEl = panel.querySelector<HTMLElement>('#note-save-status');
   if (textarea) {
-    let saveTimer: ReturnType<typeof setTimeout> | undefined;
     textarea.addEventListener('input', () => {
       const noteId = textarea.dataset.noteId!;
       const content = textarea.value;
       if (statusEl) { statusEl.textContent = 'saving…'; }
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(async () => {
-        const snap = await window.senku.updateNote(noteId, content);
-        setState(snap);
-        if (statusEl && textarea.value === content) { statusEl.textContent = 'saved'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000); }
+      clearTimeout(noteSaveTimer);
+      noteSaveTimer = setTimeout(async () => {
+        noteSaveTimer = undefined;
+        try {
+          const snap = await window.senku.updateNote(noteId, content);
+          setState(snap);
+          if (statusEl && textarea.value === content) { statusEl.textContent = 'saved'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000); }
+        } catch {
+          // 'Note not found.' swallowed silently
+        }
       }, 1200);
     });
   }
@@ -125,18 +150,28 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
   panel.querySelector('#notes-export-btn')?.addEventListener('click', async (e) => {
     const id = (e.currentTarget as HTMLElement).dataset.noteId!;
     const res = await window.senku.exportNote(id);
-    if (!res.ok && res.error && res.error !== 'Cancelled.') alert(`Export failed: ${res.error}`);
+    if (!res.ok && res.error && res.error !== 'Cancelled.') toast(`Export failed: ${res.error}`);
   });
 
   // Delete note
   panel.querySelector('#notes-delete-btn')?.addEventListener('click', async (e) => {
     const id = (e.currentTarget as HTMLElement).dataset.noteId!;
-    if (!confirm('Delete this note? This cannot be undone.')) return;
+    const noteToDelete = state.notes?.find((n) => n.id === id);
+    if (!noteToDelete) return;
     const snap = await window.senku.deleteNote(id);
     const remaining = snap.notes ?? [];
     setActiveNoteId(remaining[0]?.id ?? null);
     setState(snap);
     render();
+    toast('Deleted', {
+      actionLabel: 'Undo',
+      onAction: async () => {
+        const restoredSnap = await window.senku.restoreNote(noteToDelete);
+        setActiveNoteId(noteToDelete.id);
+        setState(restoredSnap);
+        render();
+      },
+    });
   });
 }
 
@@ -198,7 +233,7 @@ function bindFileActions(load: LoadFn): void {
       const filePath = fileAction.dataset.path!;
       if (action === 'code') {
         const res = await window.senku.openInVSCode(filePath);
-        if (!res.ok) alert(res.error ?? 'Could not open in VS Code.');
+        if (!res.ok) toast(res.error ?? 'Could not open in VS Code.');
         return;
       }
       if (action === 'copy') {
@@ -232,12 +267,12 @@ function bindFileActions(load: LoadFn): void {
     if (target.closest('#open-folder')) { await window.senku.openPath(state.currentPath); return; }
     if (target.closest('#open-in-vscode')) {
       const res = await window.senku.openInVSCode(state.currentPath);
-      if (!res.ok) alert(res.error ?? 'Could not open VS Code.');
+      if (!res.ok) toast(res.error ?? 'Could not open VS Code.');
       return;
     }
     if (target.closest('#open-in-terminal')) {
       const res = await window.senku.openInTerminal(state.currentPath);
-      if (!res.ok) alert(res.error ?? 'Could not open terminal.');
+      if (!res.ok) toast(res.error ?? 'Could not open terminal.');
       return;
     }
 
@@ -269,6 +304,7 @@ function bindHomeActions(load: LoadFn, _render: RenderFn): void {
     const spaceId = state.workspace?.id;
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
+    document.querySelector<HTMLInputElement>('#home-capture-input')?.focus();
   };
 
   input.addEventListener('keydown', (e) => {
@@ -300,6 +336,7 @@ function bindLogPanel(load: LoadFn): void {
       await window.senku.addLogEntry(text, spaceId);
       await load(state.currentPath);
       refreshList();
+      document.querySelector<HTMLInputElement>('#log-compose-input')?.focus();
     });
   }
 
@@ -321,16 +358,27 @@ function bindLogPanel(load: LoadFn): void {
     if (delBtn) {
       const id = delBtn.dataset.deleteLog;
       if (!id) return;
+      const entryToDelete = state.logEntries?.find((e) => e.id === id);
       delBtn.style.pointerEvents = 'none';
       delBtn.style.opacity = '0.3';
       try {
         const snap = await window.senku.deleteLogEntry(id);
         setState(snap);
         refreshList();
+        if (entryToDelete) {
+          toast('Deleted', {
+            actionLabel: 'Undo',
+            onAction: async () => {
+              const restoredSnap = await window.senku.restoreLogEntry(entryToDelete);
+              setState(restoredSnap);
+              refreshList();
+            },
+          });
+        }
       } catch (err) {
         delBtn.style.pointerEvents = '';
         delBtn.style.opacity = '';
-        alert(`Could not delete log: ${err instanceof Error ? err.message : String(err)}`);
+        toast(`Could not delete log: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   });
@@ -352,10 +400,10 @@ function bindLaunchpadActions(load: LoadFn): void {
       try {
         const res = await window.senku.openItem(target);
         if (!res.ok && res.error) {
-          alert(`Could not open item:\n${res.error}`);
+          toast(`Could not open item: ${res.error}`);
         }
       } catch (err) {
-        alert(`Error opening item: ${err instanceof Error ? err.message : String(err)}`);
+        toast(`Error opening item: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         chip.classList.remove('opening');
       }
@@ -365,9 +413,16 @@ function bindLaunchpadActions(load: LoadFn): void {
   document.querySelectorAll<HTMLElement>('[data-launch-id]').forEach((btn) =>
     btn.addEventListener('click', async () => {
       const id = btn.dataset.launchId!;
+      const lp = state.launchpads?.find((p) => p.id === id);
+      const name = lp?.name ?? 'Launchpad';
       btn.textContent = '⏳ Opening…';
       const res = await window.senku.launchLaunchpad(id);
-      if (!res.ok && res.errors.length) alert('Some resources could not be opened:\n' + res.errors.join('\n'));
+      if (res.ok) {
+        toast(`Launched ${name}`);
+      } else {
+        const count = res.errors.length;
+        toast(`Launched ${name} · ${count} failed`);
+      }
       btn.textContent = '▷ Launch All';
     }),
   );
@@ -382,9 +437,19 @@ function bindLaunchpadActions(load: LoadFn): void {
 
   document.querySelectorAll<HTMLElement>('[data-delete-lp]').forEach((btn) =>
     btn.addEventListener('click', async () => {
-      if (!confirm('Delete this Launchpad? Your files are not affected.')) return;
-      await window.senku.deleteLaunchpad(btn.dataset.deleteLp!);
+      const id = btn.dataset.deleteLp!;
+      const padToDelete = state.launchpads?.find((p) => p.id === id);
+      if (!padToDelete) return;
+      await window.senku.deleteLaunchpad(id);
       await load(state.currentPath);
+      toast('Deleted', {
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const snap = await window.senku.restoreLaunchpad(padToDelete);
+          setState(snap);
+          await load(state.currentPath);
+        },
+      });
     }),
   );
 }
@@ -395,6 +460,14 @@ function bindLaunchpadActions(load: LoadFn): void {
 
 export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
   registerShortcuts(load, render);
+
+  // Global Ctrl+K opens Command Palette
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      openPalette(load, render);
+    }
+  }, { capture: true });
 
   // Global Ctrl+Enter focuses quick capture or navigates to Log
   document.addEventListener('keydown', (e) => {

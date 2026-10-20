@@ -1,6 +1,7 @@
 import type { Launchpad } from '../electron/types';
 import { setState, state, setActiveNoteId, setView, activeNoteId } from './state';
 import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
+import { toast } from './toast';
 import pkg from '../package.json';
 
 // ---------------------------------------------------------------------------
@@ -138,7 +139,7 @@ export function openProfileModal(render: () => void): void {
   // User guide
   overlay.querySelector('#user-guide')?.addEventListener('click', async () => {
     const result = await window.senku.openUserGuide();
-    if (!result.ok) alert(result.error || 'User guide not found.');
+    if (!result.ok) toast(result.error || 'User guide not found.');
   });
 
   // Form submit

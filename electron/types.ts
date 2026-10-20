@@ -4,6 +4,7 @@ export interface Settings {
   activeNoteId?: string;
   launchAtStartup: boolean;
   greeting: string;
+  lastLogSeq?: number;
 }
 
 export interface Workspace {
@@ -68,5 +69,6 @@ export interface AppSnapshot {
   launchpads: Launchpad[];
   trashWorkspaces: TrashWorkspace[];
   notes: NoteFile[];
+  activeNoteId?: string;
 }
 

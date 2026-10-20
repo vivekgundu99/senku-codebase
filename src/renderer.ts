@@ -1,4 +1,10 @@
-import { state, setState, currentView } from './state';
+import {
+  state,
+  setState,
+  currentView,
+  isPathAvailabilityCacheStale,
+  setCachedPathAvailability,
+} from './state';
 import {
   sidebarMarkup,
   topbarMarkup,
@@ -8,11 +14,26 @@ import {
   launchpadsPanelMarkup,
   notesPanelMarkup,
 } from './markup';
-import { bindAll, initGlobalListeners, bindNotesPanel } from './events';
+import { bindAll, initGlobalListeners, bindNotesPanel, isNoteEditorPendingSave } from './events';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
 function render(): void {
+  // Capture focus, selection, value, and scroll before DOM wipe
+  const activeEl = document.activeElement;
+  const activeId = activeEl instanceof HTMLElement && activeEl.id ? activeEl.id : null;
+  let selStart: number | null = null;
+  let selEnd: number | null = null;
+  let activeVal: string | null = null;
+  if (activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement) {
+    selStart = activeEl.selectionStart;
+    selEnd = activeEl.selectionEnd;
+    activeVal = activeEl.value;
+  }
+  const notesScroll = appRoot.querySelector<HTMLElement>('#notes-editor')?.scrollTop;
+  const fileListScroll = appRoot.querySelector<HTMLElement>('.file-list')?.scrollTop;
+  const logEntriesScroll = appRoot.querySelector<HTMLElement>('.log-entries')?.scrollTop;
+
   let leftPanel = '';
   if (currentView === 'Notes') leftPanel = notesPanelMarkup();
   else if (currentView === 'Log') leftPanel = logPanelMarkup();
@@ -24,7 +45,7 @@ function render(): void {
 
   const mainContent = showFiles
     ? `<div class="content-grid">
-         <div class="tasks-panel">${leftPanel}</div>
+         <div class="main-left">${leftPanel}</div>
          <div class="right-column">${filePanelMarkup()}</div>
        </div>`
     : `<div class="content-grid content-grid-full">
@@ -42,6 +63,64 @@ function render(): void {
 
   bindAll(load, render);
   if (currentView === 'Notes') bindNotesPanel(load, render);
+
+  // Check existence of local paths in Launchpads panel (cached for 10 s)
+  if (currentView === 'Launchpads' && isPathAvailabilityCacheStale()) {
+    const localPaths: string[] = [];
+    for (const lp of (state.launchpads ?? [])) {
+      for (const p of lp.paths || []) {
+        const trimmed = p.trim();
+        if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+          localPaths.push(trimmed);
+        }
+      }
+    }
+    if (localPaths.length > 0) {
+      void window.senku.checkPathsExist(localPaths).then((results) => {
+        setCachedPathAvailability(results);
+        if (currentView === 'Launchpads') {
+          const chips = appRoot.querySelectorAll<HTMLElement>('.lp-path-chip[data-open-item]');
+          chips.forEach((chip) => {
+            const item = chip.dataset.openItem;
+            if (item && results[item] === false) {
+              chip.classList.add('missing');
+              chip.title = 'Missing';
+            }
+          });
+        }
+      });
+    }
+  }
+
+  // Restore scroll
+  if (notesScroll !== undefined) {
+    const el = appRoot.querySelector<HTMLElement>('#notes-editor');
+    if (el) el.scrollTop = notesScroll;
+  }
+  if (fileListScroll !== undefined) {
+    const el = appRoot.querySelector<HTMLElement>('.file-list');
+    if (el) el.scrollTop = fileListScroll;
+  }
+  if (logEntriesScroll !== undefined) {
+    const el = appRoot.querySelector<HTMLElement>('.log-entries');
+    if (el) el.scrollTop = logEntriesScroll;
+  }
+
+  // Restore focus, value, and selection
+  if (activeId) {
+    const restored = appRoot.querySelector<HTMLElement>(`#${activeId}`);
+    if (restored) {
+      if ((restored instanceof HTMLInputElement || restored instanceof HTMLTextAreaElement) && activeVal !== null) {
+        restored.value = activeVal;
+        if (selStart !== null && selEnd !== null) {
+          try {
+            restored.setSelectionRange(selStart, selEnd);
+          } catch {}
+        }
+      }
+      restored.focus();
+    }
+  }
 
   // Keep active space visible in sidebar
   requestAnimationFrame(() => {
@@ -80,7 +159,16 @@ initGlobalListeners(load, render);
 window.senku.onOpenQuickNote(() => {
   void window.senku.showOverlay();
 });
-window.senku.onSnapshotUpdated(() => {
+window.senku.onSnapshotUpdated(async () => {
+  if (currentView === 'Notes' && document.activeElement?.id === 'notes-editor' && isNoteEditorPendingSave()) {
+    try {
+      const snapshot = await window.senku.getSnapshot(state.currentPath);
+      setState(snapshot);
+    } catch (err) {
+      console.error(err);
+    }
+    return;
+  }
   void load(state.currentPath);
 });
 void load();

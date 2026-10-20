@@ -97,3 +97,59 @@ export function checkMainFolder(path: string): FolderCheck {
   }
   return { level: 'ok' };
 }
+
+// ---------------------------------------------------------------------------
+// Fuzzy search / matching
+// ---------------------------------------------------------------------------
+
+export function fuzzyMatch(query: string, text: string): { score: number; indices: number[] } | null {
+  const q = query.trim().toLowerCase();
+  const t = text.toLowerCase();
+  if (!q) return { score: 0, indices: [] };
+  if (q.length > t.length) return null;
+
+  const indices: number[] = [];
+  let tIdx = 0;
+  let score = 0;
+  let consecutive = 0;
+  let prevIdx = -1;
+
+  for (let qIdx = 0; qIdx < q.length; qIdx++) {
+    const qChar = q[qIdx];
+    let found = false;
+    while (tIdx < t.length) {
+      if (t[tIdx] === qChar) {
+        indices.push(tIdx);
+        const isStartOfWord = tIdx === 0 || /[\s_\-/.\\]/.test(text[tIdx - 1]) ||
+          (text[tIdx] >= 'A' && text[tIdx] <= 'Z' && text[tIdx - 1] >= 'a' && text[tIdx - 1] <= 'z');
+        if (isStartOfWord) {
+          score += 5;
+        }
+
+        if (prevIdx !== -1 && tIdx === prevIdx + 1) {
+          consecutive++;
+          score += consecutive * 3;
+        } else {
+          consecutive = 0;
+          if (prevIdx !== -1) {
+            score -= (tIdx - prevIdx - 1);
+          }
+        }
+
+        prevIdx = tIdx;
+        tIdx++;
+        found = true;
+        break;
+      }
+      tIdx++;
+    }
+    if (!found) return null;
+  }
+
+  return { score, indices };
+}
+
+export function fuzzyScore(query: string, text: string): number | null {
+  const match = fuzzyMatch(query, text);
+  return match ? match.score : null;
+}

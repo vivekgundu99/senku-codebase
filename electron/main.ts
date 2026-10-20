@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   clipboard,
   dialog,
+  globalShortcut,
   ipcMain,
   Menu,
   nativeImage,
@@ -24,6 +25,27 @@ import type {
   TrashWorkspace,
   Workspace,
 } from './types';
+import {
+  writeFileAtomic,
+  sanitizeFileName,
+  uniqueName,
+  listNotes,
+  createNote,
+  updateNote,
+  renameNote,
+  appendToNote,
+  deleteNote,
+  restoreNote,
+  listLog,
+  addLog,
+  deleteLog,
+  restoreLog,
+  readLaunchpads,
+  writeLaunchpads,
+  readSpaceMeta,
+  writeSpaceMeta,
+  migrateLegacy,
+} from './storage';
 
 // ---------------------------------------------------------------------------
 // App-level state
@@ -58,14 +80,12 @@ const defaultSettings: Settings = {
   greeting: 'Good morning, {name}.',
 };
 
-const dataDir = () => path.join(app.getPath('userData'), 'data');
-const settingsFile = () => path.join(dataDir(), 'settings.json');
-const workspacesFile = () => path.join(dataDir(), 'workspaces.json');
-const logFile = () => path.join(dataDir(), 'log.json');
-const launchpadsFile = () => path.join(dataDir(), 'launchpads.json');
-const trashFile = () => path.join(dataDir(), 'trash-workspaces.json');
-const workspaceDir = (id: string) => path.join(dataDir(), 'workspaces', id);
-const notesFile = () => path.join(dataDir(), 'notes.json');
+const baseDir = () => app.getPath('userData');
+const settingsFile = () => path.join(baseDir(), 'settings.json');
+const workspacesFile = () => path.join(baseDir(), 'workspaces.json');
+const trashFile = () => path.join(baseDir(), 'trash.json');
+const spaceDir = (id: string) => path.join(baseDir(), 'spaces', id);
+const trashSpaceDir = (id: string) => path.join(baseDir(), 'trash', id);
 
 // ---------------------------------------------------------------------------
 // JSON helpers
@@ -127,58 +147,55 @@ function handleLocked(channel: string, listener: (event: IpcMainInvokeEvent, ...
 // ---------------------------------------------------------------------------
 
 async function getSettings(): Promise<Settings> {
-  return readJson(settingsFile(), defaultSettings);
+  const current = await readJson<Settings | null>(settingsFile(), null);
+  if (current) return current;
+  const legacy = await readJson<Settings | null>(path.join(baseDir(), 'data', 'settings.json'), null);
+  return legacy ?? defaultSettings;
 }
 
 async function getWorkspaces(): Promise<Workspace[]> {
-  const workspaces = await readJson<Workspace[]>(workspacesFile(), []);
+  const current = await readJson<Workspace[] | null>(workspacesFile(), null);
+  const workspaces = current ?? (await readJson<Workspace[]>(path.join(baseDir(), 'data', 'workspaces.json'), []));
   return workspaces.map((ws) => ({ ...ws, pinnedPaths: ws.pinnedPaths ?? [] }));
 }
 
-
-
-async function getLogEntries(): Promise<LogEntry[]> {
-  const entries = await readJson<LogEntry[]>(logFile(), []);
-  if (entries.some((e) => typeof e.seq !== 'number')) {
-    const sorted = [...entries].sort((a, b) => a.createdAt - b.createdAt);
-    let cur = 1;
-    for (const e of sorted) {
-      if (typeof e.seq !== 'number') {
-        e.seq = cur;
-      }
-      cur = Math.max(cur, e.seq) + 1;
-    }
-    await writeJson(logFile(), entries);
-  }
-  return entries;
-}
-
-async function saveLogEntries(entries: LogEntry[]): Promise<void> {
-  await writeJson(logFile(), entries);
-}
-
-async function getLaunchpads(): Promise<Launchpad[]> {
-  return readJson<Launchpad[]>(launchpadsFile(), []);
-}
-
-async function saveLaunchpads(pads: Launchpad[]): Promise<void> {
-  await writeJson(launchpadsFile(), pads);
-}
-
 async function getTrashWorkspaces(): Promise<TrashWorkspace[]> {
-  return readJson<TrashWorkspace[]>(trashFile(), []);
+  const current = await readJson<TrashWorkspace[] | null>(trashFile(), null);
+  if (current) return current;
+  return readJson<TrashWorkspace[]>(path.join(baseDir(), 'data', 'trash-workspaces.json'), []);
 }
 
 async function saveTrashWorkspaces(items: TrashWorkspace[]): Promise<void> {
   await writeJson(trashFile(), items);
 }
 
-async function getNotes(): Promise<NoteFile[]> {
-  return readJson<NoteFile[]>(notesFile(), []);
+async function activeSpaceId(): Promise<string | null> {
+  const workspaces = await getWorkspaces();
+  if (workspaces.length === 0) return null;
+  const settings = await getSettings();
+  if (settings.activeWorkspaceId && workspaces.some((ws) => ws.id === settings.activeWorkspaceId)) {
+    return settings.activeWorkspaceId;
+  }
+  return workspaces[0].id;
 }
 
-async function saveNotes(notes: NoteFile[]): Promise<void> {
-  await writeJson(notesFile(), notes);
+async function moveFolder(src: string, dest: string): Promise<void> {
+  try {
+    await fs.access(src);
+  } catch {
+    return;
+  }
+  await fs.mkdir(path.dirname(dest), { recursive: true });
+  try {
+    await fs.rename(src, dest);
+  } catch (err: any) {
+    if (err?.code === 'EXDEV' || err?.code === 'EPERM' || err?.code === 'EBUSY') {
+      await fs.cp(src, dest, { recursive: true });
+      await fs.rm(src, { recursive: true, force: true }).catch(() => undefined);
+    } else {
+      throw err;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -332,17 +349,44 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const settings = await getSettings();
   const workspaces = await getWorkspaces();
   const workspaceFolderAvailability = Object.fromEntries(
-    await Promise.all(workspaces.map(async (workspace) => {
-      return [workspace.id, await isDirectoryCached(workspace.id, workspace.masterFolder)] as const;
-    })),
+    await Promise.all(
+      workspaces.map(async (workspace) => {
+        return [workspace.id, await isDirectoryCached(workspace.id, workspace.masterFolder)] as const;
+      }),
+    ),
   );
-  const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
-  const [logEntries, launchpads, trashWorkspaces, notes] = await Promise.all([
-    getLogEntries(),
-    getLaunchpads(),
-    getTrashWorkspaces(),
-    getNotes(),
-  ]);
+  const spaceId = await activeSpaceId();
+  const workspace = spaceId ? getWorkspace(workspaces, spaceId) : null;
+  const trashWorkspaces = await getTrashWorkspaces();
+
+  let logEntries: LogEntry[] = [];
+  let launchpads: Launchpad[] = [];
+  let notes: NoteFile[] = [];
+  let activeNoteId: string | undefined = undefined;
+
+  if (spaceId) {
+    const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+    const spaceLogDir = path.join(spaceDir(spaceId), 'log');
+    const spaceLaunchpadsFile = path.join(spaceDir(spaceId), 'launchpads.json');
+    const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+
+    const [lEntries, lPads, nList, meta] = await Promise.all([
+      listLog(spaceLogDir),
+      readLaunchpads(spaceLaunchpadsFile),
+      listNotes(spaceNotesDir),
+      readSpaceMeta(spaceMetaFile),
+    ]);
+
+    logEntries = lEntries;
+    launchpads = lPads;
+    notes = nList;
+
+    if (meta.activeNoteId && notes.some((n) => n.id === meta.activeNoteId)) {
+      activeNoteId = meta.activeNoteId;
+    } else if (notes.length > 0) {
+      activeNoteId = notes[0].id;
+    }
+  }
 
   if (!workspace) {
     return {
@@ -356,6 +400,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       launchpads,
       trashWorkspaces,
       notes,
+      activeNoteId,
     };
   }
 
@@ -386,6 +431,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     launchpads,
     trashWorkspaces,
     notes,
+    activeNoteId,
   };
 }
 
@@ -446,12 +492,16 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
   overlayWindow = new BrowserWindow({
     width: 480,
     height: 48,
-    minWidth: 260,
-    minHeight: 44,
+    minWidth: 480,
+    maxWidth: 480,
+    minHeight: 48,
+    maxHeight: 48,
     frame: false,
     backgroundColor: '#f5f2ea',
     alwaysOnTop: true,
-    resizable: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     movable: true,
     show: false,
     webPreferences: {
@@ -459,6 +509,13 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  overlayWindow.on('maximize', () => {
+    overlayWindow?.unmaximize();
+  });
+  overlayWindow.on('will-resize', (event) => {
+    event.preventDefault();
   });
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
@@ -480,6 +537,10 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
 
 async function showOverlayWindow(): Promise<void> {
   const win = await createOverlayWindow();
+  if (win.isMaximized()) {
+    win.unmaximize();
+  }
+  win.setSize(480, 48);
   win.show();
   win.focus();
   win.webContents.send('overlay:refresh');
@@ -495,6 +556,96 @@ function minimizeOverlayWindow(): void {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.minimize();
   }
+}
+
+function toggleOverlayWindow(): void {
+  if (overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.isVisible() && overlayWindow.isFocused()) {
+    hideOverlayWindow();
+  } else {
+    void showOverlayWindow();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// One-time legacy migration
+// ---------------------------------------------------------------------------
+
+async function migrateLegacyData(): Promise<void> {
+  const userData = baseDir();
+  const markerFile = path.join(userData, 'storage-version.json');
+  try {
+    await fs.access(markerFile);
+    return; // Already migrated
+  } catch {
+    // Proceed
+  }
+
+  const workspaces = await getWorkspaces();
+  if (workspaces.length === 0) {
+    return; // Zero spaces -> do nothing, do not write marker
+  }
+
+  const settings = await getSettings();
+  const activeId = await activeSpaceId();
+
+  // Backup first: copy legacy data files into <userData>/backup-before-md/
+  const backupDir = path.join(userData, 'backup-before-md');
+  await fs.mkdir(backupDir, { recursive: true });
+
+  const candidateDirs = [path.join(userData, 'data'), userData];
+  const legacyFiles = [
+    'notes.json',
+    'log.json',
+    'launchpads.json',
+    'trash-workspaces.json',
+    'workspaces.json',
+    'settings.json',
+  ];
+
+  for (const dir of candidateDirs) {
+    for (const file of legacyFiles) {
+      const src = path.join(dir, file);
+      const dest = path.join(backupDir, file);
+      try {
+        await fs.access(src);
+        const alreadyBackedUp = await fs.access(dest).then(() => true).catch(() => false);
+        if (!alreadyBackedUp) {
+          await fs.copyFile(src, dest);
+        }
+      } catch {
+        // File does not exist
+      }
+    }
+  }
+
+  // Read legacy data
+  let legacyNotes: NoteFile[] = [];
+  let legacyLogs: LogEntry[] = [];
+  let legacyPads: Launchpad[] = [];
+
+  for (const dir of candidateDirs) {
+    if (legacyNotes.length === 0) {
+      legacyNotes = await readJson<NoteFile[]>(path.join(dir, 'notes.json'), []);
+    }
+    if (legacyLogs.length === 0) {
+      legacyLogs = await readJson<LogEntry[]>(path.join(dir, 'log.json'), []);
+    }
+    if (legacyPads.length === 0) {
+      legacyPads = await readJson<Launchpad[]>(path.join(dir, 'launchpads.json'), []);
+    }
+  }
+
+  await migrateLegacy(
+    userData,
+    {
+      notes: legacyNotes,
+      logEntries: legacyLogs,
+      launchpads: legacyPads,
+      legacyActiveNoteId: settings.activeNoteId,
+    },
+    workspaces,
+    activeId,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -525,6 +676,12 @@ app.whenReady().then(async () => {
     });
   }
 
+  try {
+    await migrateLegacyData();
+  } catch (err) {
+    console.error('Migration failed:', err);
+  }
+
   await createWindow();
 
   const trayIcon = nativeImage
@@ -547,6 +704,10 @@ app.whenReady().then(async () => {
     ]),
   );
   tray.on('click', showMainWindow);
+});
+
+app.on('will-quit', () => {
+  // Global shortcuts cleanup
 });
 
 app.on('before-quit', () => {
@@ -636,6 +797,9 @@ handleLocked('workspace:delete', async (_event, id: string) => {
   const next = workspaces.filter((ws) => ws.id !== id);
   await writeJson(workspacesFile(), next);
 
+  // Move spaces/<id> -> trash/<id>
+  await moveFolder(spaceDir(id), trashSpaceDir(id));
+
   const trash = await getTrashWorkspaces();
   const item: TrashWorkspace = {
     id: target.id,
@@ -660,6 +824,9 @@ handleLocked('workspace:restore', async (_event, id: string) => {
 
   await saveTrashWorkspaces(trash.filter((t) => t.id !== id));
 
+  // Move trash/<id> -> spaces/<id>
+  await moveFolder(trashSpaceDir(id), spaceDir(id));
+
   const workspaces = await getWorkspaces();
   const restored: Workspace = {
     id: item.id,
@@ -681,10 +848,10 @@ handleLocked('workspace:purge-trash', async (_event, id?: string) => {
   const trash = await getTrashWorkspaces();
   if (id) {
     await saveTrashWorkspaces(trash.filter((t) => t.id !== id));
-    await fs.rm(workspaceDir(id), { recursive: true, force: true }).catch(() => undefined);
+    await fs.rm(trashSpaceDir(id), { recursive: true, force: true }).catch(() => undefined);
   } else {
     for (const t of trash) {
-      await fs.rm(workspaceDir(t.id), { recursive: true, force: true }).catch(() => undefined);
+      await fs.rm(trashSpaceDir(t.id), { recursive: true, force: true }).catch(() => undefined);
     }
     await saveTrashWorkspaces([]);
   }
@@ -776,29 +943,32 @@ handleLocked('path:unpin', async (_event, target: string) => {
 // ---------------------------------------------------------------------------
 
 handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
+  const workspaces = await getWorkspaces();
+  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
+  if (!targetSpaceId) throw new Error('Create a Space first.');
+
   const trimmed = (text || '').trim();
   if (!trimmed) return snapshot();
-  const entries = await getLogEntries();
-  const settings = await getSettings();
-  const maxExisting = entries.reduce((max, e) => (typeof e.seq === 'number' && e.seq > max ? e.seq : max), 0);
-  const nextSeq = Math.max((settings as any).lastLogSeq || 0, maxExisting) + 1;
 
-  const entry: LogEntry = {
-    id: randomUUID(),
-    seq: nextSeq,
-    text: trimmed,
-    createdAt: Date.now(),
-    spaceId,
-  };
-  (settings as any).lastLogSeq = nextSeq;
-  await writeJson(settingsFile(), settings);
-  await saveLogEntries([entry, ...entries]);
+  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
+  await addLog(spaceLogDir, trimmed);
+  mainWindow?.webContents.send('snapshot:updated');
   return snapshot();
 });
 
 handleLocked('log:delete', async (_event, id: string) => {
-  const entries = await getLogEntries();
-  await saveLogEntries(entries.filter((e) => e.id !== id));
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return snapshot();
+  const spaceLogDir = path.join(spaceDir(spaceId), 'log');
+  await deleteLog(spaceLogDir, id);
+  return snapshot();
+});
+
+handleLocked('log:restore', async (_event, entry: LogEntry) => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId || !entry || !entry.id) return snapshot();
+  const spaceLogDir = path.join(spaceDir(spaceId), 'log');
+  await restoreLog(spaceLogDir, entry);
   return snapshot();
 });
 
@@ -830,24 +1000,35 @@ async function openSingleItem(target: string): Promise<{ ok: boolean; error?: st
 // ---------------------------------------------------------------------------
 
 handleLocked('launchpad:create', async (_event, name: string, spaceId: string, paths: string[]) => {
+  const workspaces = await getWorkspaces();
+  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
+  if (!targetSpaceId) throw new Error('Create a Space first.');
+
   const trimmedName = (name || '').trim();
   if (!trimmedName) throw new Error('Launchpad name is required.');
-  const pads = await getLaunchpads();
+
+  const padFile = path.join(spaceDir(targetSpaceId), 'launchpads.json');
+  const pads = await readLaunchpads(padFile);
   const pad: Launchpad = {
     id: randomUUID(),
     name: trimmedName,
-    spaceId,
+    spaceId: targetSpaceId,
     paths: paths.map((p) => p.trim()).filter(Boolean),
     createdAt: Date.now(),
   };
-  await saveLaunchpads([...pads, pad]);
+  await writeLaunchpads(padFile, [...pads, pad]);
   return snapshot();
 });
 
 handleLocked('launchpad:update', async (_event, id: string, name: string, paths: string[]) => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId) throw new Error('Create a Space first.');
+
   const trimmedName = (name || '').trim();
   if (!trimmedName) throw new Error('Launchpad name is required.');
-  const pads = await getLaunchpads();
+
+  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
+  const pads = await readLaunchpads(padFile);
   const index = pads.findIndex((p) => p.id === id);
   if (index < 0) throw new Error('Launchpad not found.');
   pads[index] = {
@@ -855,31 +1036,68 @@ handleLocked('launchpad:update', async (_event, id: string, name: string, paths:
     name: trimmedName,
     paths: paths.map((p) => p.trim()).filter(Boolean),
   };
-  await saveLaunchpads(pads);
+  await writeLaunchpads(padFile, pads);
   return snapshot();
 });
 
 handleLocked('launchpad:delete', async (_event, id: string) => {
-  const pads = await getLaunchpads();
-  await saveLaunchpads(pads.filter((p) => p.id !== id));
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return snapshot();
+  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
+  const pads = await readLaunchpads(padFile);
+  await writeLaunchpads(padFile, pads.filter((p) => p.id !== id));
+  return snapshot();
+});
+
+handleLocked('launchpad:restore', async (_event, pad: Launchpad) => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId || !pad || !pad.id) return snapshot();
+  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
+  const pads = await readLaunchpads(padFile);
+  if (pads.some((p) => p.id === pad.id)) return snapshot();
+  await writeLaunchpads(padFile, [...pads, pad]);
   return snapshot();
 });
 
 ipcMain.handle('launchpad:launch', async (_event, id: string) => {
-  const pads = await getLaunchpads();
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return { ok: false, errors: ['Launchpad not found'] };
+  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
+  const pads = await readLaunchpads(padFile);
   const pad = pads.find((p) => p.id === id);
   if (!pad) return { ok: false, errors: ['Launchpad not found'] };
 
+  const validPaths = (pad.paths || []).map((p) => p.trim()).filter(Boolean);
   const errors: string[] = [];
-  for (const target of pad.paths) {
+  for (let i = 0; i < validPaths.length; i++) {
+    const target = validPaths[i];
     const res = await openSingleItem(target);
     if (!res.ok && res.error) errors.push(`${target}: ${res.error}`);
+    if (i < validPaths.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
   }
   return { ok: errors.length === 0, errors };
 });
 
 ipcMain.handle('path:open-item', async (_event, target: string) => {
   return openSingleItem(target);
+});
+
+ipcMain.handle('path:exists-many', async (_event, paths: string[]) => {
+  const result: Record<string, boolean> = {};
+  if (!Array.isArray(paths)) return result;
+  await Promise.all(
+    paths.map(async (p) => {
+      try {
+        await fs.access(p);
+        result[p] = true;
+      } catch {
+        result[p] = false;
+      }
+    }),
+  );
+  return result;
 });
 
 // ---------------------------------------------------------------------------
@@ -922,67 +1140,94 @@ ipcMain.handle('terminal:open', async (_event, targetPath: string) => {
 // ---------------------------------------------------------------------------
 
 handleLocked('notes:create', async (_event, name: string) => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId) throw new Error('Create a Space first.');
   const trimmed = (name || '').trim();
   if (!trimmed) throw new Error('Note name is required.');
-  const notes = await getNotes();
-  const now = Date.now();
-  const note: NoteFile = {
-    id: randomUUID(),
-    name: trimmed,
-    content: '',
-    createdAt: now,
-    updatedAt: now,
-  };
-  await saveNotes([note, ...notes]);
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  const note = await createNote(spaceNotesDir, trimmed);
+
+  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+  const meta = await readSpaceMeta(spaceMetaFile);
+  await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: note.id });
+
   return snapshot();
 });
 
 handleLocked('notes:rename', async (_event, id: string, name: string) => {
-  const trimmed = (name || '').trim();
-  if (!trimmed) throw new Error('Note name cannot be empty.');
-  const notes = await getNotes();
-  const idx = notes.findIndex((n) => n.id === id);
-  if (idx < 0) throw new Error('Note not found.');
-  notes[idx] = { ...notes[idx], name: trimmed, updatedAt: Date.now() };
-  await saveNotes(notes);
-  return snapshot();
+  const spaceId = await activeSpaceId();
+  if (!spaceId) throw new Error('Create a Space first.');
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+  const newId = await renameNote(spaceNotesDir, id, name);
+
+  const meta = await readSpaceMeta(spaceMetaFile);
+  if (meta.activeNoteId === id) {
+    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: newId });
+  }
+
+  const snap = await snapshot();
+  return { snapshot: snap, id: newId };
 });
 
 handleLocked('notes:update', async (_event, id: string, content: string) => {
-  const notes = await getNotes();
-  const idx = notes.findIndex((n) => n.id === id);
-  if (idx < 0) throw new Error('Note not found.');
-  notes[idx] = { ...notes[idx], content, updatedAt: Date.now() };
-  await saveNotes(notes);
+  const spaceId = await activeSpaceId();
+  if (!spaceId) throw new Error('Create a Space first.');
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  await updateNote(spaceNotesDir, id, content);
   return snapshot();
 });
 
 handleLocked('notes:append', async (_event, id: string, snippet: string) => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId) throw new Error('Create a Space first.');
+
   const trimmed = (snippet || '').trim();
   if (!trimmed) return snapshot();
-  const notes = await getNotes();
-  const idx = notes.findIndex((n) => n.id === id);
-  if (idx < 0) throw new Error('Note not found.');
-  const sep = notes[idx].content ? '\n' : '';
-  notes[idx] = {
-    ...notes[idx],
-    content: notes[idx].content + sep + trimmed,
-    updatedAt: Date.now(),
-  };
-  await saveNotes(notes);
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  await appendToNote(spaceNotesDir, id, trimmed);
   return snapshot();
 });
 
 handleLocked('notes:delete', async (_event, id: string) => {
-  const notes = await getNotes();
-  await saveNotes(notes.filter((n) => n.id !== id));
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return snapshot();
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  await deleteNote(spaceNotesDir, id);
+
+  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+  const meta = await readSpaceMeta(spaceMetaFile);
+  if (meta.activeNoteId === id) {
+    const remaining = await listNotes(spaceNotesDir);
+    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: remaining[0]?.id });
+  }
+
+  return snapshot();
+});
+
+handleLocked('notes:restore', async (_event, note: NoteFile) => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId || !note || !note.id) return snapshot();
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  await restoreNote(spaceNotesDir, note);
   return snapshot();
 });
 
 ipcMain.handle('notes:export', async (_event, id: string) => {
-  const notes = await getNotes();
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return { ok: false, error: 'Create a Space first.' };
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  const notes = await listNotes(spaceNotesDir);
   const note = notes.find((n) => n.id === id);
   if (!note) return { ok: false, error: 'Note not found.' };
+
   const result = await dialog.showSaveDialog({
     title: 'Export Note',
     defaultPath: path.join(app.getPath('desktop'), `${note.name}.txt`),
@@ -1013,68 +1258,71 @@ ipcMain.handle('overlay:minimize', async () => {
 });
 
 ipcMain.handle('notes:get-active', async () => {
-  const notes = await getNotes();
-  const settings = await getSettings();
-  let active = notes.find((n) => n.id === settings.activeNoteId) ?? notes[0];
-  if (!active) {
-    const now = Date.now();
-    active = {
-      id: randomUUID(),
-      name: 'Quick Notes',
-      content: '',
-      createdAt: now,
-      updatedAt: now,
+  const spaceId = await activeSpaceId();
+  if (!spaceId) {
+    return {
+      activeId: '',
+      activeName: '',
+      workspaceId: undefined,
+      notes: [],
     };
-    notes.unshift(active);
-    settings.activeNoteId = active.id;
-    await saveNotes(notes);
-    await writeJson(settingsFile(), settings);
   }
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+  const notes = await listNotes(spaceNotesDir);
+  const meta = await readSpaceMeta(spaceMetaFile);
+  let active = notes.find((n) => n.id === meta.activeNoteId) ?? notes[0];
+
+  if (!active) {
+    active = await createNote(spaceNotesDir, 'Quick Notes');
+    notes.unshift(active);
+    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: active.id });
+  }
+
   return {
     activeId: active.id,
     activeName: active.name,
+    workspaceId: spaceId,
     notes: notes.map((n) => ({ id: n.id, name: n.name })),
   };
 });
 
 handleLocked('notes:set-active', async (_event, id: string) => {
-  const settings = await getSettings();
-  settings.activeNoteId = id;
-  await writeJson(settingsFile(), settings);
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return { ok: false };
+
+  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+  const meta = await readSpaceMeta(spaceMetaFile);
+  await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: id });
   return { ok: true };
 });
 
 handleLocked('notes:append-active', async (_event, snippet: string, targetId?: string) => {
+  const spaceId = await activeSpaceId();
+  if (!spaceId) return { ok: false, error: 'Create a Space first.' };
+
   const trimmed = (snippet || '').trim();
   if (!trimmed) return { ok: false, error: 'Snippet cannot be empty.' };
-  const notes = await getNotes();
-  const settings = await getSettings();
-  const noteId = targetId || settings.activeNoteId;
+
+  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
+  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
+  const notes = await listNotes(spaceNotesDir);
+  const meta = await readSpaceMeta(spaceMetaFile);
+  const noteId = targetId || meta.activeNoteId;
   let active = notes.find((n) => n.id === noteId);
 
   if (!active) {
     if (notes.length > 0) {
       active = notes[0];
     } else {
-      const now = Date.now();
-      active = {
-        id: randomUUID(),
-        name: 'Quick Notes',
-        content: '',
-        createdAt: now,
-        updatedAt: now,
-      };
+      active = await createNote(spaceNotesDir, 'Quick Notes');
       notes.unshift(active);
     }
-    settings.activeNoteId = active.id;
-    await writeJson(settingsFile(), settings);
+    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: active.id });
   }
 
-  const sep = active.content ? '\n' : '';
-  active.content = active.content + sep + trimmed;
-  active.updatedAt = Date.now();
-  await saveNotes(notes);
-
+  await appendToNote(spaceNotesDir, active.id, trimmed);
   mainWindow?.webContents.send('snapshot:updated');
 
   return { ok: true, noteName: active.name };

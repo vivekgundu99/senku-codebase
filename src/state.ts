@@ -1,4 +1,4 @@
-import type { AppSnapshot, FileEntry, LogEntry } from '../electron/types';
+import type { AppSnapshot, FileEntry, LogEntry, Launchpad } from '../electron/types';
 
 // ---------------------------------------------------------------------------
 // Central app state
@@ -19,10 +19,24 @@ export let quickLogText = '';
 export let activeNoteId: string | null = null;
 
 export function setState(snapshot: AppSnapshot): void {
-  if (snapshot.currentPath !== currentPath) {
+  const previousWorkspaceId = state?.workspace?.id;
+  const newWorkspaceId = snapshot?.workspace?.id;
+
+  if (previousWorkspaceId !== newWorkspaceId) {
+    activeNoteId = snapshot.activeNoteId ?? (snapshot.notes && snapshot.notes[0]?.id) ?? null;
+    logFilter = '';
+    logLimit = LOG_PAGE;
+    fileFilter = '';
+    fileLimit = FILE_PAGE;
+  } else if (snapshot.currentPath !== currentPath) {
     fileFilter = '';
     fileLimit = FILE_PAGE;
   }
+
+  if (!activeNoteId && snapshot.activeNoteId) {
+    activeNoteId = snapshot.activeNoteId;
+  }
+
   state = snapshot;
   currentPath = snapshot.currentPath;
 }
@@ -77,7 +91,7 @@ export function showMoreLogs(): void {
 }
 
 export function getLogEntries(): LogEntry[] {
-  return [...(state?.logEntries ?? [])].sort((a, b) => b.createdAt - a.createdAt);
+  return [...(state?.logEntries ?? [])].sort((a, b) => b.createdAt - a.createdAt || b.seq - a.seq);
 }
 
 export function visibleLogEntries(): { items: LogEntry[]; matched: number; total: number } {
@@ -85,4 +99,28 @@ export function visibleLogEntries(): { items: LogEntry[]; matched: number; total
   const q = logFilter.trim().toLowerCase();
   const matched = q ? all.filter((entry) => entry.text.toLowerCase().includes(q)) : all;
   return { items: matched.slice(0, logLimit), matched: matched.length, total: all.length };
+}
+
+// ---------------------------------------------------------------------------
+// Path availability cache (10 s TTL)
+// ---------------------------------------------------------------------------
+
+let pathAvailabilityCache: { timestamp: number; data: Record<string, boolean> } | null = null;
+
+export function getCachedPathAvailability(): Record<string, boolean> {
+  if (pathAvailabilityCache && Date.now() - pathAvailabilityCache.timestamp < 10000) {
+    return pathAvailabilityCache.data;
+  }
+  return pathAvailabilityCache?.data ?? {};
+}
+
+export function setCachedPathAvailability(data: Record<string, boolean>): void {
+  pathAvailabilityCache = {
+    timestamp: Date.now(),
+    data: { ...(pathAvailabilityCache?.data ?? {}), ...data },
+  };
+}
+
+export function isPathAvailabilityCacheStale(): boolean {
+  return !pathAvailabilityCache || Date.now() - pathAvailabilityCache.timestamp >= 10000;
 }

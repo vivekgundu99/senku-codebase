@@ -1,4 +1,4 @@
-import type { AppSnapshot, Settings } from '../electron/types';
+import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile } from '../electron/types';
 
 declare global {
   interface Window {
@@ -22,27 +22,31 @@ declare global {
       // V3: Log
       addLogEntry(text: string, spaceId?: string): Promise<AppSnapshot>;
       deleteLogEntry(id: string): Promise<AppSnapshot>;
+      restoreLogEntry(entry: LogEntry): Promise<AppSnapshot>;
       // V3: Launchpads
       createLaunchpad(name: string, spaceId: string, paths: string[]): Promise<AppSnapshot>;
       updateLaunchpad(id: string, name: string, paths: string[]): Promise<AppSnapshot>;
       deleteLaunchpad(id: string): Promise<AppSnapshot>;
+      restoreLaunchpad(pad: Launchpad): Promise<AppSnapshot>;
       launchLaunchpad(id: string): Promise<{ ok: boolean; errors: string[] }>;
       openItem(target: string): Promise<{ ok: boolean; error?: string }>;
+      checkPathsExist(paths: string[]): Promise<Record<string, boolean>>;
       // V3: Open in VS Code / Terminal
       openInVSCode(path: string): Promise<{ ok: boolean; error?: string }>;
       openInTerminal(path: string): Promise<{ ok: boolean; error?: string }>;
       // Notes
       createNote(name: string): Promise<AppSnapshot>;
-      renameNote(id: string, name: string): Promise<AppSnapshot>;
+      renameNote(id: string, name: string): Promise<{ snapshot: AppSnapshot; id: string }>;
       updateNote(id: string, content: string): Promise<AppSnapshot>;
       appendToNote(id: string, snippet: string): Promise<AppSnapshot>;
       deleteNote(id: string): Promise<AppSnapshot>;
+      restoreNote(note: NoteFile): Promise<AppSnapshot>;
       exportNote(id: string): Promise<{ ok: boolean; error?: string }>;
       // Floating Overlay
       showOverlay(): Promise<{ ok: boolean }>;
       hideOverlay(): Promise<{ ok: boolean }>;
       minimizeOverlay(): Promise<{ ok: boolean }>;
-      getActiveNote(): Promise<{ activeId: string; activeName: string; notes: Array<{ id: string; name: string }> }>;
+      getActiveNote(): Promise<{ activeId: string; activeName: string; workspaceId?: string; notes: Array<{ id: string; name: string }> }>;
       setActiveNote(id: string): Promise<{ ok: boolean }>;
       appendToActiveNote(snippet: string, targetId?: string): Promise<{ ok: boolean; noteName?: string; error?: string }>;
       onOverlayRefresh(callback: () => void): () => void;
