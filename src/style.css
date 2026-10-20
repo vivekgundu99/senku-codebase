@@ -528,8 +528,24 @@ button:disabled { cursor: default; }
 .folder-path .up-button:disabled { opacity: .35; }
 .crumb-gap { color: var(--soft); }
 .file-tools { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
-.file-tools input { flex: 1; min-width: 0; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--surface); color: var(--ink); font-size: 12.5px; }
-.file-tools input:focus { border-color: var(--green); }
+#file-filter,
+#log-search {
+  width: 150px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12.5px;
+  outline: none;
+  transition: none;
+}
+#file-filter:focus,
+#log-search:focus {
+  width: 240px;
+  border-color: var(--green);
+}
 .file-count { color: var(--soft); font: 500 11px var(--mono); white-space: nowrap; }
 
 /* Dynamic full-height list: files scroll inside it with zero wasted bottom space */
@@ -768,22 +784,6 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   box-shadow: 0 0 0 3px rgba(95, 128, 95, .1);
 }
 
-#log-search {
-  height: 34px;
-  padding: 0 10px;
-  font-size: 13px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface);
-  color: var(--ink);
-  outline: none;
-  width: 170px;
-  transition: border-color .15s ease;
-}
-
-#log-search:focus {
-  border-color: var(--green);
-}
 
 .log-date-wrap {
   display: flex;
@@ -1140,6 +1140,15 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   display: flex;
   gap: 8px;
 }
+.file-panel-actions .text-button {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.file-panel-actions .text-button:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
 
 /* Space Trash Sidebar Button */
 .space-trash-wrap {
@@ -1316,18 +1325,6 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 #home-capture-input::placeholder {
   color: var(--soft);
-}
-.home-capture-btn {
-  padding: 5px 9px;
-  border-radius: 6px;
-  background: var(--green);
-  color: #fff;
-  font: 700 11px var(--mono);
-  cursor: pointer;
-  transition: opacity .12s;
-}
-.home-capture-btn:hover {
-  opacity: .9;
 }
 
 /* Global Home Panel */

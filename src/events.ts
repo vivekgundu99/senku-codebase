@@ -6,6 +6,7 @@ import {
   setFileFilter,
   showMoreFiles,
   setLogFilter,
+  logFilter,
   showMoreLogs,
   visibleLogEntries,
   setActiveNoteId,
@@ -351,7 +352,7 @@ function bindLogPanel(load: LoadFn): void {
     if (list) list.innerHTML = logListMarkup(scope);
     const count = panel.querySelector('.log-count-badge');
     const { matched, total } = visibleLogEntries(scope);
-    if (count) count.textContent = matched === total ? `${total} entries` : `${matched} of ${total}`;
+    if (count) count.textContent = logFilter.trim() || logDay ? `${matched} of ${total}` : '';
     const clearDayBtn = panel.querySelector<HTMLElement>('#clear-log-day');
     if (clearDayBtn) clearDayBtn.style.display = logDay ? '' : 'none';
   };
@@ -606,6 +607,26 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       }
     }
   }, { capture: true });
+
+  // Esc clears non-empty search input first; if empty or not search, blurs it
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+        if (active.closest('.modal-backdrop, .palette-backdrop')) return;
+        if (active.type === 'search' || active.id === 'file-filter' || active.id === 'log-search') {
+          if (active.value) {
+            e.preventDefault();
+            active.value = '';
+            active.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+          }
+        }
+        e.preventDefault();
+        active.blur();
+      }
+    }
+  });
 
   document.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;

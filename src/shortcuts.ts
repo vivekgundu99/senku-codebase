@@ -22,12 +22,23 @@ const shortcuts = [
       if (parent) void load(parent);
     },
   },
+  {
+    key: '/',
+    run: () => {
+      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('#file-filter, #log-search, input[type="search"]'));
+      const visible = inputs.find((el) => el.offsetParent !== null);
+      if (visible) {
+        visible.focus();
+        visible.select();
+      }
+    },
+  },
 ];
 
 export function registerShortcuts(load: ShortcutContext['load'], render: ShortcutContext['render']): void {
   document.addEventListener('keydown', (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.repeat) return;
-    if (document.querySelector('.modal-backdrop')) return;
+    if (document.querySelector('.modal-backdrop, .palette-backdrop')) return;
     if (
       event.target instanceof HTMLElement &&
       (event.target.isContentEditable || event.target.closest('input, textarea, select'))

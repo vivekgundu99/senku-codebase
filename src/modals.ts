@@ -43,6 +43,19 @@ function createOverlay(innerHtml: string): HTMLDivElement {
     removeOverlay();
   };
 
+  // Focus first text input on open (select if prefilled)
+  requestAnimationFrame(() => {
+    const firstInput = overlay.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+      'input:not([type="hidden"]):not([disabled]), textarea:not([disabled])'
+    );
+    if (firstInput) {
+      firstInput.focus();
+      if (firstInput.value) {
+        firstInput.select();
+      }
+    }
+  });
+
   return overlay;
 }
 
@@ -487,6 +500,13 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
       setView('Notes');
       overlay.remove();
       render();
+      requestAnimationFrame(() => {
+        const editor = document.querySelector<HTMLTextAreaElement>('#notes-editor');
+        if (editor) {
+          editor.focus();
+          editor.setSelectionRange(editor.value.length, editor.value.length);
+        }
+      });
     } catch (err) {
       showFormError(overlay, '#note-create-error', err instanceof Error ? err.message : 'Could not create note.');
     }

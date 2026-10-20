@@ -239,8 +239,8 @@ export function fileListMarkup(): string {
 
 export function fileCountLabel(): string {
   const { matched, total } = visibleEntries();
-  const word = (n: number) => `${n} item${n === 1 ? '' : 's'}`;
-  return matched === total ? word(total) : `${matched} of ${total}`;
+  if (!fileFilter.trim()) return '';
+  return `${matched} of ${total}`;
 }
 
 export function filePanelMarkup(): string {
@@ -249,7 +249,7 @@ export function filePanelMarkup(): string {
     return `
       <section class="files-panel">
         <div class="section-heading">
-          <div><h2>Files and folders</h2></div>
+          <div><h2>Files</h2></div>
         </div>
         <div class="empty-files-unlinked">
           <div class="empty-unlinked-icon">${iconSvg('folder', 32)}</div>
@@ -270,11 +270,11 @@ export function filePanelMarkup(): string {
   return `
     <section class="files-panel">
       <div class="section-heading">
-        <div><h2>Files and folders</h2></div>
+        <div><h2>Files</h2></div>
         <div class="file-panel-actions">
-          <button class="text-button" id="open-in-vscode" title="Open in VS Code">VS Code ↗</button>
-          <button class="text-button" id="open-in-terminal" title="Open in Terminal">Terminal ↗</button>
-          <button class="text-button" id="open-folder">Explorer ↗</button>
+          <button class="text-button" id="open-in-vscode" title="Open in VS Code">Code</button>
+          <button class="text-button" id="open-in-terminal" title="Open in Terminal">Terminal</button>
+          <button class="text-button" id="open-folder" title="Open File Explorer">Explorer</button>
         </div>
       </div>
       <div class="folder-path">
@@ -283,7 +283,7 @@ export function filePanelMarkup(): string {
         ${breadcrumb}
       </div>
       <div class="file-tools">
-        <input id="file-filter" type="search" placeholder="search in this folder" value="${escapeHtml(fileFilter)}" autocomplete="off" spellcheck="false" />
+        <input id="file-filter" type="search" placeholder="Search" value="${escapeHtml(fileFilter)}" autocomplete="off" spellcheck="false" />
         <span class="file-count" id="file-count">${fileCountLabel()}</span>
       </div>
       <div class="file-list">${fileListMarkup()}</div>
@@ -339,12 +339,11 @@ export function overviewPanelMarkup(): string {
         <input
           id="home-capture-input"
           type="text"
-          placeholder="Capture what you just did... (Hit Enter)"
+          placeholder="Log what you did…"
           autocomplete="off"
           spellcheck="false"
           maxlength="500"
         />
-        <button class="home-capture-btn" id="home-capture-submit">Log ↵</button>
       </div>
 
       <div class="home-decks-container">
@@ -397,7 +396,6 @@ export function homePanelMarkup(): string {
         spellcheck="false"
         maxlength="500"
       />
-      <button class="home-capture-btn" id="home-capture-submit">Log ↵</button>
     </div>`;
 
   const logs = state.home?.log ?? [];
@@ -556,13 +554,13 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
   }
 
   const { matched, total } = visibleLogEntries(scope);
-  const countLabel = matched === total ? `${total} entries` : `${matched} of ${total}`;
+  const countLabel = logFilter.trim() || logDay ? `${matched} of ${total}` : '';
 
   const composeInputHtml = scope === 'space'
     ? `<input
         id="log-compose-input"
         type="text"
-        placeholder="What just happened? Type and hit Enter to log..."
+        placeholder="Log what you did…"
         autocomplete="off"
         spellcheck="false"
         maxlength="500"
@@ -576,7 +574,7 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
         <input
           id="log-search"
           type="search"
-          placeholder="Filter logs or #N..."
+          placeholder="Search"
           value="${escapeHtml(logFilter)}"
           autocomplete="off"
           spellcheck="false"
