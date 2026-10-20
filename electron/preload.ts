@@ -101,8 +101,17 @@ const api = {
     ipcRenderer.invoke('terminal:open', path) as Promise<{ ok: boolean; error?: string }>,
 
   // --- Notes ---
-  createNote: (name: string) =>
-    ipcRenderer.invoke('notes:create', name) as Promise<AppSnapshot>,
+  createNote: (name: string, bundle?: string) =>
+    ipcRenderer.invoke('notes:create', name, bundle) as Promise<AppSnapshot>,
+
+  createBundle: (name: string) =>
+    ipcRenderer.invoke('notes:create-bundle', name) as Promise<AppSnapshot>,
+
+  renameBundle: (oldName: string, newName: string) =>
+    ipcRenderer.invoke('notes:rename-bundle', oldName, newName) as Promise<AppSnapshot>,
+
+  deleteBundle: (name: string) =>
+    ipcRenderer.invoke('notes:delete-bundle', name) as Promise<AppSnapshot>,
 
   renameNote: (id: string, name: string) =>
     ipcRenderer.invoke('notes:rename', id, name) as Promise<{ snapshot: AppSnapshot; id: string }>,

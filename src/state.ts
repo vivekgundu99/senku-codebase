@@ -17,6 +17,15 @@ export let quickLogText = '';
 
 // Active note for Notes panel
 export let activeNoteId: string | null = null;
+export const collapsedBundles = new Set<string>();
+
+export function toggleBundleCollapsed(bundle: string): void {
+  if (collapsedBundles.has(bundle)) {
+    collapsedBundles.delete(bundle);
+  } else {
+    collapsedBundles.add(bundle);
+  }
+}
 
 export function setState(snapshot: AppSnapshot): void {
   const previousWorkspaceId = state?.workspace?.id;
@@ -36,6 +45,8 @@ export function setState(snapshot: AppSnapshot): void {
 
   if (!activeNoteId && snapshot.activeNoteId) {
     activeNoteId = snapshot.activeNoteId;
+  } else if (!activeNoteId && snapshot.notes && snapshot.notes.length > 0) {
+    activeNoteId = snapshot.notes[0].id;
   }
 
   state = snapshot;

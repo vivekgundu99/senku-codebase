@@ -32,6 +32,10 @@ import {
   sanitizeFileName,
   uniqueName,
   listNotes,
+  listBundles,
+  createBundle,
+  renameBundle,
+  deleteBundle,
   createNote,
   updateNote,
   renameNote,
@@ -95,6 +99,7 @@ const workspacesFile = () => path.join(baseDir(), 'workspaces.json');
 const trashFile = () => path.join(baseDir(), 'trash.json');
 const spaceDir = (id: string) => path.join(baseDir(), 'spaces', id);
 const trashSpaceDir = (id: string) => path.join(baseDir(), 'trash', id);
+const globalNotesDir = () => path.join(baseDir(), 'notes');
 
 // ---------------------------------------------------------------------------
 // JSON helpers
@@ -408,33 +413,35 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     launchpads: [...pinnedPads, ...top5Unpinned],
   };
 
+  const gNotesDir = globalNotesDir();
+  const [globalNotesList, globalBundlesList] = await Promise.all([
+    listNotes(gNotesDir),
+    listBundles(gNotesDir),
+  ]);
+  const notes = globalNotesList;
+  const bundles = globalBundlesList;
+
+  let activeNoteId: string | undefined = undefined;
+  if (settings.activeNoteId && notes.some((n) => n.id === settings.activeNoteId)) {
+    activeNoteId = settings.activeNoteId;
+  } else if (notes.length > 0) {
+    activeNoteId = notes[0].id;
+  }
+
   let logEntries: LogEntry[] = [];
   let launchpads: Launchpad[] = [];
-  let notes: NoteFile[] = [];
-  let activeNoteId: string | undefined = undefined;
 
   if (spaceId) {
-    const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
     const spaceLogDir = path.join(spaceDir(spaceId), 'log');
     const spaceLaunchpadsFile = path.join(spaceDir(spaceId), 'launchpads.json');
-    const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
 
-    const [lEntries, lPads, nList, meta] = await Promise.all([
+    const [lEntries, lPads] = await Promise.all([
       listLog(spaceLogDir),
       readLaunchpads(spaceLaunchpadsFile),
-      listNotes(spaceNotesDir),
-      readSpaceMeta(spaceMetaFile),
     ]);
 
     logEntries = lEntries.map((e) => ({ ...e, spaceId, spaceName: workspace?.name }));
     launchpads = orderLaunchpads(lPads.map((p) => ({ ...p, spaceId, spaceName: workspace?.name })));
-    notes = nList;
-
-    if (meta.activeNoteId && notes.some((n) => n.id === meta.activeNoteId)) {
-      activeNoteId = meta.activeNoteId;
-    } else if (notes.length > 0) {
-      activeNoteId = notes[0].id;
-    }
   }
 
   if (!workspace) {
@@ -449,6 +456,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       launchpads,
       trashWorkspaces,
       notes,
+      bundles,
       activeNoteId,
       home,
     };
@@ -481,6 +489,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     launchpads,
     trashWorkspaces,
     notes,
+    bundles,
     activeNoteId,
     home,
   };
@@ -845,6 +854,7 @@ app.whenReady().then(async () => {
 
   try {
     await migrateLegacyData();
+    await migrateNotesToGlobal();
   } catch (err) {
     console.error('Migration failed:', err);
   }
@@ -1360,92 +1370,125 @@ ipcMain.handle('terminal:open', async (_event, targetPath: string) => {
 // Notes Handlers
 // ---------------------------------------------------------------------------
 
-handleLocked('notes:create', async (_event, name: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) throw new Error('Create a Space first.');
+// ---------------------------------------------------------------------------
+// Notes Handlers (Global Notes & Bundles)
+// ---------------------------------------------------------------------------
+
+async function migrateNotesToGlobal(): Promise<void> {
+  const gDir = globalNotesDir();
+  await fs.mkdir(gDir, { recursive: true });
+  const existing = await listNotes(gDir);
+  if (existing.length > 0) return;
+
+  const spaces = await getWorkspaces();
+  for (const sp of spaces) {
+    const sNotesDir = path.join(spaceDir(sp.id), 'notes');
+    try {
+      const items = await fs.readdir(sNotesDir, { withFileTypes: true });
+      for (const item of items) {
+        if (item.isFile() && item.name.endsWith('.md')) {
+          const bundleDir = path.join(gDir, sp.name);
+          await fs.mkdir(bundleDir, { recursive: true });
+          const src = path.join(sNotesDir, item.name);
+          const dest = path.join(bundleDir, item.name);
+          await fs.copyFile(src, dest).catch(() => undefined);
+        }
+      }
+    } catch {
+      // No notes
+    }
+  }
+}
+
+handleLocked('notes:create', async (_event, name: string, bundle?: string) => {
   const trimmed = (name || '').trim();
   if (!trimmed) throw new Error('Note name is required.');
 
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  const note = await createNote(spaceNotesDir, trimmed);
+  const nDir = globalNotesDir();
+  const note = await createNote(nDir, trimmed, bundle);
 
-  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
-  const meta = await readSpaceMeta(spaceMetaFile);
-  await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: note.id });
+  const settings = await getSettings();
+  settings.activeNoteId = note.id;
+  await saveSettings(settings);
 
+  return snapshot();
+});
+
+handleLocked('notes:create-bundle', async (_event, name: string) => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Bundle name is required.');
+  const nDir = globalNotesDir();
+  await createBundle(nDir, trimmed);
+  return snapshot();
+});
+
+handleLocked('notes:rename-bundle', async (_event, oldName: string, newName: string) => {
+  const trimmed = (newName || '').trim();
+  if (!trimmed) throw new Error('Bundle name is required.');
+  const nDir = globalNotesDir();
+  await renameBundle(nDir, oldName, trimmed);
+  return snapshot();
+});
+
+handleLocked('notes:delete-bundle', async (_event, name: string) => {
+  const nDir = globalNotesDir();
+  await deleteBundle(nDir, name);
   return snapshot();
 });
 
 handleLocked('notes:rename', async (_event, id: string, name: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) throw new Error('Create a Space first.');
+  const nDir = globalNotesDir();
+  const res = await renameNote(nDir, id, name);
 
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
-  const newId = await renameNote(spaceNotesDir, id, name);
-
-  const meta = await readSpaceMeta(spaceMetaFile);
-  if (meta.activeNoteId === id) {
-    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: newId });
+  const settings = await getSettings();
+  if (settings.activeNoteId === id) {
+    settings.activeNoteId = res.id;
+    await saveSettings(settings);
   }
 
   const snap = await snapshot();
-  return { snapshot: snap, id: newId };
+  return { snapshot: snap, id: res.id };
 });
 
 handleLocked('notes:update', async (_event, id: string, content: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) throw new Error('Create a Space first.');
-
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  await updateNote(spaceNotesDir, id, content);
+  const nDir = globalNotesDir();
+  await updateNote(nDir, id, content);
   return snapshot();
 });
 
 handleLocked('notes:append', async (_event, id: string, snippet: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) throw new Error('Create a Space first.');
-
   const trimmed = (snippet || '').trim();
   if (!trimmed) return snapshot();
 
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  await appendToNote(spaceNotesDir, id, trimmed);
+  const nDir = globalNotesDir();
+  await appendToNote(nDir, id, trimmed);
   return snapshot();
 });
 
 handleLocked('notes:delete', async (_event, id: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return snapshot();
+  const nDir = globalNotesDir();
+  await deleteNote(nDir, id);
 
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  await deleteNote(spaceNotesDir, id);
-
-  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
-  const meta = await readSpaceMeta(spaceMetaFile);
-  if (meta.activeNoteId === id) {
-    const remaining = await listNotes(spaceNotesDir);
-    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: remaining[0]?.id });
+  const settings = await getSettings();
+  if (settings.activeNoteId === id) {
+    const remaining = await listNotes(nDir);
+    settings.activeNoteId = remaining[0]?.id;
+    await saveSettings(settings);
   }
 
   return snapshot();
 });
 
 handleLocked('notes:restore', async (_event, note: NoteFile) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId || !note || !note.id) return snapshot();
-
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  await restoreNote(spaceNotesDir, note);
+  if (!note || !note.id) return snapshot();
+  const nDir = globalNotesDir();
+  await restoreNote(nDir, note);
   return snapshot();
 });
 
 ipcMain.handle('notes:export', async (_event, id: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return { ok: false, error: 'Create a Space first.' };
-
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  const notes = await listNotes(spaceNotesDir);
+  const nDir = globalNotesDir();
+  const notes = await listNotes(nDir);
   const note = notes.find((n) => n.id === id);
   if (!note) return { ok: false, error: 'Note not found.' };
 
@@ -1460,35 +1503,25 @@ ipcMain.handle('notes:export', async (_event, id: string) => {
 });
 
 ipcMain.handle('notes:export-all', async () => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return { ok: false, error: 'Create a Space first.' };
-
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  const notes = await listNotes(spaceNotesDir);
+  const nDir = globalNotesDir();
+  const notes = await listNotes(nDir);
   if (notes.length === 0) {
     return { ok: false, empty: true, error: 'No notes to export' };
   }
 
-  const workspaces = await getWorkspaces();
-  const space = workspaces.find((w) => w.id === spaceId);
-  const spaceName = space?.name || 'Space';
-
   const result = await dialog.showSaveDialog({
     title: 'Export All Notes',
-    defaultPath: path.join(app.getPath('desktop'), `${spaceName} notes.md`),
+    defaultPath: path.join(app.getPath('desktop'), 'Senku Notes.md'),
     filters: [{ name: 'Markdown Files', extensions: ['md'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
 
-  const bookContent = buildBookMarkdown(spaceName, notes);
+  const bookContent = buildBookMarkdown('Senku Notes', notes);
   await fs.writeFile(result.filePath, bookContent, 'utf8');
   return { ok: true, count: notes.length };
 });
 
 handleLocked('notes:import', async () => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) throw new Error('Create a Space first.');
-
   const result = await dialog.showOpenDialog({
     title: 'Import Notes',
     properties: ['openFile', 'multiSelections'],
@@ -1498,8 +1531,8 @@ handleLocked('notes:import', async () => {
     return null;
   }
 
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  await fs.mkdir(spaceNotesDir, { recursive: true });
+  const nDir = globalNotesDir();
+  await fs.mkdir(nDir, { recursive: true });
 
   let importedCount = 0;
   let firstNoteId: string | undefined;
@@ -1513,14 +1546,14 @@ handleLocked('notes:import', async () => {
     }
 
     const pages = splitBookMarkdown(fileText);
-    const existing = (await listNotes(spaceNotesDir)).map((n) => n.name);
+    const existing = (await listNotes(nDir)).map((n) => n.name);
 
     if (pages && pages.length > 0) {
       for (const page of pages) {
         const sanitized = sanitizeFileName(page.title);
         const finalName = uniqueName(sanitized, existing);
         existing.push(finalName);
-        const notePath = path.join(spaceNotesDir, `${finalName}.md`);
+        const notePath = path.join(nDir, `${finalName}.md`);
         await writeFileAtomic(notePath, page.content);
         importedCount++;
         if (!firstNoteId) firstNoteId = finalName;
@@ -1529,7 +1562,7 @@ handleLocked('notes:import', async () => {
       const title = importTitleFromFile(filePath);
       const finalName = uniqueName(title, existing);
       existing.push(finalName);
-      const notePath = path.join(spaceNotesDir, `${finalName}.md`);
+      const notePath = path.join(nDir, `${finalName}.md`);
       await writeFileAtomic(notePath, fileText);
       importedCount++;
       if (!firstNoteId) firstNoteId = finalName;
@@ -1537,9 +1570,9 @@ handleLocked('notes:import', async () => {
   }
 
   if (firstNoteId) {
-    const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
-    const meta = await readSpaceMeta(spaceMetaFile);
-    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: firstNoteId });
+    const settings = await getSettings();
+    settings.activeNoteId = firstNoteId;
+    await saveSettings(settings);
   }
 
   const snap = await snapshot();
@@ -1566,71 +1599,55 @@ ipcMain.handle('overlay:minimize', async () => {
 });
 
 ipcMain.handle('notes:get-active', async () => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) {
-    return {
-      activeId: '',
-      activeName: '',
-      workspaceId: undefined,
-      notes: [],
-    };
-  }
-
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
-  const notes = await listNotes(spaceNotesDir);
-  const meta = await readSpaceMeta(spaceMetaFile);
-  let active = notes.find((n) => n.id === meta.activeNoteId) ?? notes[0];
+  const nDir = globalNotesDir();
+  const notes = await listNotes(nDir);
+  const settings = await getSettings();
+  let active = notes.find((n) => n.id === settings.activeNoteId) ?? notes[0];
 
   if (!active) {
-    active = await createNote(spaceNotesDir, 'Quick Notes');
+    active = await createNote(nDir, 'Quick Notes');
     notes.unshift(active);
-    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: active.id });
+    settings.activeNoteId = active.id;
+    await saveSettings(settings);
   }
 
   return {
     activeId: active.id,
     activeName: active.name,
-    workspaceId: spaceId,
+    bundle: active.bundle,
     notes: notes.map((n) => ({ id: n.id, name: n.name })),
   };
 });
 
 handleLocked('notes:set-active', async (_event, id: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return { ok: false };
-
-  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
-  const meta = await readSpaceMeta(spaceMetaFile);
-  await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: id });
+  const settings = await getSettings();
+  settings.activeNoteId = id;
+  await saveSettings(settings);
   return { ok: true };
 });
 
 handleLocked('notes:append-active', async (_event, snippet: string, targetId?: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return { ok: false, error: 'Create a Space first.' };
-
   const trimmed = (snippet || '').trim();
   if (!trimmed) return { ok: false, error: 'Snippet cannot be empty.' };
 
-  const spaceNotesDir = path.join(spaceDir(spaceId), 'notes');
-  const spaceMetaFile = path.join(spaceDir(spaceId), 'meta.json');
-  const notes = await listNotes(spaceNotesDir);
-  const meta = await readSpaceMeta(spaceMetaFile);
-  const noteId = targetId || meta.activeNoteId;
+  const nDir = globalNotesDir();
+  const notes = await listNotes(nDir);
+  const settings = await getSettings();
+  const noteId = targetId || settings.activeNoteId || notes[0]?.id;
   let active = notes.find((n) => n.id === noteId);
 
   if (!active) {
     if (notes.length > 0) {
       active = notes[0];
     } else {
-      active = await createNote(spaceNotesDir, 'Quick Notes');
+      active = await createNote(nDir, 'Quick Notes');
       notes.unshift(active);
     }
-    await writeSpaceMeta(spaceMetaFile, { ...meta, activeNoteId: active.id });
+    settings.activeNoteId = active.id;
+    await saveSettings(settings);
   }
 
-  await appendToNote(spaceNotesDir, active.id, trimmed);
+  await appendToNote(nDir, active.id, trimmed);
   mainWindow?.webContents.send('snapshot:updated');
 
   return { ok: true, noteName: active.name };

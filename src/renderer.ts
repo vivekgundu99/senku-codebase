@@ -41,11 +41,10 @@ function render(): void {
   else if (currentView === 'Log') leftPanel = logPanelMarkup('space');
   else if (currentView === 'AllLog') leftPanel = logPanelMarkup('all');
   else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
-  else if (currentView === 'Overview') leftPanel = overviewPanelMarkup();
-  else leftPanel = homePanelMarkup();
+  else leftPanel = overviewPanelMarkup();
 
-  // The files panel shows for Overview and Launchpads only. Home, Log, Notes, AllLog are single-column.
-  const showFiles = currentView === 'Overview' || currentView === 'Launchpads';
+  // The files panel shows for Home, Overview, and Launchpads. Log, Notes, AllLog are single-column.
+  const showFiles = currentView === 'Home' || currentView === 'Overview' || currentView === 'Launchpads';
 
   const mainContent = showFiles
     ? `<div class="content-grid">

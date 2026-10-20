@@ -65,6 +65,7 @@ export interface HomeData {
 export interface NoteFile {
   id: string;
   name: string;
+  bundle?: string;
   content: string;
   createdAt: number;
   updatedAt: number;
@@ -89,6 +90,7 @@ export interface AppSnapshot {
   launchpads: Launchpad[];
   trashWorkspaces: TrashWorkspace[];
   notes: NoteFile[];
+  bundles: string[];
   activeNoteId?: string;
   home: HomeData;
 }

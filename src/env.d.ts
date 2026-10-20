@@ -38,7 +38,10 @@ declare global {
       openInVSCode(path: string): Promise<{ ok: boolean; error?: string }>;
       openInTerminal(path: string): Promise<{ ok: boolean; error?: string }>;
       // Notes
-      createNote(name: string): Promise<AppSnapshot>;
+      createNote(name: string, bundle?: string): Promise<AppSnapshot>;
+      createBundle(name: string): Promise<AppSnapshot>;
+      renameBundle(oldName: string, newName: string): Promise<AppSnapshot>;
+      deleteBundle(name: string): Promise<AppSnapshot>;
       renameNote(id: string, name: string): Promise<{ snapshot: AppSnapshot; id: string }>;
       updateNote(id: string, content: string): Promise<AppSnapshot>;
       appendToNote(id: string, snippet: string): Promise<AppSnapshot>;

@@ -467,7 +467,16 @@ export function openTrashModal(load: () => Promise<void>): void {
 // Create Note modal
 // ---------------------------------------------------------------------------
 
-export function openCreateNoteModal(load: (path?: string) => Promise<void>, render: () => void): void {
+export function openCreateNoteModal(load: (path?: string) => Promise<void>, render: () => void, defaultBundle?: string): void {
+  const bundles = state.bundles ?? [];
+  const bundleOptions = bundles.length > 0 ? `
+    <label>Folder (optional)
+      <select name="bundle" class="modal-select">
+        <option value="" ${!defaultBundle ? 'selected' : ''}>No folder (loose note)</option>
+        ${bundles.map((b) => `<option value="${escapeHtml(b)}" ${defaultBundle === b ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}
+      </select>
+    </label>` : '';
+
   const overlay = createOverlay(`
     <form class="modal-card" style="width:min(400px,100%)">
       <button type="button" class="modal-close" id="close-modal">×</button>
@@ -477,6 +486,7 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
       <label>Note name
         <input name="name" id="new-note-name-input" required placeholder="e.g. DSA Ideas, Daily Plan, Resources" autocomplete="off" autofocus />
       </label>
+      ${bundleOptions}
       <p class="form-error" id="note-create-error"></p>
       <button class="primary-button" type="submit">Create Note <span>→</span></button>
     </form>`);
@@ -487,15 +497,19 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
 
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = String(new FormData(e.currentTarget as HTMLFormElement).get('name')).trim();
+    const data = new FormData(e.currentTarget as HTMLFormElement);
+    const name = String(data.get('name') ?? '').trim();
+    const bundleVal = String(data.get('bundle') ?? '').trim();
+    const chosenBundle = bundleVal || defaultBundle || undefined;
+
     if (!name) {
       showFormError(overlay, '#note-create-error', 'Enter a note name.');
       return;
     }
     try {
-      const snap = await window.senku.createNote(name);
+      const snap = await window.senku.createNote(name, chosenBundle);
       setState(snap);
-      const newNote = snap.notes?.[0];
+      const newNote = snap.notes?.find((n) => n.name.toLowerCase() === name.toLowerCase()) ?? snap.notes?.[0];
       if (newNote) setActiveNoteId(newNote.id);
       setView('Notes');
       overlay.remove();
@@ -509,6 +523,47 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
       });
     } catch (err) {
       showFormError(overlay, '#note-create-error', err instanceof Error ? err.message : 'Could not create note.');
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Create Bundle (Folder) modal
+// ---------------------------------------------------------------------------
+
+export function openCreateBundleModal(load: (path?: string) => Promise<void>, render: () => void): void {
+  const overlay = createOverlay(`
+    <form class="modal-card" style="width:min(400px,100%)">
+      <button type="button" class="modal-close" id="close-modal">×</button>
+      <span class="section-kicker">NEW FOLDER</span>
+      <h2>Create note folder</h2>
+      <p class="modal-copy">Organize your notes into folders (e.g. CN Notes, Machine Learning, Work).</p>
+      <label>Folder name
+        <input name="name" id="new-bundle-name-input" required placeholder="e.g. CN Notes, System Design" autocomplete="off" autofocus />
+      </label>
+      <p class="form-error" id="bundle-create-error"></p>
+      <button class="primary-button" type="submit">Create Folder <span>→</span></button>
+    </form>`);
+
+  requestAnimationFrame(() => {
+    overlay.querySelector<HTMLInputElement>('#new-bundle-name-input')?.focus();
+  });
+
+  overlay.querySelector('form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = String(new FormData(e.currentTarget as HTMLFormElement).get('name')).trim();
+    if (!name) {
+      showFormError(overlay, '#bundle-create-error', 'Enter a folder name.');
+      return;
+    }
+    try {
+      const snap = await window.senku.createBundle(name);
+      setState(snap);
+      setView('Notes');
+      overlay.remove();
+      render();
+    } catch (err) {
+      showFormError(overlay, '#bundle-create-error', err instanceof Error ? err.message : 'Could not create folder.');
     }
   });
 }

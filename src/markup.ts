@@ -10,6 +10,7 @@ import {
   visibleLogEntries,
   getCachedPathAvailability,
   activeNoteId,
+  collapsedBundles,
 } from './state';
 import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
 
@@ -76,9 +77,13 @@ export function sidebarMarkup(): string {
       </div>
 
       <div class="sidebar-home-item">
-        <button class="nav-item ${isGlobal ? 'selected' : ''}" data-view="Home" title="Home (H)">
+        <button class="nav-item ${currentView === 'Home' || currentView === 'Overview' ? 'selected' : ''}" data-view="Home" title="Home (H)">
           <span class="nav-icon">⌂</span>
           <span class="nav-label">Home</span>
+        </button>
+        <button class="nav-item ${currentView === 'Notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
+          <span class="nav-icon">✎</span>
+          <span class="nav-label">Notes</span>
         </button>
       </div>
 
@@ -661,36 +666,73 @@ export function launchpadsPanelMarkup(): string {
 // ---------------------------------------------------------------------------
 
 export function notesPanelMarkup(): string {
-  if (!state.workspace) {
-    return `
-    <section class="notes-panel">
-      <div style="padding: 24px;">
-        <p style="color: var(--text-muted, #767676);">Create a Space to begin.</p>
-        <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
-      </div>
-    </section>`;
-  }
-
   const notes: NoteFile[] = state.notes ?? [];
+  const bundles: string[] = state.bundles ?? [];
   const active = notes.find((n) => n.id === activeNoteId) ?? notes[0] ?? null;
 
-  const noteListItems = notes.map((n) => `
-    <button class="notes-list-item ${active?.id === n.id ? 'active' : ''}" data-open-note="${n.id}">
+  // Group notes into bundles and loose notes
+  const bundledMap = new Map<string, NoteFile[]>();
+  for (const b of bundles) {
+    bundledMap.set(b, []);
+  }
+  const looseNotes: NoteFile[] = [];
+  for (const n of notes) {
+    if (n.bundle) {
+      if (!bundledMap.has(n.bundle)) {
+        bundledMap.set(n.bundle, []);
+      }
+      bundledMap.get(n.bundle)!.push(n);
+    } else {
+      looseNotes.push(n);
+    }
+  }
+
+  // Render bundles
+  let bundlesHtml = '';
+  for (const [bundleName, bNotes] of bundledMap.entries()) {
+    const isCollapsed = collapsedBundles.has(bundleName);
+    const notesInside = bNotes.map((n) => `
+      <button class="notes-list-item in-bundle ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}">
+        <span class="notes-item-name">${escapeHtml(n.name)}</span>
+        <span class="notes-item-meta">${formatRelativeTime(n.updatedAt)}</span>
+      </button>`).join('');
+
+    bundlesHtml += `
+      <div class="bundle-group ${isCollapsed ? 'collapsed' : ''}" data-bundle="${escapeHtml(bundleName)}">
+        <div class="bundle-header">
+          <button class="bundle-toggle" data-toggle-bundle="${escapeHtml(bundleName)}" title="Expand / collapse folder">
+            <span class="bundle-chevron">${isCollapsed ? '›' : '▾'}</span>
+            <span class="bundle-name">${escapeHtml(bundleName)}</span>
+            <span class="bundle-count">${bNotes.length}</span>
+          </button>
+          <div class="bundle-actions">
+            <button class="bundle-action-btn" data-add-to-bundle="${escapeHtml(bundleName)}" title="Add note to ${escapeHtml(bundleName)}">+</button>
+            <button class="bundle-action-btn danger" data-delete-bundle="${escapeHtml(bundleName)}" title="Delete folder">✕</button>
+          </div>
+        </div>
+        ${!isCollapsed ? `<div class="bundle-notes-list">${notesInside || '<div class="bundle-empty">Empty folder</div>'}</div>` : ''}
+      </div>`;
+  }
+
+  const looseNotesHtml = looseNotes.map((n) => `
+    <button class="notes-list-item ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}">
       <span class="notes-item-name">${escapeHtml(n.name)}</span>
       <span class="notes-item-meta">${formatRelativeTime(n.updatedAt)}</span>
     </button>`).join('');
 
-  const notesList = notes.length
-    ? noteListItems
-    : `<div class="notes-empty-list"><p>No notes yet.</p><small>Create one to start.</small></div>`;
+  const hasContent = bundles.length > 0 || notes.length > 0;
+  const notesList = hasContent
+    ? `${bundlesHtml}${looseNotes.length > 0 && bundles.length > 0 ? '<div class="notes-section-divider">LOOSE NOTES</div>' : ''}${looseNotesHtml}`
+    : `<div class="notes-empty-list"><p>No notes yet.</p><small>Create a note or folder to start.</small></div>`;
 
   const editorArea = active ? `
     <div class="notes-editor-head">
       <div class="notes-title-wrap">
+        ${active.bundle ? `<span class="notes-bundle-tag" title="Folder: ${escapeHtml(active.bundle)}">${escapeHtml(active.bundle)} /</span>` : ''}
         <input
           id="notes-title-input"
           class="notes-editor-title-input"
-          data-note-id="${active.id}"
+          data-note-id="${escapeHtml(active.id)}"
           value="${escapeHtml(active.name)}"
           placeholder="Note title..."
           maxlength="100"
@@ -700,14 +742,14 @@ export function notesPanelMarkup(): string {
       </div>
       <div class="notes-editor-actions">
         <span class="note-save-status" id="note-save-status"></span>
-        <button class="notes-action-btn" id="notes-export-btn" data-note-id="${active.id}" title="Export as .txt">↓ Export</button>
-        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${active.id}" title="Delete note">✕</button>
+        <button class="notes-action-btn" id="notes-export-btn" data-note-id="${escapeHtml(active.id)}" title="Export as .txt">↓ Export</button>
+        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${escapeHtml(active.id)}" title="Delete note">✕</button>
       </div>
     </div>
     <textarea
       id="notes-editor"
       class="notes-textarea"
-      data-note-id="${active.id}"
+      data-note-id="${escapeHtml(active.id)}"
       placeholder="Start writing..."
       spellcheck="false"
     >${escapeHtml(active.content)}</textarea>
@@ -722,7 +764,10 @@ export function notesPanelMarkup(): string {
       <div class="notes-sidebar">
         <div class="notes-sidebar-head">
           <span class="section-kicker">NOTES</span>
-          <button class="add-button small" id="create-note-btn" title="New note">+</button>
+          <div class="notes-sidebar-actions">
+            <button class="ghost-button mini" id="create-bundle-btn" title="Create a folder/bundle">+ Folder</button>
+            <button class="add-button small" id="create-note-btn" title="New note">+</button>
+          </div>
         </div>
         <div class="notes-list">${notesList}</div>
       </div>

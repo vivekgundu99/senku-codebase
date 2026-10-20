@@ -78,9 +78,51 @@ export function uniqueName(wanted: string, existingNames: string[]): string {
 // ---------------------------------------------------------------------------
 // Notes (notesDir = <spaceDir>/notes)
 // ---------------------------------------------------------------------------
+// Notes (notesDir = <userData>/notes)
+// ---------------------------------------------------------------------------
+
+export async function listBundles(notesDir: string): Promise<string[]> {
+  try {
+    await fs.mkdir(notesDir, { recursive: true });
+    const items = await fs.readdir(notesDir, { withFileTypes: true });
+    return items.filter((i) => i.isDirectory()).map((i) => i.name).sort();
+  } catch {
+    return [];
+  }
+}
+
+export async function createBundle(notesDir: string, name: string): Promise<string> {
+  const existing = await listBundles(notesDir);
+  const sanitized = sanitizeFileName(name);
+  const finalName = uniqueName(sanitized, existing);
+  await fs.mkdir(path.join(notesDir, finalName), { recursive: true });
+  return finalName;
+}
+
+export async function renameBundle(notesDir: string, oldName: string, newName: string): Promise<string> {
+  const oldPath = path.join(notesDir, oldName);
+  try {
+    await fs.access(oldPath);
+  } catch {
+    throw new Error('Bundle not found.');
+  }
+  const existing = (await listBundles(notesDir)).filter((b) => b.toLowerCase() !== oldName.toLowerCase());
+  const sanitized = sanitizeFileName(newName);
+  const finalName = uniqueName(sanitized, existing);
+  if (finalName === oldName) return oldName;
+  const newPath = path.join(notesDir, finalName);
+  await fs.rename(oldPath, newPath);
+  return finalName;
+}
+
+export async function deleteBundle(notesDir: string, bundleName: string): Promise<void> {
+  const dirPath = path.join(notesDir, bundleName);
+  await fs.rm(dirPath, { recursive: true, force: true }).catch(() => undefined);
+}
 
 export async function listNotes(notesDir: string): Promise<NoteFile[]> {
   try {
+    await fs.mkdir(notesDir, { recursive: true });
     const items = await fs.readdir(notesDir, { withFileTypes: true });
     const notes: NoteFile[] = [];
 
@@ -101,6 +143,34 @@ export async function listNotes(notesDir: string): Promise<NoteFile[]> {
         } catch {
           // Skip unreadable files
         }
+      } else if (item.isDirectory()) {
+        const bundleName = item.name;
+        const bundleDir = path.join(notesDir, bundleName);
+        try {
+          const subItems = await fs.readdir(bundleDir, { withFileTypes: true });
+          for (const sub of subItems) {
+            if (sub.isFile() && sub.name.endsWith('.md') && !sub.name.endsWith('.tmp')) {
+              const filePath = path.join(bundleDir, sub.name);
+              try {
+                const content = await fs.readFile(filePath, 'utf8');
+                const stat = await fs.stat(filePath);
+                const baseName = sub.name.slice(0, -3);
+                notes.push({
+                  id: `${bundleName}/${baseName}`,
+                  name: baseName,
+                  bundle: bundleName,
+                  content,
+                  createdAt: stat.birthtimeMs,
+                  updatedAt: stat.mtimeMs,
+                });
+              } catch {
+                // Skip unreadable files
+              }
+            }
+          }
+        } catch {
+          // Skip unreadable subdirectories
+        }
       }
     }
 
@@ -113,18 +183,28 @@ export async function listNotes(notesDir: string): Promise<NoteFile[]> {
   }
 }
 
-export async function createNote(notesDir: string, name: string): Promise<NoteFile> {
-  const existing = (await listNotes(notesDir)).map((n) => n.name);
+export async function createNote(notesDir: string, name: string, bundle?: string): Promise<NoteFile> {
+  const cleanBundle = bundle ? sanitizeFileName(bundle) : undefined;
+  const targetDir = cleanBundle ? path.join(notesDir, cleanBundle) : notesDir;
+  await fs.mkdir(targetDir, { recursive: true });
+
+  const existingNotes = await listNotes(notesDir);
+  const existingInScope = existingNotes
+    .filter((n) => (cleanBundle ? n.bundle === cleanBundle : !n.bundle))
+    .map((n) => n.name);
+
   const sanitized = sanitizeFileName(name);
-  const finalName = uniqueName(sanitized, existing);
-  const filePath = path.join(notesDir, `${finalName}.md`);
+  const finalName = uniqueName(sanitized, existingInScope);
+  const filePath = path.join(targetDir, `${finalName}.md`);
 
   await writeFileAtomic(filePath, '');
   const stat = await fs.stat(filePath);
+  const id = cleanBundle ? `${cleanBundle}/${finalName}` : finalName;
 
   return {
-    id: finalName,
+    id,
     name: finalName,
+    bundle: cleanBundle,
     content: '',
     createdAt: stat.birthtimeMs,
     updatedAt: stat.mtimeMs,
@@ -141,17 +221,25 @@ export async function updateNote(notesDir: string, id: string, content: string):
 
   await writeFileAtomic(filePath, content);
   const stat = await fs.stat(filePath);
+  const parts = id.split('/');
+  const name = parts[parts.length - 1];
+  const bundle = parts.length > 1 ? parts.slice(0, -1).join('/') : undefined;
 
   return {
     id,
-    name: id,
+    name,
+    bundle,
     content,
     createdAt: stat.birthtimeMs,
     updatedAt: stat.mtimeMs,
   };
 }
 
-export async function renameNote(notesDir: string, id: string, newName: string): Promise<string> {
+export async function renameNote(
+  notesDir: string,
+  id: string,
+  newName: string
+): Promise<{ id: string; name: string }> {
   const oldPath = path.join(notesDir, `${id}.md`);
   try {
     await fs.access(oldPath);
@@ -159,24 +247,23 @@ export async function renameNote(notesDir: string, id: string, newName: string):
     throw new Error('Note not found.');
   }
 
-  const sanitized = sanitizeFileName(newName);
-  if (sanitized === id) {
-    return id;
-  }
+  const parts = id.split('/');
+  const bundle = parts.length > 1 ? parts.slice(0, -1).join('/') : undefined;
+  const targetDir = bundle ? path.join(notesDir, bundle) : notesDir;
 
-  const allNotes = await listNotes(notesDir);
-  const existingNames = allNotes
-    .filter((n) => n.name.toLowerCase() !== id.toLowerCase())
+  const sanitized = sanitizeFileName(newName);
+  const existingNotes = await listNotes(notesDir);
+  const existingInScope = existingNotes
+    .filter((n) => (bundle ? n.bundle === bundle : !n.bundle) && n.id !== id)
     .map((n) => n.name);
 
-  const finalName = uniqueName(sanitized, existingNames);
-  if (finalName === id) {
-    return id;
-  }
+  const finalName = uniqueName(sanitized, existingInScope);
+  const newId = bundle ? `${bundle}/${finalName}` : finalName;
+  if (newId === id) return { id, name: finalName };
 
-  const newPath = path.join(notesDir, `${finalName}.md`);
+  const newPath = path.join(targetDir, `${finalName}.md`);
   await fs.rename(oldPath, newPath);
-  return finalName;
+  return { id: newId, name: finalName };
 }
 
 export async function appendToNote(notesDir: string, id: string, snippet: string): Promise<void> {
@@ -198,9 +285,18 @@ export async function deleteNote(notesDir: string, id: string): Promise<void> {
 }
 
 export async function restoreNote(notesDir: string, note: NoteFile): Promise<NoteFile> {
-  const existing = (await listNotes(notesDir)).map((n) => n.name);
-  const finalName = uniqueName(note.name, existing);
-  const filePath = path.join(notesDir, `${finalName}.md`);
+  const cleanBundle = note.bundle ? sanitizeFileName(note.bundle) : undefined;
+  const targetDir = cleanBundle ? path.join(notesDir, cleanBundle) : notesDir;
+  await fs.mkdir(targetDir, { recursive: true });
+
+  const existingNotes = await listNotes(notesDir);
+  const existingInScope = existingNotes
+    .filter((n) => (cleanBundle ? n.bundle === cleanBundle : !n.bundle))
+    .map((n) => n.name);
+
+  const finalName = uniqueName(note.name, existingInScope);
+  const filePath = path.join(targetDir, `${finalName}.md`);
+  const id = cleanBundle ? `${cleanBundle}/${finalName}` : finalName;
 
   await writeFileAtomic(filePath, note.content);
   const mtime = new Date(note.updatedAt || Date.now());
@@ -209,8 +305,9 @@ export async function restoreNote(notesDir: string, note: NoteFile): Promise<Not
 
   const stat = await fs.stat(filePath);
   return {
-    id: finalName,
+    id,
     name: finalName,
+    bundle: cleanBundle,
     content: note.content,
     createdAt: stat.birthtimeMs,
     updatedAt: stat.mtimeMs,

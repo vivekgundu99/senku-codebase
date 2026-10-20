@@ -15,6 +15,7 @@ import {
   logDay,
   allLog,
   setAllLog,
+  toggleBundleCollapsed,
 } from './state';
 import { fileCountLabel, fileListMarkup, logListMarkup } from './markup';
 import { isSamePath, parentOf } from './utils';
@@ -28,6 +29,7 @@ import {
   openLaunchpadFormModal,
   openTrashModal,
   openCreateNoteModal,
+  openCreateBundleModal,
 } from './modals';
 
 type LoadFn = (path?: string) => Promise<void>;
@@ -59,6 +61,43 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
 
   // Create note button
   panel.querySelector('#create-note-btn')?.addEventListener('click', () => openCreateNoteModal(load, render));
+
+  // Create bundle button
+  panel.querySelector('#create-bundle-btn')?.addEventListener('click', () => openCreateBundleModal(load, render));
+
+  // Toggle bundle expand/collapse
+  panel.querySelectorAll<HTMLElement>('[data-toggle-bundle]').forEach((btn) =>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bundle = btn.dataset.toggleBundle;
+      if (bundle) {
+        toggleBundleCollapsed(bundle);
+        render();
+      }
+    }),
+  );
+
+  // Add note into a specific bundle
+  panel.querySelectorAll<HTMLElement>('[data-add-to-bundle]').forEach((btn) =>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bundle = btn.dataset.addToBundle;
+      openCreateNoteModal(load, render, bundle);
+    }),
+  );
+
+  // Delete bundle
+  panel.querySelectorAll<HTMLElement>('[data-delete-bundle]').forEach((btn) =>
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const bundle = btn.dataset.deleteBundle;
+      if (!bundle) return;
+      if (!confirm(`Delete folder "${bundle}" and all notes inside it?`)) return;
+      const snap = await window.senku.deleteBundle(bundle);
+      setState(snap);
+      render();
+    }),
+  );
 
   // Open a note from the list
   panel.querySelectorAll<HTMLElement>('[data-open-note]').forEach((btn) =>
