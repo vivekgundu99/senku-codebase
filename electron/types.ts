@@ -32,14 +32,23 @@ export interface LogEntry {
   text: string;
   createdAt: number;
   spaceId?: string;
+  spaceName?: string;
 }
 
 export interface Launchpad {
   id: string;
   name: string;
   spaceId: string;
+  spaceName?: string;
   paths: string[];
   createdAt: number;
+  pinned?: boolean;
+  lastLaunchedAt?: number;
+}
+
+export interface HomeData {
+  log: LogEntry[];
+  launchpads: Launchpad[];
 }
 
 export interface NoteFile {
@@ -70,5 +79,6 @@ export interface AppSnapshot {
   trashWorkspaces: TrashWorkspace[];
   notes: NoteFile[];
   activeNoteId?: string;
+  home: HomeData;
 }
 

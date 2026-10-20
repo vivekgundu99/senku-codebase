@@ -21,14 +21,17 @@ declare global {
       unpinPath(path: string): Promise<AppSnapshot>;
       // V3: Log
       addLogEntry(text: string, spaceId?: string): Promise<AppSnapshot>;
-      deleteLogEntry(id: string): Promise<AppSnapshot>;
+      deleteLogEntry(id: string, spaceId?: string): Promise<AppSnapshot>;
+      updateLogEntry(id: string, text: string, spaceId?: string): Promise<AppSnapshot>;
       restoreLogEntry(entry: LogEntry): Promise<AppSnapshot>;
+      listAllLogs(): Promise<LogEntry[]>;
       // V3: Launchpads
       createLaunchpad(name: string, spaceId: string, paths: string[]): Promise<AppSnapshot>;
       updateLaunchpad(id: string, name: string, paths: string[]): Promise<AppSnapshot>;
       deleteLaunchpad(id: string): Promise<AppSnapshot>;
       restoreLaunchpad(pad: Launchpad): Promise<AppSnapshot>;
-      launchLaunchpad(id: string): Promise<{ ok: boolean; errors: string[] }>;
+      setLaunchpadPinned(id: string, pinned: boolean): Promise<AppSnapshot>;
+      launchLaunchpad(id: string, spaceId?: string): Promise<{ ok: boolean; errors: string[] }>;
       openItem(target: string): Promise<{ ok: boolean; error?: string }>;
       checkPathsExist(paths: string[]): Promise<Record<string, 'file' | 'folder' | 'missing'>>;
       // V3: Open in VS Code / Terminal

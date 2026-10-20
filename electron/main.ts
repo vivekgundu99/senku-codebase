@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   AppSnapshot,
   FileEntry,
+  HomeData,
   Launchpad,
   LogEntry,
   NoteFile,
@@ -37,11 +38,15 @@ import {
   deleteNote,
   restoreNote,
   listLog,
+  listLogRecent,
   addLog,
+  updateLog,
   deleteLog,
   restoreLog,
+  renumberLog,
   readLaunchpads,
   writeLaunchpads,
+  orderLaunchpads,
   readSpaceMeta,
   writeSpaceMeta,
   migrateLegacy,
@@ -359,6 +364,42 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const workspace = spaceId ? getWorkspace(workspaces, spaceId) : null;
   const trashWorkspaces = await getTrashWorkspaces();
 
+  // Build Home data across all workspaces
+  const allRecentLogs: LogEntry[] = [];
+  const allPads: Launchpad[] = [];
+
+  for (const ws of workspaces) {
+    const sLogDir = path.join(spaceDir(ws.id), 'log');
+    const sPadsFile = path.join(spaceDir(ws.id), 'launchpads.json');
+    const [sLogs, sPads] = await Promise.all([
+      listLogRecent(sLogDir, 8),
+      readLaunchpads(sPadsFile),
+    ]);
+    for (const l of sLogs) {
+      allRecentLogs.push({ ...l, spaceId: ws.id, spaceName: ws.name });
+    }
+    for (const p of sPads) {
+      allPads.push({ ...p, spaceId: ws.id, spaceName: ws.name });
+    }
+  }
+
+  allRecentLogs.sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
+  const homeLog = allRecentLogs.slice(0, 8);
+
+  const pinnedPads = allPads.filter((p) => p.pinned);
+  pinnedPads.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const unpinnedLaunched = allPads.filter(
+    (p) => !p.pinned && typeof p.lastLaunchedAt === 'number' && p.lastLaunchedAt > 0,
+  );
+  unpinnedLaunched.sort((a, b) => (b.lastLaunchedAt || 0) - (a.lastLaunchedAt || 0));
+  const top5Unpinned = unpinnedLaunched.slice(0, 5);
+
+  const home: HomeData = {
+    log: homeLog,
+    launchpads: [...pinnedPads, ...top5Unpinned],
+  };
+
   let logEntries: LogEntry[] = [];
   let launchpads: Launchpad[] = [];
   let notes: NoteFile[] = [];
@@ -377,8 +418,8 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       readSpaceMeta(spaceMetaFile),
     ]);
 
-    logEntries = lEntries;
-    launchpads = lPads;
+    logEntries = lEntries.map((e) => ({ ...e, spaceId, spaceName: workspace?.name }));
+    launchpads = orderLaunchpads(lPads.map((p) => ({ ...p, spaceId, spaceName: workspace?.name })));
     notes = nList;
 
     if (meta.activeNoteId && notes.some((n) => n.id === meta.activeNoteId)) {
@@ -401,6 +442,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       trashWorkspaces,
       notes,
       activeNoteId,
+      home,
     };
   }
 
@@ -432,6 +474,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     trashWorkspaces,
     notes,
     activeNoteId,
+    home,
   };
 }
 
@@ -680,6 +723,17 @@ app.whenReady().then(async () => {
     await migrateLegacyData();
   } catch (err) {
     console.error('Migration failed:', err);
+  }
+
+  try {
+    await withLock(async () => {
+      const workspaces = await getWorkspaces();
+      for (const ws of workspaces) {
+        await renumberLog(spaceDir(ws.id)).catch(() => undefined);
+      }
+    });
+  } catch (err) {
+    console.error('Renumbering failed:', err);
   }
 
   await createWindow();
@@ -942,6 +996,20 @@ handleLocked('path:unpin', async (_event, target: string) => {
 // V3: Quiet Log Handlers
 // ---------------------------------------------------------------------------
 
+handleLocked('log:list-all', async () => {
+  const workspaces = await getWorkspaces();
+  const allLogs: LogEntry[] = [];
+  for (const ws of workspaces) {
+    const sLogDir = path.join(spaceDir(ws.id), 'log');
+    const logs = await listLog(sLogDir);
+    for (const l of logs) {
+      allLogs.push({ ...l, spaceId: ws.id, spaceName: ws.name });
+    }
+  }
+  allLogs.sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
+  return allLogs;
+});
+
 handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   const workspaces = await getWorkspaces();
   const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
@@ -956,18 +1024,30 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   return snapshot();
 });
 
-handleLocked('log:delete', async (_event, id: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return snapshot();
-  const spaceLogDir = path.join(spaceDir(spaceId), 'log');
+handleLocked('log:delete', async (_event, id: string, spaceId?: string) => {
+  const workspaces = await getWorkspaces();
+  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
+  if (!targetSpaceId) return snapshot();
+  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
   await deleteLog(spaceLogDir, id);
   return snapshot();
 });
 
+handleLocked('log:update', async (_event, id: string, text: string, spaceId?: string) => {
+  const workspaces = await getWorkspaces();
+  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
+  if (!targetSpaceId) return snapshot();
+  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
+  await updateLog(spaceLogDir, id, text);
+  return snapshot();
+});
+
 handleLocked('log:restore', async (_event, entry: LogEntry) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId || !entry || !entry.id) return snapshot();
-  const spaceLogDir = path.join(spaceDir(spaceId), 'log');
+  const workspaces = await getWorkspaces();
+  const targetSpaceId =
+    entry?.spaceId && workspaces.some((w) => w.id === entry.spaceId) ? entry.spaceId : await activeSpaceId();
+  if (!targetSpaceId || !entry || !entry.id) return snapshot();
+  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
   await restoreLog(spaceLogDir, entry);
   return snapshot();
 });
@@ -1016,7 +1096,7 @@ handleLocked('launchpad:create', async (_event, name: string, spaceId: string, p
     paths: paths.map((p) => p.trim()).filter(Boolean),
     createdAt: Date.now(),
   };
-  await writeLaunchpads(padFile, [...pads, pad]);
+  await writeLaunchpads(padFile, orderLaunchpads([pad, ...pads]));
   return snapshot();
 });
 
@@ -1036,7 +1116,7 @@ handleLocked('launchpad:update', async (_event, id: string, name: string, paths:
     name: trimmedName,
     paths: paths.map((p) => p.trim()).filter(Boolean),
   };
-  await writeLaunchpads(padFile, pads);
+  await writeLaunchpads(padFile, orderLaunchpads(pads));
   return snapshot();
 });
 
@@ -1055,17 +1135,34 @@ handleLocked('launchpad:restore', async (_event, pad: Launchpad) => {
   const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
   const pads = await readLaunchpads(padFile);
   if (pads.some((p) => p.id === pad.id)) return snapshot();
-  await writeLaunchpads(padFile, [...pads, pad]);
+  await writeLaunchpads(padFile, orderLaunchpads([...pads, pad]));
   return snapshot();
 });
 
-ipcMain.handle('launchpad:launch', async (_event, id: string) => {
+handleLocked('launchpad:set-pinned', async (_event, id: string, pinned: boolean) => {
   const spaceId = await activeSpaceId();
-  if (!spaceId) return { ok: false, errors: ['Launchpad not found'] };
+  if (!spaceId) return snapshot();
   const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
+  const pads = await readLaunchpads(padFile);
+  const idx = pads.findIndex((p) => p.id === id);
+  if (idx >= 0) {
+    pads[idx].pinned = Boolean(pinned);
+    await writeLaunchpads(padFile, orderLaunchpads(pads));
+  }
+  return snapshot();
+});
+
+ipcMain.handle('launchpad:launch', async (_event, id: string, spaceId?: string) => {
+  const workspaces = await getWorkspaces();
+  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
+  if (!targetSpaceId) return { ok: false, errors: ['Launchpad not found'] };
+  const padFile = path.join(spaceDir(targetSpaceId), 'launchpads.json');
   const pads = await readLaunchpads(padFile);
   const pad = pads.find((p) => p.id === id);
   if (!pad) return { ok: false, errors: ['Launchpad not found'] };
+
+  pad.lastLaunchedAt = Date.now();
+  await writeLaunchpads(padFile, orderLaunchpads(pads)).catch(() => undefined);
 
   const validPaths = (pad.paths || []).map((p) => p.trim()).filter(Boolean);
   const errors: string[] = [];

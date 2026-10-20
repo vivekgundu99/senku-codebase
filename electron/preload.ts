@@ -56,11 +56,17 @@ const api = {
   addLogEntry: (text: string, spaceId?: string) =>
     ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,
 
-  deleteLogEntry: (id: string) =>
-    ipcRenderer.invoke('log:delete', id) as Promise<AppSnapshot>,
+  deleteLogEntry: (id: string, spaceId?: string) =>
+    ipcRenderer.invoke('log:delete', id, spaceId) as Promise<AppSnapshot>,
+
+  updateLogEntry: (id: string, text: string, spaceId?: string) =>
+    ipcRenderer.invoke('log:update', id, text, spaceId) as Promise<AppSnapshot>,
 
   restoreLogEntry: (entry: LogEntry) =>
     ipcRenderer.invoke('log:restore', entry) as Promise<AppSnapshot>,
+
+  listAllLogs: () =>
+    ipcRenderer.invoke('log:list-all') as Promise<LogEntry[]>,
 
   // --- V3: Launchpads ---
   createLaunchpad: (name: string, spaceId: string, paths: string[]) =>
@@ -75,8 +81,11 @@ const api = {
   restoreLaunchpad: (pad: Launchpad) =>
     ipcRenderer.invoke('launchpad:restore', pad) as Promise<AppSnapshot>,
 
-  launchLaunchpad: (id: string) =>
-    ipcRenderer.invoke('launchpad:launch', id) as Promise<{ ok: boolean; errors: string[] }>,
+  setLaunchpadPinned: (id: string, pinned: boolean) =>
+    ipcRenderer.invoke('launchpad:set-pinned', id, pinned) as Promise<AppSnapshot>,
+
+  launchLaunchpad: (id: string, spaceId?: string) =>
+    ipcRenderer.invoke('launchpad:launch', id, spaceId) as Promise<{ ok: boolean; errors: string[] }>,
 
   openItem: (target: string) =>
     ipcRenderer.invoke('path:open-item', target) as Promise<{ ok: boolean; error?: string }>,
