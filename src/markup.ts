@@ -622,6 +622,7 @@ function launchpadCardMarkup(lp: Launchpad): string {
       <div class="lp-card-head">
         <h3 class="lp-name">${escapeHtml(lp.name)}</h3>
         <div class="lp-card-actions">
+          <button class="lp-pin-btn ${lp.pinned ? 'active' : ''}" data-pin-lp="${lp.id}" data-pinned="${Boolean(lp.pinned)}" title="${lp.pinned ? 'Unpin' : 'Pin to Home'}">${lp.pinned ? '★' : '☆'}</button>
           <button class="lp-launch-btn" data-launch-id="${lp.id}" title="Open all resources">▷ Launch All</button>
           <button class="lp-edit-btn" data-edit-lp="${lp.id}" title="Edit launchpad">✎ Edit</button>
           <button class="lp-delete-btn" data-delete-lp="${lp.id}" title="Delete launchpad">✕</button>

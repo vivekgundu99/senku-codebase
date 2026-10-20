@@ -519,6 +519,16 @@ function bindLaunchpadActions(load: LoadFn): void {
     }),
   );
 
+  document.querySelectorAll<HTMLElement>('[data-pin-lp]').forEach((btn) =>
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.pinLp!;
+      const isPinned = btn.dataset.pinned === 'true';
+      await window.senku.setLaunchpadPinned(id, !isPinned);
+      await load(state.currentPath);
+    }),
+  );
+
   document.querySelectorAll<HTMLElement>('[data-launch-id]').forEach((btn) =>
     btn.addEventListener('click', async () => {
       const id = btn.dataset.launchId!;
@@ -533,6 +543,7 @@ function bindLaunchpadActions(load: LoadFn): void {
         toast(`Launched ${name} · ${count} failed`);
       }
       btn.textContent = '▷ Launch All';
+      await load(state.currentPath);
     }),
   );
 
