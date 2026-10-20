@@ -5,6 +5,17 @@ export interface Settings {
   launchAtStartup: boolean;
   greeting: string;
   lastLogSeq?: number;
+  windowBounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    maximized?: boolean;
+  };
+  overlayPosition?: {
+    x: number;
+    y: number;
+  };
 }
 
 export interface Workspace {

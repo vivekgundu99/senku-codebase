@@ -7,6 +7,7 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  screen,
   shell,
   Tray,
 } from 'electron';
@@ -159,6 +160,10 @@ async function getSettings(): Promise<Settings> {
   if (current) return current;
   const legacy = await readJson<Settings | null>(path.join(baseDir(), 'data', 'settings.json'), null);
   return legacy ?? defaultSettings;
+}
+
+async function saveSettings(settings: Settings): Promise<void> {
+  await writeJson(settingsFile(), settings);
 }
 
 async function getWorkspaces(): Promise<Workspace[]> {
@@ -485,15 +490,89 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
 // Window & Tray
 // ---------------------------------------------------------------------------
 
+function isRectInAnyDisplay(rect: { x: number; y: number; width: number; height: number }): boolean {
+  const displays = screen.getAllDisplays();
+  return displays.some((d) => {
+    const wa = d.workArea;
+    return (
+      rect.x < wa.x + wa.width &&
+      rect.x + rect.width > wa.x &&
+      rect.y < wa.y + wa.height &&
+      rect.y + rect.height > wa.y
+    );
+  });
+}
+
+let saveWindowBoundsTimeout: NodeJS.Timeout | null = null;
+
+async function saveMainWindowBounds(): Promise<void> {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const isMax = mainWindow.isMaximized();
+  const bounds = isMax ? mainWindow.getNormalBounds() : mainWindow.getBounds();
+  const settings = await getSettings();
+  settings.windowBounds = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    maximized: isMax,
+  };
+  await saveSettings(settings);
+}
+
+function scheduleSaveMainWindowBounds(): void {
+  if (saveWindowBoundsTimeout) clearTimeout(saveWindowBoundsTimeout);
+  saveWindowBoundsTimeout = setTimeout(() => {
+    void saveMainWindowBounds();
+  }, 500);
+}
+
+let saveOverlayPosTimeout: NodeJS.Timeout | null = null;
+
+async function saveOverlayPosition(): Promise<void> {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const [x, y] = overlayWindow.getPosition();
+  const settings = await getSettings();
+  settings.overlayPosition = { x, y };
+  await saveSettings(settings);
+}
+
+function scheduleSaveOverlayPosition(): void {
+  if (saveOverlayPosTimeout) clearTimeout(saveOverlayPosTimeout);
+  saveOverlayPosTimeout = setTimeout(() => {
+    void saveOverlayPosition();
+  }, 500);
+}
+
 function showMainWindow(): void {
   mainWindow?.show();
   mainWindow?.focus();
 }
 
 async function createWindow(): Promise<void> {
+  const settings = await getSettings();
+  const saved = settings.windowBounds;
+  let useSaved = false;
+  if (
+    saved &&
+    typeof saved.x === 'number' &&
+    typeof saved.y === 'number' &&
+    typeof saved.width === 'number' &&
+    typeof saved.height === 'number'
+  ) {
+    if (isRectInAnyDisplay(saved)) {
+      useSaved = true;
+    }
+  }
+
+  const defaultWidth = 1440;
+  const defaultHeight = 920;
+
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 920,
+    width: useSaved && saved ? saved.width : defaultWidth,
+    height: useSaved && saved ? saved.height : defaultHeight,
+    x: useSaved && saved ? saved.x : undefined,
+    y: useSaved && saved ? saved.y : undefined,
     minWidth: 1060,
     minHeight: 680,
     backgroundColor: '#f4f1ea',
@@ -505,7 +584,16 @@ async function createWindow(): Promise<void> {
     },
   });
 
-  mainWindow.maximize();
+  if (!useSaved) {
+    mainWindow.center();
+  }
+
+  if (useSaved && saved?.maximized) {
+    mainWindow.maximize();
+  }
+
+  mainWindow.on('resize', scheduleSaveMainWindowBounds);
+  mainWindow.on('move', scheduleSaveMainWindowBounds);
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
@@ -515,6 +603,11 @@ async function createWindow(): Promise<void> {
   }
 
   mainWindow.on('close', (event) => {
+    if (saveWindowBoundsTimeout) {
+      clearTimeout(saveWindowBoundsTimeout);
+      saveWindowBoundsTimeout = null;
+    }
+    void saveMainWindowBounds();
     if (tray && !isQuitting) {
       event.preventDefault();
       mainWindow?.hide();
@@ -535,9 +628,31 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
     return overlayWindow;
   }
 
+  const settings = await getSettings();
+  const savedPos = settings.overlayPosition;
+  let posX: number;
+  let posY: number;
+
+  if (
+    savedPos &&
+    typeof savedPos.x === 'number' &&
+    typeof savedPos.y === 'number' &&
+    isRectInAnyDisplay({ x: savedPos.x, y: savedPos.y, width: 480, height: 48 })
+  ) {
+    posX = savedPos.x;
+    posY = savedPos.y;
+  } else {
+    const primary = screen.getPrimaryDisplay();
+    const wa = primary.workArea;
+    posX = Math.round(wa.x + (wa.width - 480) / 2);
+    posY = Math.round(wa.y + wa.height * 0.15);
+  }
+
   overlayWindow = new BrowserWindow({
     width: 480,
     height: 48,
+    x: posX,
+    y: posY,
     minWidth: 480,
     maxWidth: 480,
     minHeight: 48,
@@ -563,6 +678,7 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
   overlayWindow.on('will-resize', (event) => {
     event.preventDefault();
   });
+  overlayWindow.on('move', scheduleSaveOverlayPosition);
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
@@ -572,6 +688,11 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
   }
 
   overlayWindow.on('close', (event) => {
+    if (saveOverlayPosTimeout) {
+      clearTimeout(saveOverlayPosTimeout);
+      saveOverlayPosTimeout = null;
+    }
+    void saveOverlayPosition();
     if (!isQuitting) {
       event.preventDefault();
       overlayWindow?.hide();
