@@ -32,12 +32,30 @@ export const toLocalDatetimeInput = (date: Date): string => {
 /** Default greeting template. */
 export const DEFAULT_GREETING = 'Good morning, {name}.';
 
-/**
- * Render the greeting string for the Today header.
- * Replaces {name} with the user's display name.
- */
-export const renderGreeting = (greeting: string, userName: string): string =>
-  escapeHtml((greeting || DEFAULT_GREETING).replaceAll('{name}', userName));
+export const renderGreeting = (greeting: string, userName: string): string => {
+  const template = (greeting || DEFAULT_GREETING).trim();
+  const trimmedName = userName.trim();
+
+  if (trimmedName) {
+    return escapeHtml(template.replaceAll('{name}', trimmedName));
+  }
+
+  let res = template
+    .replace(/,\s*\{name\}/g, '')
+    .replace(/\s*\{name\}/g, '')
+    .replace(/\{name\}\s*,?/g, '')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*([.!?])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (/[.!?]$/.test(template) && !/[.!?]$/.test(res)) {
+    const lastPunct = template.match(/[.!?]$/)?.[0] ?? '.';
+    res += lastPunct;
+  }
+
+  return escapeHtml(res);
+};
 
 // ---------------------------------------------------------------------------
 // Path helpers (Windows-first, but tolerant of "/")

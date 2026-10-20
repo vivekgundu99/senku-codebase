@@ -105,16 +105,18 @@ export function visibleLogEntries(): { items: LogEntry[]; matched: number; total
 // Path availability cache (10 s TTL)
 // ---------------------------------------------------------------------------
 
-let pathAvailabilityCache: { timestamp: number; data: Record<string, boolean> } | null = null;
+export type PathStatus = 'file' | 'folder' | 'missing';
 
-export function getCachedPathAvailability(): Record<string, boolean> {
+let pathAvailabilityCache: { timestamp: number; data: Record<string, PathStatus> } | null = null;
+
+export function getCachedPathAvailability(): Record<string, PathStatus> {
   if (pathAvailabilityCache && Date.now() - pathAvailabilityCache.timestamp < 10000) {
     return pathAvailabilityCache.data;
   }
   return pathAvailabilityCache?.data ?? {};
 }
 
-export function setCachedPathAvailability(data: Record<string, boolean>): void {
+export function setCachedPathAvailability(data: Record<string, PathStatus>): void {
   pathAvailabilityCache = {
     timestamp: Date.now(),
     data: { ...(pathAvailabilityCache?.data ?? {}), ...data },

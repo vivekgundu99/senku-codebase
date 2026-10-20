@@ -82,7 +82,7 @@ const api = {
     ipcRenderer.invoke('path:open-item', target) as Promise<{ ok: boolean; error?: string }>,
 
   checkPathsExist: (paths: string[]) =>
-    ipcRenderer.invoke('path:exists-many', paths) as Promise<Record<string, boolean>>,
+    ipcRenderer.invoke('path:exists-many', paths) as Promise<Record<string, 'file' | 'folder' | 'missing'>>,
 
   // --- V3: Quick Actions ---
   openInVSCode: (path: string) =>

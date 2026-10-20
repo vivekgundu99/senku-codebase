@@ -30,7 +30,7 @@ declare global {
       restoreLaunchpad(pad: Launchpad): Promise<AppSnapshot>;
       launchLaunchpad(id: string): Promise<{ ok: boolean; errors: string[] }>;
       openItem(target: string): Promise<{ ok: boolean; error?: string }>;
-      checkPathsExist(paths: string[]): Promise<Record<string, boolean>>;
+      checkPathsExist(paths: string[]): Promise<Record<string, 'file' | 'folder' | 'missing'>>;
       // V3: Open in VS Code / Terminal
       openInVSCode(path: string): Promise<{ ok: boolean; error?: string }>;
       openInTerminal(path: string): Promise<{ ok: boolean; error?: string }>;

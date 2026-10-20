@@ -108,7 +108,7 @@ export function openProfileModal(render: () => void): void {
         </div>
 
         <button id="user-guide" class="profile-guide-btn" type="button">
-          <span>📖 Senku User Guide &amp; Shortcuts</span>
+          <span>Senku User Guide &amp; Shortcuts</span>
           <span>↗</span>
         </button>
       </div>

@@ -144,8 +144,13 @@ function fileKind(entry: FileEntry): string {
   return Object.keys(EXT_GROUPS).find((group) => EXT_GROUPS[group].includes(ext)) ?? 'file';
 }
 
-const iconSvg = (kind: string): string =>
-  `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind === 'pdf' ? 'doc' : kind] ?? ICONS.file}</svg>`;
+function pathKind(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  return Object.keys(EXT_GROUPS).find((group) => EXT_GROUPS[group].includes(ext)) ?? 'file';
+}
+
+const iconSvg = (kind: string, size = 17): string =>
+  `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind === 'pdf' ? 'doc' : kind] ?? ICONS.file}</svg>`;
 
 function formatRelativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -224,7 +229,7 @@ export function filePanelMarkup(): string {
           <div><h2>Files and folders</h2></div>
         </div>
         <div class="empty-files-unlinked">
-          <div class="empty-unlinked-icon">📁</div>
+          <div class="empty-unlinked-icon">${iconSvg('folder', 32)}</div>
           <h3>No folder linked</h3>
           <p>Create a Space and choose a project folder. Your files will show up here.</p>
           <button class="primary-button" id="create-space-files" style="max-width:220px; margin: 14px auto 0;">+ Create a Space <span>→</span></button>
@@ -434,13 +439,6 @@ export function logPanelMarkup(): string {
 
   return `
     <section class="log-panel">
-      <div class="section-heading">
-        <div>
-          <span class="section-kicker">QUIET LOG</span>
-          <h2>Timeline</h2>
-        </div>
-        <span class="log-count-badge">${countLabel}</span>
-      </div>
       <div class="log-input-row">
         <input
           id="log-compose-input"
@@ -458,6 +456,7 @@ export function logPanelMarkup(): string {
           autocomplete="off"
           spellcheck="false"
         />
+        <span class="log-count-badge">${countLabel}</span>
       </div>
       <div class="log-entries">${logListMarkup()}</div>
     </section>`;
@@ -474,11 +473,19 @@ function launchpadCardMarkup(lp: Launchpad): string {
     const label = isUrl
       ? (() => { try { return new URL(p).hostname; } catch { return p.slice(0, 30); } })()
       : folderName(p);
-    const icon = isUrl ? '🌐' : '📁';
-    const isMissing = !isUrl && availability[p] === false;
+    const status = availability[p];
+    const isMissing = !isUrl && status === 'missing';
+    const isFolder = !isUrl && status === 'folder';
+
+    let iconHtml = '';
+    if (!isUrl) {
+      const kind = isFolder ? 'folder' : pathKind(p);
+      iconHtml = iconSvg(kind, 14);
+    }
+
     const titleText = isMissing ? 'Missing' : (isUrl ? `Open website: ${p}` : `Open item: ${p}`);
     const chipClass = `lp-path-chip interactive${isMissing ? ' missing' : ''}`;
-    return `<button type="button" class="${chipClass}" data-open-item="${escapeHtml(p)}" title="${escapeHtml(titleText)}">${icon} <span>${escapeHtml(label)}</span> <span class="chip-arrow">↗</span></button>`;
+    return `<button type="button" class="${chipClass}" data-open-item="${escapeHtml(p)}" title="${escapeHtml(titleText)}">${iconHtml}<span>${escapeHtml(label)}</span><span class="chip-arrow">↗</span></button>`;
   }).join('');
 
   return `
@@ -514,12 +521,8 @@ export function launchpadsPanelMarkup(): string {
 
   return `
     <section class="launchpads-panel">
-      <div class="section-heading">
-        <div>
-          <span class="section-kicker">LAUNCHPADS</span>
-          <h2>Quick Launch</h2>
-        </div>
-        <button class="add-button" id="add-launchpad">+</button>
+      <div class="launchpads-top-row">
+        <button class="add-button" id="add-launchpad" title="Add launchpad">+</button>
       </div>
       <div class="launchpads-list">${content}</div>
     </section>`;

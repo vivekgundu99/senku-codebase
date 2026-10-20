@@ -82,7 +82,7 @@ function render(): void {
           const chips = appRoot.querySelectorAll<HTMLElement>('.lp-path-chip[data-open-item]');
           chips.forEach((chip) => {
             const item = chip.dataset.openItem;
-            if (item && results[item] === false) {
+            if (item && results[item] === 'missing') {
               chip.classList.add('missing');
               chip.title = 'Missing';
             }

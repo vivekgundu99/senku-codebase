@@ -1085,15 +1085,15 @@ ipcMain.handle('path:open-item', async (_event, target: string) => {
 });
 
 ipcMain.handle('path:exists-many', async (_event, paths: string[]) => {
-  const result: Record<string, boolean> = {};
+  const result: Record<string, 'file' | 'folder' | 'missing'> = {};
   if (!Array.isArray(paths)) return result;
   await Promise.all(
     paths.map(async (p) => {
       try {
-        await fs.access(p);
-        result[p] = true;
+        const stat = await fs.stat(p);
+        result[p] = stat.isDirectory() ? 'folder' : 'file';
       } catch {
-        result[p] = false;
+        result[p] = 'missing';
       }
     }),
   );

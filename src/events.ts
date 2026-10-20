@@ -415,7 +415,7 @@ function bindLaunchpadActions(load: LoadFn): void {
       const id = btn.dataset.launchId!;
       const lp = state.launchpads?.find((p) => p.id === id);
       const name = lp?.name ?? 'Launchpad';
-      btn.textContent = '⏳ Opening…';
+      btn.textContent = 'Opening…';
       const res = await window.senku.launchLaunchpad(id);
       if (res.ok) {
         toast(`Launched ${name}`);
