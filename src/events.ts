@@ -361,12 +361,28 @@ function bindHomeActions(load: LoadFn, render: RenderFn): void {
   const textarea = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
   const btn = document.querySelector<HTMLButtonElement>('#home-capture-submit');
 
+  const adjustHomeHeight = () => {
+    if (!textarea) return;
+    // Set to single-line base height first to measure scrollHeight accurately
+    textarea.style.height = '22px';
+    const scrollH = textarea.scrollHeight;
+    if (scrollH > 26) {
+      // Pro-dev Shift+Enter multiline Easter Egg: strictly enlarge by that extra line
+      const targetH = Math.min(180, scrollH);
+      textarea.style.height = `${targetH}px`;
+      textarea.style.overflowY = scrollH > 180 ? 'auto' : 'hidden';
+    } else {
+      textarea.style.height = '22px';
+      textarea.style.overflowY = 'hidden';
+    }
+  };
+
   if (textarea) {
     textarea.addEventListener('input', () => {
       setHomeLogDraft(textarea.value);
-      growTextarea(textarea, 68);
+      adjustHomeHeight();
     });
-    if (textarea.value) growTextarea(textarea, 68);
+    adjustHomeHeight();
     textarea.addEventListener('keydown', (e) => {
       if (isSendKey(e)) {
         e.preventDefault();
@@ -376,15 +392,26 @@ function bindHomeActions(load: LoadFn, render: RenderFn): void {
   }
 
   const submit = async () => {
-    const text = homeLogDraft.trim();
+    const rawVal = textarea ? textarea.value : homeLogDraft;
+    const text = rawVal.trim();
     if (!text) return;
     setHomeLogDraft('');
+    if (textarea) {
+      textarea.value = '';
+      textarea.style.height = '22px';
+      textarea.style.overflowY = 'hidden';
+    }
     const spaceId = state.workspace?.id;
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
     render();
     requestAnimationFrame(() => {
-      document.querySelector<HTMLTextAreaElement>('#home-capture-textarea')?.focus();
+      const el = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
+      if (el) {
+        el.focus();
+        el.style.height = '22px';
+        el.style.overflowY = 'hidden';
+      }
     });
   };
 

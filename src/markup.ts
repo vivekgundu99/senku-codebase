@@ -17,6 +17,27 @@ import {
 import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
 
 // ---------------------------------------------------------------------------
+// UI stroke icons: uniform geometric stroke icons across the application
+// ---------------------------------------------------------------------------
+
+const UI_ICONS: Record<string, string> = {
+  home: '<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
+  play: '<path d="M8 5.5l11 6.5-11 6.5z"/>',
+  list: '<path d="M5 7h14M5 12h14M5 17h9"/>',
+  note: '<path d="M6 4h8l4 4v12H6z"/><path d="M14 4v4h4M9 13h6M9 17h4"/>',
+  pen: '<path d="M4 20l1-4L16 5a2 2 0 0 1 3 3L8 19z"/><path d="M14 7l3 3"/>',
+  refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  star: '<path d="M12 4l2.4 5 5.4.7-4 3.8 1 5.4-4.8-2.6-4.8 2.6 1-5.4-4-3.8 5.4-.7z"/>',
+  alert: '<path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>',
+};
+
+export const uiIcon = (name: string, size = 16): string =>
+  `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${UI_ICONS[name] ?? ''}</svg>`;
+
+// ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
 
@@ -39,7 +60,7 @@ export function sidebarMarkup(): string {
           <span class="space-name">${escapeHtml(space.name)}</span>
           ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
         </button>
-        ${isActive ? '<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">⚙</button>' : ''}
+        ${isActive ? `<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">${uiIcon('gear', 13)}</button>` : ''}
       </div>`;
   };
 
@@ -59,22 +80,22 @@ export function sidebarMarkup(): string {
 
       <div class="nav-list">
         <button class="nav-item ${currentView === 'Home' || currentView === 'Overview' ? 'selected' : ''}" data-view="Home" title="Home (H)">
-          <span class="nav-icon">⌂</span>
+          <span class="nav-icon">${uiIcon('home', 15)}</span>
           <span class="nav-label">Home</span>
           <span class="nav-key">H</span>
         </button>
         <button class="nav-item ${currentView === 'Launchpads' ? 'selected' : ''}" data-view="Launchpads" title="Launchpads (L)">
-          <span class="nav-icon">▷</span>
+          <span class="nav-icon">${uiIcon('play', 15)}</span>
           <span class="nav-label">Launchpads</span>
           <span class="nav-key">L</span>
         </button>
         <button class="nav-item ${currentView === 'Log' || currentView === 'AllLog' ? 'selected' : ''}" data-view="Log" title="Logs (G)">
-          <span class="nav-icon">≡</span>
+          <span class="nav-icon">${uiIcon('list', 15)}</span>
           <span class="nav-label">Logs</span>
           <span class="nav-key">G</span>
         </button>
         <button class="nav-item ${currentView === 'Notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
-          <span class="nav-icon">✎</span>
+          <span class="nav-icon">${uiIcon('note', 15)}</span>
           <span class="nav-label">Notes</span>
           <span class="nav-key">N</span>
         </button>
@@ -82,7 +103,7 @@ export function sidebarMarkup(): string {
 
       <div class="spaces-head">
         <span class="workspace-label">SPACES</span>
-        <button class="mini-button" id="add-space" title="Add a Space" aria-label="Add a Space">＋</button>
+        <button class="mini-button" id="add-space" title="Add a Space" aria-label="Add a Space">${uiIcon('plus', 13)}</button>
       </div>
       <div class="space-list">${spacesContent}</div>
       ${state.trashWorkspaces && state.trashWorkspaces.length > 0 ? `
@@ -121,8 +142,8 @@ export function topbarMarkup(): string {
       </div>
       <div class="top-actions">
         ${spacePill}
-        <button class="icon-button" id="topbar-quicknote" title="Quick note (O)">✎</button>
-        <button class="icon-button" id="refresh-button" title="Refresh">↻</button>
+        <button class="icon-button" id="topbar-quicknote" title="Quick note (O)">${uiIcon('pen', 14)}</button>
+        <button class="icon-button" id="refresh-button" title="Refresh">${uiIcon('refresh', 14)}</button>
         <button class="avatar-button" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
           ${escapeHtml(userInitial)}
         </button>
@@ -213,7 +234,7 @@ export function fileEntryMarkup(entry: FileEntry): string {
       <span class="file-actions">
         <button data-file-action="code" data-path="${escapeHtml(entry.path)}" class="quick-code-btn" title="Open in VS Code">Code</button>
         <button data-path="${escapeHtml(entry.path)}" ${pinAction}
-          class="pin-button ${entry.pinned ? 'active' : ''}" aria-label="${entry.pinned ? 'Unpin' : 'Pin'}">${entry.pinned ? '★' : '☆'}</button>
+          class="pin-button ${entry.pinned ? 'active' : ''}" aria-label="${entry.pinned ? 'Unpin' : 'Pin'}">${uiIcon('star', 12)}</button>
         <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" title="Copy path">Copy</button>
       </span>
     </div>`;
@@ -332,20 +353,15 @@ export function overviewPanelMarkup(): string {
         <h1 class="home-greeting">${greeting}</h1>
       </div>
 
-      <div class="home-capture-box">
-        <div class="home-capture-box-head">
-          ${homeLogDraft.trim() ? '<span class="draft-indicator">Draft saved</span>' : ''}
-        </div>
+      <div class="home-capture-card">
+        <span class="home-capture-icon">${uiIcon('pen', 14)}</span>
         <textarea
           id="home-capture-textarea"
-          class="home-capture-textarea"
-          placeholder="Log what you did…   Enter to save · Shift+Enter for a new line"
+          class="home-capture-input"
+          placeholder="Log what you did…"
           spellcheck="false"
-          rows="3"
+          rows="1"
         >${escapeHtml(homeLogDraft)}</textarea>
-        <div class="home-capture-box-foot">
-          <button class="primary-button mini" id="home-capture-submit" title="Add log (Enter)">+ Add Log</button>
-        </div>
       </div>
 
       <div class="home-decks-container">
@@ -532,7 +548,7 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
                     <span class="log-row-time">${formatLogTimeOnly(e.createdAt)}</span>
                     <span class="log-row-text" title="Double click to edit">${escapeHtml(e.text)}</span>
                     ${spaceBadge}
-                    <button type="button" class="log-row-del-btn" data-delete-log="${e.id}" data-space-id="${e.spaceId || ''}" title="Delete log">✕</button>
+                    <button type="button" class="log-row-del-btn" data-delete-log="${e.id}" data-space-id="${e.spaceId || ''}" title="Delete log">${uiIcon('x', 11)}</button>
                   </div>`;
             },
           )
@@ -600,7 +616,7 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
           />
           <div class="log-date-wrap">
             <input type="date" id="log-day" value="${escapeHtml(logDay)}" class="log-date-picker" title="Filter by date" />
-            <button id="clear-log-day" class="log-clear-day-btn" title="Clear date filter" style="${logDay ? '' : 'display:none;'}">✕</button>
+            <button id="clear-log-day" class="log-clear-day-btn" title="Clear date filter" style="${logDay ? '' : 'display:none;'}">${uiIcon('x', 11)}</button>
           </div>
           <span class="log-count-badge">${countLabel}</span>
         </div>
@@ -641,10 +657,10 @@ function launchpadCardMarkup(lp: Launchpad): string {
       <div class="lp-card-head">
         <h3 class="lp-name">${escapeHtml(lp.name)}</h3>
         <div class="lp-card-actions">
-          <button class="lp-pin-btn ${lp.pinned ? 'active' : ''}" data-pin-lp="${lp.id}" data-pinned="${Boolean(lp.pinned)}" title="${lp.pinned ? 'Unpin' : 'Pin to Home'}">${lp.pinned ? '★' : '☆'}</button>
-          <button class="lp-launch-btn" data-launch-id="${lp.id}" title="Open all resources">▷ Launch All</button>
-          <button class="lp-edit-btn" data-edit-lp="${lp.id}" title="Edit launchpad">✎ Edit</button>
-          <button class="lp-delete-btn" data-delete-lp="${lp.id}" title="Delete launchpad">✕</button>
+          <button class="lp-pin-btn ${lp.pinned ? 'active' : ''}" data-pin-lp="${lp.id}" data-pinned="${Boolean(lp.pinned)}" title="${lp.pinned ? 'Unpin' : 'Pin to Home'}">${uiIcon('star', 12)}</button>
+          <button class="lp-launch-btn" data-launch-id="${lp.id}" title="Open all resources">${uiIcon('play', 11)} Launch</button>
+          <button class="lp-edit-btn" data-edit-lp="${lp.id}" title="Edit launchpad">${uiIcon('pen', 11)}</button>
+          <button class="lp-delete-btn" data-delete-lp="${lp.id}" title="Delete launchpad">${uiIcon('x', 11)}</button>
         </div>
       </div>
       <div class="lp-paths">${pathChips || '<span class="lp-empty-paths">No resources added yet</span>'}</div>
@@ -723,7 +739,7 @@ export function notesPanelMarkup(): string {
           </button>
           <div class="bundle-actions">
             <button class="bundle-action-btn" data-add-to-bundle="${escapeHtml(bundleName)}" title="Add note to ${escapeHtml(bundleName)}">+</button>
-            <button class="bundle-action-btn danger" data-delete-bundle="${escapeHtml(bundleName)}" title="Delete folder">✕</button>
+            <button class="bundle-action-btn danger" data-delete-bundle="${escapeHtml(bundleName)}" title="Delete folder">${uiIcon('x', 11)}</button>
           </div>
         </div>
         ${!isCollapsed ? `<div class="bundle-notes-list">${notesInside || '<div class="bundle-empty">Empty folder</div>'}</div>` : ''}
@@ -759,7 +775,7 @@ export function notesPanelMarkup(): string {
       <div class="notes-editor-actions">
         <span class="note-save-status" id="note-save-status"></span>
         <button class="notes-action-btn" id="notes-export-btn" data-note-id="${escapeHtml(active.id)}" title="Export as .txt">↓ Export</button>
-        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${escapeHtml(active.id)}" title="Delete note">✕</button>
+        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${escapeHtml(active.id)}" title="Delete note">${uiIcon('x', 12)}</button>
       </div>
     </div>
     <textarea

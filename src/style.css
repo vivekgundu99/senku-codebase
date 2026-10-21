@@ -1,11 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@font-face { font-family: 'Manrope'; font-weight: 400; font-style: normal; font-display: swap; src: url('./fonts/manrope-400.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-weight: 500; font-style: normal; font-display: swap; src: url('./fonts/manrope-500.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-weight: 600; font-style: normal; font-display: swap; src: url('./fonts/manrope-600.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-weight: 700; font-style: normal; font-display: swap; src: url('./fonts/manrope-700.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-weight: 800; font-style: normal; font-display: swap; src: url('./fonts/manrope-800.woff2') format('woff2'); }
 
 /* ==========================================================================
    SENKU · one flat warm background, light theme.
    ========================================================================== */
 
 :root {
-  font-family: 'Manrope', system-ui, sans-serif;
+  --sans: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--sans);
   font-synthesis: none;
   --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
@@ -21,6 +26,9 @@
   --orange: #cc6849;
   --orange-pale: #f8e3db;
   --yellow-pale: #f8eecb;
+
+  --r: 10px;
+  --r-sm: 8px;
 
   /* Height of the scrolling areas (files, note, tasks), so boxes never stretch */
   --list-h: clamp(300px, calc(100vh - 370px), 720px);
@@ -294,8 +302,16 @@ textarea {
   transition: background .12s, color .12s;
 }
 .nav-item:hover, .settings-link:hover { background: var(--hover); color: var(--ink); }
-.nav-item.selected { background: var(--green-pale); color: var(--ink); font-weight: 700; }
-.nav-icon { flex: 0 0 16px; width: 16px; color: var(--green); font-size: 14px; text-align: center; }
+.nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--green);
+}
+.nav-icon svg { display: block; }
 .nav-label { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-key {
   display: inline-flex;
@@ -664,7 +680,17 @@ textarea {
 .file-actions button:hover { border-color: var(--green); background: var(--green-pale); }
 .file-actions .quick-code-btn { color: var(--ink); font-weight: 700; }
 .file-actions .quick-code-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-pale); }
-.file-actions .pin-button { border-color: transparent; background: transparent; color: #b3bbb0; font-size: 14px; padding: 2px 5px; }
+.file-actions .pin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: transparent;
+  background: transparent;
+  color: #b3bbb0;
+  padding: 3px 5px;
+}
+.file-actions .pin-button svg { display: block; }
+.file-actions .pin-button.active svg { fill: currentColor; }
 .file-actions .pin-button.active, .file-actions .pin-button:hover { color: var(--green); }
 .show-more { display: block; width: calc(100% - 8px); margin: 12px 4px; padding: 10px; border: 1px dashed #cbd0c4; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 800; }
 .show-more:hover { border-color: var(--green); color: var(--green); }
@@ -1092,69 +1118,72 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .lp-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 1px solid var(--line);
   color: #b3bbb0;
   border-radius: 6px;
-  font-size: 13px;
-  padding: 4px 8px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   cursor: pointer;
-  line-height: 1;
   transition: color .12s, border-color .12s;
 }
 
+.lp-pin-btn svg { display: block; }
+.lp-pin-btn.active svg { fill: currentColor; }
 .lp-pin-btn.active, .lp-pin-btn:hover {
   color: var(--green);
   border-color: var(--green);
 }
 
 .lp-launch-btn {
-  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
   background: var(--green);
   color: #fff;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
   transition: opacity .12s;
 }
 
+.lp-launch-btn svg { display: block; fill: currentColor; }
 .lp-launch-btn:hover {
   opacity: 0.9;
 }
 
-.lp-delete-btn {
-  padding: 6px 10px;
+.lp-edit-btn, .lp-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   background: transparent;
   border: 1px solid var(--line);
   color: var(--muted);
   border-radius: 6px;
-  font-size: 12px;
   cursor: pointer;
+  transition: all .12s;
+}
+.lp-edit-btn svg, .lp-delete-btn svg { display: block; }
+
+.lp-edit-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
 }
 
 .lp-delete-btn:hover {
   border-color: var(--orange);
   color: var(--orange);
-}
-
-.lp-edit-btn {
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all .12s;
-}
-
-.lp-edit-btn:hover {
-  border-color: var(--green);
-  color: var(--green);
-  background: var(--green-pale);
 }
 
 .lp-paths {
@@ -1379,73 +1408,66 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 .home-greeting {
   margin: 0;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -.04em;
+  font-size: 16.5px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.3;
   color: var(--ink);
 }
 
-/* Home Capture Box (multiline full box with draft) */
-.home-capture-box {
+/* Home Single-Line Capture Card (Easter Egg: strictly auto-grows on Shift+Enter) */
+.home-capture-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 12px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  border-radius: var(--r-sm, 8px);
+  transition: border-color .15s, box-shadow .15s;
+  box-sizing: border-box;
   flex: 0 0 auto;
 }
 
-.home-capture-box-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.home-capture-title {
-  font: 700 9.5px var(--mono);
-  color: var(--soft);
-  letter-spacing: .08em;
-}
-
-.draft-indicator {
-  font: 600 10px var(--mono);
-  color: var(--green);
-  background: var(--green-pale);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-.home-capture-textarea {
-  width: 100%;
-  min-height: 68px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font: 500 13px var(--sans);
-  color: var(--ink);
-  background: #fff;
-  resize: vertical;
-  outline: none;
-  line-height: 1.45;
-  box-sizing: border-box;
-  transition: border-color .15s, box-shadow .15s;
-}
-
-.home-capture-textarea:focus {
+.home-capture-card:focus-within {
   border-color: var(--green);
   box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
 }
 
-.home-capture-box-foot {
+.home-capture-icon {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  color: var(--soft);
+  margin-top: 3px;
+  flex: 0 0 auto;
 }
 
-.home-capture-shortcut-tip {
-  font: 500 11px var(--mono);
+.home-capture-icon svg {
+  display: block;
+}
+
+.home-capture-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  min-height: 22px;
+  max-height: 180px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  font: 500 13px var(--sans);
+  color: var(--ink);
+  line-height: 22px;
+  resize: none;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+.home-capture-input::placeholder {
   color: var(--soft);
 }
 
@@ -1754,7 +1776,7 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 .home-decks-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
@@ -1767,8 +1789,8 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   min-height: 0;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 10px 12px;
+  border-radius: var(--r-sm, 8px);
+  padding: 9px 12px;
   overflow: hidden;
 }
 
@@ -1779,7 +1801,7 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 .home-launchpads-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
@@ -1788,18 +1810,18 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 
 .home-lp-empty {
   text-align: center;
-  padding: 16px 10px;
+  padding: 14px 10px;
   color: var(--muted);
   font-size: 12px;
 }
 .home-lp-empty p {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 .home-deck-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   flex: 0 0 auto;
 }
 .home-section-label {
@@ -1828,30 +1850,30 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 .home-recent-log-item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 8px;
-  padding: 6px 7px;
-  border-radius: 6px;
+  padding: 4px 6px;
+  border-radius: 5px;
   transition: background .1s;
 }
 .home-recent-log-item:hover {
   background: var(--hover);
 }
 .home-log-seq {
-  font: 700 10px var(--mono);
+  font: 700 9.5px var(--mono);
   color: var(--soft);
-  min-width: 24px;
+  min-width: 20px;
 }
 .home-log-text {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ink);
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
 }
 .home-log-time {
-  font: 500 10px var(--mono);
+  font: 500 10.5px var(--mono);
   color: var(--soft);
   white-space: nowrap;
 }
@@ -1859,7 +1881,7 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   color: var(--muted);
   font-size: 12px;
   text-align: center;
-  padding: 24px 10px;
+  padding: 20px 10px;
   margin: 0;
 }
 
