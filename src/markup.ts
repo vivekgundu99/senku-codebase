@@ -358,6 +358,34 @@ export function overviewPanelMarkup(): string {
     </section>`;
   }
 
+  return homePanelV3Markup();
+}
+
+function homeLaunchpadRowMarkup(lp: Launchpad): string {
+  const count = lp.paths.length;
+  const countLabel = count === 1 ? '1 item' : `${count} items`;
+
+  return `
+    <div class="home-lp-row" data-id="${escapeHtml(lp.id)}">
+      <button type="button" class="home-lp-launch-btn" data-launch-id="${escapeHtml(lp.id)}" title="Launch ${escapeHtml(lp.name)}">
+        <span class="home-lp-icon">${uiIcon('play', 10)}</span>
+        <span class="home-lp-name">${escapeHtml(lp.name)}</span>
+      </button>
+      <span class="home-lp-count">${countLabel}</span>
+      <div class="home-lp-actions">
+        <button type="button" class="home-lp-pin-btn ${lp.pinned ? 'active' : ''}" data-pin-lp="${escapeHtml(lp.id)}" data-pinned="${Boolean(lp.pinned)}" title="${lp.pinned ? 'Unpin' : 'Pin to Home'}">
+          ${uiIcon('star', 12)}
+        </button>
+        <button type="button" class="home-lp-menu-btn" data-lp-menu="${escapeHtml(lp.id)}" title="Launchpad options" aria-label="Launchpad options">
+          ${uiIcon('dots', 13)}
+        </button>
+      </div>
+    </div>`;
+}
+
+export function homePanelV3Markup(): string {
+  const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
+
   const logEntries = getLogEntries();
   const launchpads = state.launchpads ?? [];
   const recentLogs = logEntries.slice(0, 5);
@@ -371,7 +399,7 @@ export function overviewPanelMarkup(): string {
     : `<p class="home-log-empty">No entries logged yet. Type above to record what you just did.</p>`;
 
   const quickLaunchHtml = launchpads.length
-    ? launchpads.slice(0, 3).map(launchpadCardMarkup).join('')
+    ? launchpads.slice(0, 5).map(homeLaunchpadRowMarkup).join('')
     : `<div class="home-lp-empty">
          <p>No launchpads yet.</p>
          <button class="secondary-button mini" data-view="Launchpads">+ Create a Launchpad</button>
@@ -383,32 +411,33 @@ export function overviewPanelMarkup(): string {
         <h1 class="home-greeting">${greeting}</h1>
       </div>
 
-      <div class="home-capture-card">
-        <span class="home-capture-icon">${uiIcon('pen', 14)}</span>
-        <textarea
-          id="home-capture-textarea"
-          class="home-capture-input"
-          placeholder="Log what you did…"
-          spellcheck="false"
-          rows="1"
-        >${escapeHtml(homeLogDraft)}</textarea>
-      </div>
-
       <div class="home-decks-container">
-        <div class="home-recent-deck">
-          <div class="home-deck-header">
-            <span class="home-section-label">RECENT LOG</span>
-            <button class="home-deck-link" data-view="Log">All</button>
-          </div>
-          <div class="home-recent-logs">${recentLogsHtml}</div>
-        </div>
-
+        <!-- Top: Quick Launchpads -->
         <div class="home-recent-deck home-lp-deck">
           <div class="home-deck-header">
             <span class="home-section-label">QUICK LAUNCHPADS</span>
             <button class="home-deck-link" data-view="Launchpads">All</button>
           </div>
           <div class="home-launchpads-wrap">${quickLaunchHtml}</div>
+        </div>
+
+        <!-- Bottom: Log Station (Input + Feed) -->
+        <div class="home-recent-deck home-log-station">
+          <div class="home-deck-header">
+            <span class="home-section-label">RECENT LOG</span>
+            <button class="home-deck-link" data-view="Log">All</button>
+          </div>
+          <div class="home-capture-card">
+            <span class="home-capture-icon">${uiIcon('pen', 13)}</span>
+            <textarea
+              id="home-capture-textarea"
+              class="home-capture-input"
+              placeholder="Log what you did… (Enter to save)"
+              spellcheck="false"
+              rows="1"
+            >${escapeHtml(homeLogDraft)}</textarea>
+          </div>
+          <div class="home-recent-logs">${recentLogsHtml}</div>
         </div>
       </div>
     </section>`;
@@ -691,8 +720,7 @@ function launchpadCardMarkup(lp: Launchpad): string {
         <div class="lp-card-actions">
           <button class="lp-pin-btn ${lp.pinned ? 'active' : ''}" data-pin-lp="${lp.id}" data-pinned="${Boolean(lp.pinned)}" title="${lp.pinned ? 'Unpin' : 'Pin to Home'}">${uiIcon('star', 12)}</button>
           <button class="lp-launch-btn" data-launch-id="${lp.id}" title="Open all resources">${uiIcon('play', 11)} Launch</button>
-          <button class="lp-edit-btn" data-edit-lp="${lp.id}" title="Edit launchpad">${uiIcon('pen', 11)}</button>
-          <button class="lp-delete-btn" data-delete-lp="${lp.id}" title="Delete launchpad">${uiIcon('x', 11)}</button>
+          <button type="button" class="lp-menu-btn" data-lp-menu="${lp.id}" title="Launchpad options" aria-label="Launchpad options">${uiIcon('dots', 13)}</button>
         </div>
       </div>
       <div class="lp-paths">${pathChips || '<span class="lp-empty-paths">No resources added yet</span>'}</div>

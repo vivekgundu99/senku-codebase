@@ -296,20 +296,18 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
 export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, existing?: Launchpad): void {
   const currentPath = state.currentPath || state.workspace?.masterFolder || '';
   const isEditing = Boolean(existing);
-  const kicker = isEditing ? 'EDIT LAUNCHPAD' : 'NEW LAUNCHPAD';
   const heading = isEditing ? 'Edit Launchpad' : 'New Launchpad';
   const defaultPaths = existing ? existing.paths.join('\n') : '';
   const defaultName = existing ? existing.name : '';
-  const submitText = isEditing ? 'Save Changes' : 'Create Launchpad';
+  const submitText = isEditing ? 'Save' : 'Create';
 
   const overlay = createOverlay(`
     <form class="modal-card space-dialog-card">
       <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
-      <span class="settings-kicker">${kicker}</span>
       <h2 class="dialog-title">${heading}</h2>
 
       <div class="dialog-field">
-        <label for="lp-name-input">Launchpad Name</label>
+        <label for="lp-name-input">Name</label>
         <input name="name" id="lp-name-input" required value="${escapeHtml(defaultName)}" placeholder="e.g. DSA Practice, Project Lab" autocomplete="off" />
       </div>
 

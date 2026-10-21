@@ -856,6 +856,7 @@ function bindLaunchpadActions(load: LoadFn): void {
       const id = btn.dataset.launchId!;
       const lp = state.launchpads?.find((p) => p.id === id);
       const name = lp?.name ?? 'Launchpad';
+      const origHtml = btn.innerHTML;
       btn.textContent = 'Opening…';
       const res = await window.senku.launchLaunchpad(id);
       if (res.ok) {
@@ -864,33 +865,79 @@ function bindLaunchpadActions(load: LoadFn): void {
         const count = res.errors.length;
         toast(`Launched ${name} · ${count} failed`);
       }
-      btn.textContent = '▷ Launch All';
+      btn.innerHTML = origHtml;
       await load(state.currentPath);
     }),
   );
 
-  document.querySelectorAll<HTMLElement>('[data-edit-lp]').forEach((btn) =>
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.editLp!;
+  document.querySelectorAll<HTMLElement>('[data-lp-menu]').forEach((btn) =>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const id = btn.dataset.lpMenu;
+      if (!id) return;
       const lp = state.launchpads?.find((p) => p.id === id);
-      if (lp) openLaunchpadFormModal(load, lp);
-    }),
-  );
+      if (!lp) return;
 
-  document.querySelectorAll<HTMLElement>('[data-delete-lp]').forEach((btn) =>
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.deleteLp!;
-      const padToDelete = state.launchpads?.find((p) => p.id === id);
-      if (!padToDelete) return;
-      await window.senku.deleteLaunchpad(id);
-      await load(state.currentPath);
-      toast('Deleted', {
-        actionLabel: 'Undo',
-        onAction: async () => {
-          const snap = await window.senku.restoreLaunchpad(padToDelete);
-          setState(snap);
-          await load(state.currentPath);
-        },
+      document.querySelectorAll('.lp-menu-popover').forEach((p) => p.remove());
+
+      const popover = document.createElement('div');
+      popover.className = 'lp-menu-popover';
+      popover.innerHTML = `
+        <button class="lp-menu-item" id="lp-menu-edit">
+          ${uiIcon('pen', 12)}
+          <span>Edit</span>
+        </button>
+        <button class="lp-menu-item danger" id="lp-menu-delete">
+          ${uiIcon('x', 12)}
+          <span>Delete</span>
+        </button>
+      `;
+
+      const rect = btn.getBoundingClientRect();
+      popover.style.top = `${rect.bottom + 4}px`;
+      popover.style.left = `${Math.max(10, rect.right - 140)}px`;
+
+      document.body.appendChild(popover);
+
+      const closePopover = () => {
+        popover.remove();
+        document.removeEventListener('click', onDocClick);
+        document.removeEventListener('keydown', onDocKey);
+      };
+
+      const onDocClick = (evt: MouseEvent) => {
+        if (!popover.contains(evt.target as Node) && evt.target !== btn) {
+          closePopover();
+        }
+      };
+
+      const onDocKey = (evt: KeyboardEvent) => {
+        if (evt.key === 'Escape') closePopover();
+      };
+
+      setTimeout(() => {
+        document.addEventListener('click', onDocClick);
+        document.addEventListener('keydown', onDocKey);
+      }, 0);
+
+      popover.querySelector('#lp-menu-edit')?.addEventListener('click', () => {
+        closePopover();
+        openLaunchpadFormModal(load, lp);
+      });
+
+      popover.querySelector('#lp-menu-delete')?.addEventListener('click', async () => {
+        closePopover();
+        await window.senku.deleteLaunchpad(lp.id);
+        await load(state.currentPath);
+        toast(`Deleted ${lp.name}`, {
+          actionLabel: 'Undo',
+          onAction: async () => {
+            const snap = await window.senku.restoreLaunchpad(lp);
+            setState(snap);
+            await load(state.currentPath);
+          },
+        });
       });
     }),
   );
