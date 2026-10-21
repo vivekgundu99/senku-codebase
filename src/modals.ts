@@ -297,38 +297,44 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
   const currentPath = state.currentPath || state.workspace?.masterFolder || '';
   const isEditing = Boolean(existing);
   const kicker = isEditing ? 'EDIT LAUNCHPAD' : 'NEW LAUNCHPAD';
-  const heading = isEditing ? 'Update your Launchpad' : 'Bundle and launch context in 1-click';
+  const heading = isEditing ? 'Edit Launchpad' : 'New Launchpad';
   const defaultPaths = existing ? existing.paths.join('\n') : '';
   const defaultName = existing ? existing.name : '';
   const submitText = isEditing ? 'Save Changes' : 'Create Launchpad';
 
   const overlay = createOverlay(`
-    <form class="modal-card">
-      <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">${kicker}</span>
-      <h2>${heading}</h2>
-      <p class="modal-copy">Add folder paths, file paths, or URLs. One click opens them all simultaneously.</p>
+    <form class="modal-card space-dialog-card">
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
+      <span class="settings-kicker">${kicker}</span>
+      <h2 class="dialog-title">${heading}</h2>
 
-      <label>Launchpad Name
-        <input name="name" required value="${escapeHtml(defaultName)}" placeholder="e.g. DSA Grind, College Lab, WebDev Project" autocomplete="off" />
-      </label>
+      <div class="dialog-field">
+        <label for="lp-name-input">Launchpad Name</label>
+        <input name="name" id="lp-name-input" required value="${escapeHtml(defaultName)}" placeholder="e.g. DSA Practice, Project Lab" autocomplete="off" />
+      </div>
 
-      <label>Resources (Files, Folders, URLs — one per line)
-        <div style="display:flex;gap:8px;margin-bottom:6px;">
-          ${currentPath ? '<button type="button" id="lp-add-current" class="ghost-button">+ Add current folder</button>' : ''}
-          <button type="button" id="lp-browse" class="ghost-button">+ Browse folder</button>
+      <div class="dialog-field">
+        <div class="dialog-field-header">
+          <label for="lp-paths-input">Paths & URLs (one per line)</label>
+          <div class="lp-quick-actions">
+            ${currentPath ? '<button type="button" id="lp-add-current" class="lp-pill-btn">+ Current Folder</button>' : ''}
+            <button type="button" id="lp-browse" class="lp-pill-btn">+ Browse</button>
+          </div>
         </div>
         <textarea
           name="paths"
           id="lp-paths-input"
-          rows="5"
-          placeholder="https://neetcode.io&#10;C:\\Users\\you\\projects\\dsa&#10;https://github.com"
-          style="font-family:monospace;font-size:12px;line-height:1.4;"
+          rows="4"
+          placeholder="https://example.com&#10;C:\\projects\\app"
+          spellcheck="false"
         >${escapeHtml(defaultPaths)}</textarea>
-      </label>
+      </div>
 
       <p class="form-error" id="lp-error"></p>
-      <button class="primary-button" type="submit">${submitText} <span>→</span></button>
+      <div class="dialog-actions-row">
+        <button class="primary-button mini" type="submit">${submitText}</button>
+        ${isEditing ? '<button type="button" class="danger-text-btn" id="lp-delete-btn">Delete</button>' : ''}
+      </div>
     </form>`);
 
   const textarea = overlay.querySelector<HTMLTextAreaElement>('#lp-paths-input')!;
@@ -346,6 +352,15 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
       textarea.value = current ? `${current}\n${folder}` : folder;
     }
   });
+
+  if (isEditing && existing) {
+    overlay.querySelector('#lp-delete-btn')?.addEventListener('click', async () => {
+      if (!confirm(`Delete launchpad "${existing.name}"?`)) return;
+      await window.senku.deleteLaunchpad(existing.id);
+      overlay.remove();
+      await load(state.currentPath);
+    });
+  }
 
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();

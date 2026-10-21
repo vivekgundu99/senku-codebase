@@ -916,6 +916,57 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   box-shadow: 0 0 0 2px rgba(95, 128, 95, .15) !important;
 }
 
+.space-dialog-card textarea {
+  width: 100%;
+  padding: 8px 10px !important;
+  margin-bottom: 0 !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 6px !important;
+  font: 500 11.5px var(--mono) !important;
+  line-height: 1.45 !important;
+  background: #fff !important;
+  color: var(--ink) !important;
+  outline: none !important;
+  resize: vertical;
+  min-height: 75px;
+}
+
+.space-dialog-card textarea:focus {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15) !important;
+}
+
+.dialog-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.lp-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lp-pill-btn {
+  height: 22px;
+  padding: 0 7px;
+  font: 600 10.5px var(--sans);
+  color: var(--green);
+  background: var(--green-pale);
+  border: 1px solid rgba(95, 128, 95, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.lp-pill-btn:hover {
+  background: rgba(95, 128, 95, 0.18);
+  border-color: var(--green);
+}
+
 .dialog-path-row {
   display: flex;
   align-items: center;
