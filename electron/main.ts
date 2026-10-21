@@ -590,6 +590,7 @@ async function createWindow(): Promise<void> {
     minHeight: 680,
     backgroundColor: '#f4f1ea',
     show: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -834,19 +835,15 @@ async function migrateLegacyData(): Promise<void> {
 
 app.whenReady().then(async () => {
   if (!gotSingleInstanceLock) return;
-  if (isTesting) {
-    Menu.setApplicationMenu(
-      Menu.buildFromTemplate([
-        { role: 'fileMenu' },
-        { role: 'editMenu' },
-        { role: 'viewMenu' },
-        { role: 'windowMenu' },
-        { role: 'help' },
-      ]),
-    );
-  } else {
-    Menu.setApplicationMenu(null);
-  }
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      { role: 'viewMenu' },
+      { role: 'windowMenu' },
+      { role: 'help' },
+    ]),
+  );
 
   if (app.isPackaged) {
     const startupSettings = await getSettings();
