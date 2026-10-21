@@ -1337,40 +1337,17 @@ ipcMain.handle('path:exists-many', async (_event, paths: string[]) => {
 // V3: Quick Actions (VS Code / Terminal)
 // ---------------------------------------------------------------------------
 
-function launchVSCode(targetFolder: string, targetFile?: string): { ok: boolean; error?: string } {
+function launchVSCode(targetFolder: string): { ok: boolean; error?: string } {
   try {
-    const args = targetFile ? [targetFolder, targetFile] : [targetFolder];
-    const child = cp.spawn('code', args, { shell: true, detached: true, stdio: 'ignore' });
-    child.on('error', () => {
-      if (targetFile) shell.openPath(targetFile);
-      else shell.openPath(targetFolder);
-    });
-    child.unref();
+    cp.exec(`code "${targetFolder}"`);
     return { ok: true };
   } catch (err) {
-    if (targetFile) shell.openPath(targetFile);
-    else shell.openPath(targetFolder);
-    return { ok: true };
+    return { ok: false, error: String(err) };
   }
 }
 
 ipcMain.handle('code:open', async (_event, targetPath: string) => {
-  try {
-    let folder = targetPath;
-    let file: string | undefined;
-    try {
-      const stat = await fs.stat(targetPath);
-      if (!stat.isDirectory()) {
-        folder = path.dirname(targetPath);
-        file = targetPath;
-      }
-    } catch {
-      // fallback
-    }
-    return launchVSCode(folder, file);
-  } catch (err) {
-    return { ok: false, error: String(err) };
-  }
+  return launchVSCode(targetPath);
 });
 
 ipcMain.handle('terminal:open', async (_event, targetPath: string) => {
@@ -1534,21 +1511,17 @@ ipcMain.handle('notes:open-vscode', async (_event, id: string) => {
   const nDir = globalNotesDir();
   const notes = await listNotes(nDir);
   const note = notes.find((n) => n.id === id);
-  if (!note || !note.filePath) return { ok: false, error: 'Note file not found.' };
+  if (!note) return { ok: false, error: 'Note not found.' };
 
   const folder = note.bundle ? path.join(nDir, note.bundle) : nDir;
-  return launchVSCode(folder, note.filePath);
+  return launchVSCode(folder);
 });
 
 ipcMain.handle('notes:open-bundle-vscode', async (_event, bundleName: string) => {
   const nDir = globalNotesDir();
   const folderPath = bundleName ? path.join(nDir, bundleName) : nDir;
-  try {
-    await fs.mkdir(folderPath, { recursive: true });
-    return launchVSCode(folderPath);
-  } catch (err) {
-    return { ok: false, error: String(err) };
-  }
+  await fs.mkdir(folderPath, { recursive: true });
+  return launchVSCode(folderPath);
 });
 
 ipcMain.handle('notes:export-all', async () => {
