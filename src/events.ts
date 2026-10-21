@@ -852,7 +852,7 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
       for (const item of dayItems) {
         const d = new Date(item.createdAt);
         const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        const spaceTag = item.spaceName ? `[${item.spaceName}] ` : (scope === 'all' ? '[Global Log] ' : '');
+        const spaceTag = item.spaceName ? `[${item.spaceName}] ` : '';
         lines.push(`- **${timeStr}** ${spaceTag}${item.text}`);
       }
       lines.push('');
@@ -967,8 +967,14 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
       const spaceName = spaceBadge.dataset.spaceFilter;
       if (spaceName) {
         setLogFilter(spaceName);
+        const searchWrap = panel.querySelector<HTMLElement>('#log-search-expandable');
+        searchWrap?.classList.add('open');
         const searchInput = panel.querySelector<HTMLInputElement>('#log-search');
-        if (searchInput) searchInput.value = spaceName;
+        if (searchInput) {
+          searchInput.value = spaceName;
+          searchInput.focus();
+          searchInput.select();
+        }
         refreshList();
       }
       return;
