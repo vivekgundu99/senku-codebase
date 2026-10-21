@@ -103,7 +103,7 @@ export function openProfileModal(render: () => void): void {
             name="userName"
             id="profile-user-name"
             value="${escapeHtml(state.settings.userName || '')}"
-            placeholder="e.g. Vivek (optional)"
+            placeholder="e.g. Vivek"
             autocomplete="off"
             spellcheck="false"
           />
@@ -115,11 +115,11 @@ export function openProfileModal(render: () => void): void {
             name="greeting"
             id="profile-greeting"
             value="${escapeHtml(displayGreeting)}"
-            placeholder="Leave empty for time of day (Good morning / afternoon / evening)"
+            placeholder="e.g. One step at a time"
             autocomplete="off"
             spellcheck="false"
           />
-          <small class="settings-field-hint">By default, Senku dynamically greets you by the time of day.</small>
+          <small class="settings-field-hint">Leave empty to greet dynamically by time of day.</small>
           <div class="settings-chips-line">
             <button type="button" class="preset-chip" data-set-greeting="">Time of Day (Default)</button>
             <button type="button" class="preset-chip" data-set-greeting="Deep focus">Deep focus</button>
