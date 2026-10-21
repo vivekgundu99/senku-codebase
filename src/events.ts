@@ -12,8 +12,11 @@ import {
   setActiveNoteId,
   activeNoteId,
   setNoteFilter,
-  setLogDay,
-  logDay,
+  setLogFromDate,
+  setLogToDate,
+  resetLogDates,
+  logFromDate,
+  logToDate,
   allLog,
   setAllLog,
   toggleBundleCollapsed,
@@ -589,9 +592,7 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
     if (list) list.innerHTML = logListMarkup(scope);
     const count = panel.querySelector('.log-count-badge');
     const { matched, total } = visibleLogEntries(scope);
-    if (count) count.textContent = logFilter.trim() || logDay ? `${matched} of ${total}` : '';
-    const clearDayBtn = panel.querySelector<HTMLElement>('#clear-log-day');
-    if (clearDayBtn) clearDayBtn.style.display = logDay ? '' : 'none';
+    if (count) count.textContent = logFilter.trim() || logFromDate || logToDate ? `${matched} of ${total}` : '';
   };
 
   // Scope switcher
@@ -660,23 +661,55 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
     });
   };
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  panel.querySelector<HTMLInputElement>('#log-search')?.addEventListener('input', (event) => {
-    const value = (event.target as HTMLInputElement).value;
-    clearTimeout(timer);
-    timer = setTimeout(() => { setLogFilter(value); refreshList(); }, 80);
+  // Search on Enter or button click
+  const searchInput = panel.querySelector<HTMLInputElement>('#log-search');
+  const triggerSearch = () => {
+    const val = searchInput ? searchInput.value : '';
+    setLogFilter(val);
+    refreshList();
+  };
+
+  searchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      triggerSearch();
+    }
   });
 
-  const dayInput = panel.querySelector<HTMLInputElement>('#log-day');
-  dayInput?.addEventListener('change', (e) => {
-    setLogDay((e.target as HTMLInputElement).value);
+  panel.querySelector('#log-search-btn')?.addEventListener('click', () => {
+    triggerSearch();
+  });
+
+  // Date range filter
+  const fromInput = panel.querySelector<HTMLInputElement>('#log-from-date');
+  fromInput?.addEventListener('change', (e) => {
+    setLogFromDate((e.target as HTMLInputElement).value);
     refreshList();
   });
 
-  panel.querySelector('#clear-log-day')?.addEventListener('click', () => {
-    setLogDay('');
-    if (dayInput) dayInput.value = '';
+  const toInput = panel.querySelector<HTMLInputElement>('#log-to-date');
+  toInput?.addEventListener('change', (e) => {
+    setLogToDate((e.target as HTMLInputElement).value);
     refreshList();
+  });
+
+  panel.querySelector('#reset-log-dates')?.addEventListener('click', () => {
+    resetLogDates();
+    if (fromInput) fromInput.value = logFromDate;
+    if (toInput) toInput.value = logToDate;
+    refreshList();
+  });
+
+  // Lazy loading on scroll
+  const entriesEl = panel.querySelector<HTMLElement>('.log-entries');
+  entriesEl?.addEventListener('scroll', () => {
+    if (entriesEl.scrollTop + entriesEl.clientHeight >= entriesEl.scrollHeight - 60) {
+      const { matched, items } = visibleLogEntries(scope);
+      if (items.length < matched) {
+        showMoreLogs();
+        refreshList();
+      }
+    }
   });
 
   // Double-click inline edit

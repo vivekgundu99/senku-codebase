@@ -384,10 +384,10 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const allPads: Launchpad[] = [];
 
   for (const ws of workspaces) {
-    const sLogDir = path.join(spaceDir(ws.id), 'log');
+    const sLogFile = path.join(spaceDir(ws.id), 'log.md');
     const sPadsFile = path.join(spaceDir(ws.id), 'launchpads.json');
     const [sLogs, sPads] = await Promise.all([
-      listLogRecent(sLogDir, 8),
+      listLogRecent(sLogFile, 8),
       readLaunchpads(sPadsFile),
     ]);
     for (const l of sLogs) {
@@ -434,11 +434,11 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   let launchpads: Launchpad[] = [];
 
   if (spaceId) {
-    const spaceLogDir = path.join(spaceDir(spaceId), 'log');
+    const spaceLogFile = path.join(spaceDir(spaceId), 'log.md');
     const spaceLaunchpadsFile = path.join(spaceDir(spaceId), 'launchpads.json');
 
     const [lEntries, lPads] = await Promise.all([
-      listLog(spaceLogDir),
+      listLog(spaceLogFile),
       readLaunchpads(spaceLaunchpadsFile),
     ]);
 
@@ -1130,7 +1130,7 @@ handleLocked('path:unpin', async (_event, target: string) => {
 // ---------------------------------------------------------------------------
 
 handleLocked('log:list-all', async () => {
-  return listGlobalLogs(baseDir());
+  return listGlobalLogs(path.join(baseDir(), 'global-log.md'));
 });
 
 handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
@@ -1142,28 +1142,29 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   if (!trimmed) return snapshot();
 
   const ws = workspaces.find((w) => w.id === targetSpaceId);
-  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
-  const spaceEntry = await addLog(spaceLogDir, trimmed);
+  const spaceLogFile = path.join(spaceDir(targetSpaceId), 'log.md');
+  const spaceEntry = await addLog(spaceLogFile, trimmed);
 
   // Redundant global log with its own independent global numbering
-  await addGlobalLog(baseDir(), trimmed, targetSpaceId, spaceEntry.id, ws?.name || 'Space').catch(() => undefined);
+  await addGlobalLog(path.join(baseDir(), 'global-log.md'), trimmed, targetSpaceId, spaceEntry.id, ws?.name || 'Space').catch(() => undefined);
 
   mainWindow?.webContents.send('snapshot:updated');
   return snapshot();
 });
 
 handleLocked('log:delete', async (_event, id: string, spaceId?: string) => {
+  const globalLogFile = path.join(baseDir(), 'global-log.md');
   if (spaceId) {
-    const spaceLogDir = path.join(spaceDir(spaceId), 'log');
-    await deleteLog(spaceLogDir, id);
-    await deleteGlobalLogRef(baseDir(), spaceId, id).catch(() => undefined);
+    const spaceLogFile = path.join(spaceDir(spaceId), 'log.md');
+    await deleteLog(spaceLogFile, id);
+    await deleteGlobalLogRef(globalLogFile, spaceId, id).catch(() => undefined);
   } else {
     // Check if deleting directly via global log or active space
-    await deleteFromGlobalAndSpace(baseDir(), id, (sId) => spaceDir(sId)).catch(() => undefined);
+    await deleteFromGlobalAndSpace(globalLogFile, id, (sId) => path.join(spaceDir(sId), 'log.md')).catch(() => undefined);
     const activeId = await activeSpaceId();
     if (activeId) {
-      await deleteLog(path.join(spaceDir(activeId), 'log'), id).catch(() => undefined);
-      await deleteGlobalLogRef(baseDir(), activeId, id).catch(() => undefined);
+      await deleteLog(path.join(spaceDir(activeId), 'log.md'), id).catch(() => undefined);
+      await deleteGlobalLogRef(globalLogFile, activeId, id).catch(() => undefined);
     }
   }
   return snapshot();
@@ -1173,8 +1174,8 @@ handleLocked('log:update', async (_event, id: string, text: string, spaceId?: st
   const workspaces = await getWorkspaces();
   const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
   if (!targetSpaceId) return snapshot();
-  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
-  await updateLog(spaceLogDir, id, text);
+  const spaceLogFile = path.join(spaceDir(targetSpaceId), 'log.md');
+  await updateLog(spaceLogFile, id, text);
   return snapshot();
 });
 
@@ -1183,8 +1184,8 @@ handleLocked('log:restore', async (_event, entry: LogEntry) => {
   const targetSpaceId =
     entry?.spaceId && workspaces.some((w) => w.id === entry.spaceId) ? entry.spaceId : await activeSpaceId();
   if (!targetSpaceId || !entry || !entry.id) return snapshot();
-  const spaceLogDir = path.join(spaceDir(targetSpaceId), 'log');
-  await restoreLog(spaceLogDir, entry);
+  const spaceLogFile = path.join(spaceDir(targetSpaceId), 'log.md');
+  await restoreLog(spaceLogFile, entry);
   return snapshot();
 });
 

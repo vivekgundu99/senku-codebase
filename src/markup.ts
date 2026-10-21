@@ -6,7 +6,8 @@ import {
   visibleEntries,
   getLogEntries,
   logFilter,
-  logDay,
+  logFromDate,
+  logToDate,
   visibleLogEntries,
   getCachedPathAvailability,
   activeNoteId,
@@ -602,7 +603,7 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
   }
 
   const { matched, total } = visibleLogEntries(scope);
-  const countLabel = logFilter.trim() || logDay ? `${matched} of ${total}` : '';
+  const countLabel = logFilter.trim() || logFromDate || logToDate ? `${matched} of ${total}` : '';
 
   const composeBoxHtml = scope === 'space'
     ? `
@@ -630,18 +631,24 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
           </button>
         </div>
         <div class="log-tools-right">
-          <input
-            id="log-search"
-            class="log-search-small"
-            type="search"
-            placeholder="Search"
-            value="${escapeHtml(logFilter)}"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <div class="log-date-wrap">
-            <input type="date" id="log-day" value="${escapeHtml(logDay)}" class="log-date-picker" title="Filter by date" />
-            <button id="clear-log-day" class="log-clear-day-btn" title="Clear date filter" style="${logDay ? '' : 'display:none;'}">${uiIcon('x', 11)}</button>
+          <div class="log-date-range">
+            <span class="log-date-label">From</span>
+            <input type="date" id="log-from-date" value="${escapeHtml(logFromDate)}" class="log-date-picker" title="From date" />
+            <span class="log-date-label">To</span>
+            <input type="date" id="log-to-date" value="${escapeHtml(logToDate)}" class="log-date-picker" title="To date" />
+            <button type="button" id="reset-log-dates" class="log-mini-btn" title="Reset to last 7 days">7d</button>
+          </div>
+          <div class="log-search-wrap">
+            <input
+              id="log-search"
+              class="log-search-small"
+              type="text"
+              placeholder="Search (Enter)…"
+              value="${escapeHtml(logFilter)}"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="button" id="log-search-btn" class="log-search-btn" title="Search">${uiIcon('search', 12)}</button>
           </div>
           <span class="log-count-badge">${countLabel}</span>
         </div>

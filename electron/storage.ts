@@ -408,29 +408,68 @@ export function formatLocalTime(d: Date): string {
   return `${hh}:${mm}`;
 }
 
-export const LOG_LINE_REGEX = /^- (\d{2}):(\d{2}) (?:#(\d+) )?(.+)$/;
+// ---------------------------------------------------------------------------
+// Single-File Log Storage (<spaceDir>/log.md & <baseDir>/global-log.md)
+// ---------------------------------------------------------------------------
 
-export function parseLogFile(dateStr: string, fileText: string): LogEntry[] {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const lines = fileText.split(/\r?\n/);
+export const LOG_DATE_HEADER_REGEX = /^##\s+(\d{4}-\d{2}-\d{2})$/;
+export const LOG_ENTRY_LINE_REGEX = /^-\s+(\d{2}:\d{2}(?::\d{2})?)\s+(?:#(\d+)\s+)?(.*)$/;
+
+export function parseLogMarkdown(content: string): LogEntry[] {
+  const lines = content.split(/\r?\n/);
   const entries: LogEntry[] = [];
+  let currentDate = '';
   let currentEntry: LogEntry | null = null;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const match = line.match(LOG_LINE_REGEX);
-    if (match) {
-      const hh = Number(match[1]);
-      const mm = Number(match[2]);
-      const seq = match[3] ? Number(match[3]) : 0;
-      const text = match[4];
-      const createdAt = new Date(y, m - 1, d, hh, mm).getTime();
-      const id = seq > 0 ? `${dateStr}:${seq}` : `${dateStr}:line${i}`;
+    const dateMatch = line.match(LOG_DATE_HEADER_REGEX);
+    if (dateMatch) {
+      currentDate = dateMatch[1];
+      currentEntry = null;
+      continue;
+    }
+
+    const entryMatch = line.match(LOG_ENTRY_LINE_REGEX);
+    if (entryMatch && currentDate) {
+      const timeStr = entryMatch[1];
+      const seq = entryMatch[2] ? parseInt(entryMatch[2], 10) : 0;
+      let rawText = entryMatch[3] || '';
+
+      const [y, m, d] = currentDate.split('-').map(Number);
+      const timeParts = timeStr.split(':').map(Number);
+      const hh = timeParts[0] || 0;
+      const mm = timeParts[1] || 0;
+      const ss = timeParts[2] || 0;
+      const createdAt = new Date(y, m - 1, d, hh, mm, ss).getTime();
+
+      let spaceId: string | undefined;
+      let refId: string | undefined;
+      let spaceName: string | undefined;
+
+      const refMatch = rawText.match(/<!--ref:([^:]+):([^>]+)-->/);
+      if (refMatch) {
+        spaceId = refMatch[1];
+        refId = refMatch[2];
+        rawText = rawText.replace(refMatch[0], '');
+      }
+
+      const spaceMatch = rawText.match(/^\[([^\]]+)\]\s*/);
+      if (spaceMatch) {
+        spaceName = spaceMatch[1];
+        rawText = rawText.slice(spaceMatch[0].length);
+      }
+
+      const id = seq > 0 ? `${currentDate}:${seq}` : `${currentDate}:${timeStr}`;
+
       currentEntry = {
         id,
         seq,
         createdAt,
-        text,
+        text: rawText,
+        spaceId,
+        spaceName,
+        refId,
       };
       entries.push(currentEntry);
     } else if (currentEntry && (line.startsWith('  ') || line.startsWith('\t'))) {
@@ -438,559 +477,196 @@ export function parseLogFile(dateStr: string, fileText: string): LogEntry[] {
     }
   }
 
-  return entries;
+  return entries.sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
 }
 
-export function resolveSpaceAndLogDir(dir: string): { spaceDir: string; logDir: string } {
-  if (path.basename(dir).toLowerCase() === 'log') {
-    return { spaceDir: path.dirname(dir), logDir: dir };
+export function serializeLogEntries(entries: LogEntry[], isGlobal = false): string {
+  const sorted = [...entries].sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
+  const groups = new Map<string, LogEntry[]>();
+
+  for (const entry of sorted) {
+    const d = new Date(entry.createdAt);
+    const dateStr = formatLocalDate(d);
+    if (!groups.has(dateStr)) {
+      groups.set(dateStr, []);
+    }
+    groups.get(dateStr)!.push(entry);
   }
-  return { spaceDir: dir, logDir: path.join(dir, 'log') };
-}
 
-export async function nextLogNumber(spaceDir: string): Promise<number> {
-  const { spaceDir: sDir, logDir } = resolveSpaceAndLogDir(spaceDir);
-  const metaFile = path.join(sDir, 'meta.json');
-  const meta = await readSpaceMeta(metaFile);
+  const chunks: string[] = [];
+  for (const [dateStr, dayEntries] of groups.entries()) {
+    chunks.push(`## ${dateStr}`);
+    for (const e of dayEntries) {
+      const d = new Date(e.createdAt);
+      const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+      const seqStr = e.seq && e.seq > 0 ? `#${e.seq} ` : '';
+      const spaceTag = isGlobal && e.spaceName ? `[${e.spaceName}] ` : '';
+      const refTag = isGlobal && e.spaceId && e.refId ? `<!--ref:${e.spaceId}:${e.refId}-->` : '';
 
-  let maxNum = meta.lastLogSeq ?? 0;
-  try {
-    const items = await fs.readdir(logDir, { withFileTypes: true });
-    for (const item of items) {
-      if (item.isFile() && /^\d{4}-\d{2}-\d{2}\.md$/.test(item.name) && !item.name.endsWith('.tmp')) {
-        const content = await fs.readFile(path.join(logDir, item.name), 'utf8');
-        for (const line of content.split(/\r?\n/)) {
-          const m = line.match(LOG_LINE_REGEX);
-          if (m && m[3]) {
-            const num = Number(m[3]);
-            if (num > maxNum) maxNum = num;
-          }
-        }
+      const rawLines = e.text.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string, idx: number) => idx === 0 || l.length > 0);
+      const firstLine = rawLines[0] || '';
+      const continuationLines = rawLines.slice(1).map((l: string) => `  ${l}`);
+
+      chunks.push(`- ${timeStr} ${seqStr}${refTag}${spaceTag}${firstLine}`);
+      if (continuationLines.length > 0) {
+        chunks.push(...continuationLines);
       }
     }
+    chunks.push('');
+  }
+
+  return chunks.join('\n').trim() + '\n';
+}
+
+export async function listLog(logFilePath: string): Promise<LogEntry[]> {
+  try {
+    const text = await fs.readFile(logFilePath, 'utf8');
+    return parseLogMarkdown(text);
   } catch {
-    // logDir may not exist yet
-  }
-
-  const next = maxNum + 1;
-  meta.lastLogSeq = next;
-  await writeSpaceMeta(metaFile, meta);
-  return next;
-}
-
-export async function listLog(logDir: string): Promise<LogEntry[]> {
-  try {
-    const items = await fs.readdir(logDir, { withFileTypes: true });
-    const allEntries: LogEntry[] = [];
-
-    for (const item of items) {
-      if (item.isFile() && /^\d{4}-\d{2}-\d{2}\.md$/.test(item.name) && !item.name.endsWith('.tmp')) {
-        const dateStr = item.name.slice(0, -3);
-        const filePath = path.join(logDir, item.name);
-        try {
-          const text = await fs.readFile(filePath, 'utf8');
-          allEntries.push(...parseLogFile(dateStr, text));
-        } catch {
-          // ignore unreadable files
-        }
-      }
-    }
-
-    return allEntries.sort((a, b) => b.createdAt - a.createdAt || b.seq - a.seq);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
+    return [];
   }
 }
 
-export async function listLogRecent(logDir: string, limit: number): Promise<LogEntry[]> {
-  try {
-    const items = await fs.readdir(logDir, { withFileTypes: true });
-    const dayFiles = items
-      .filter((it) => it.isFile() && /^\d{4}-\d{2}-\d{2}\.md$/.test(it.name) && !it.name.endsWith('.tmp'))
-      .map((it) => it.name)
-      .sort()
-      .reverse();
-
-    const collected: LogEntry[] = [];
-
-    for (const f of dayFiles) {
-      const dateStr = f.slice(0, -3);
-      const filePath = path.join(logDir, f);
-      try {
-        const text = await fs.readFile(filePath, 'utf8');
-        const entries = parseLogFile(dateStr, text);
-        entries.reverse();
-        for (const entry of entries) {
-          collected.push(entry);
-          if (collected.length >= limit) {
-            return collected;
-          }
-        }
-      } catch {
-        // ignore unreadable
-      }
-    }
-
-    return collected;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
+export async function listLogRecent(logFilePath: string, limit: number): Promise<LogEntry[]> {
+  const all = await listLog(logFilePath);
+  return all.slice(0, limit);
 }
 
-export async function addLog(spaceOrLogDir: string, text: string, now = new Date()): Promise<LogEntry> {
-  const { spaceDir, logDir } = resolveSpaceAndLogDir(spaceOrLogDir);
-  const seq = await nextLogNumber(spaceDir);
+export async function addLog(logFilePath: string, text: string, now = new Date()): Promise<LogEntry> {
+  await fs.mkdir(path.dirname(logFilePath), { recursive: true });
+  const entries = await listLog(logFilePath);
   const dateStr = formatLocalDate(now);
-  const timeStr = formatLocalTime(now);
-  const filePath = path.join(logDir, `${dateStr}.md`);
 
-  let current = '';
-  try {
-    current = await fs.readFile(filePath, 'utf8');
-  } catch {
-    current = '';
+  const todays = entries.filter((e) => e.id.startsWith(dateStr));
+  let maxSeq = 0;
+  for (const e of todays) {
+    if (e.seq && e.seq > maxSeq) maxSeq = e.seq;
   }
+  const nextSeq = maxSeq + 1;
 
-  const lines = current.length > 0 ? current.split(/\r?\n/) : [];
-  if (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
+  const rawLines = text.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string, idx: number) => idx === 0 || l.length > 0);
+  const cleanText = rawLines.join('\n');
 
-  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter((l, idx) => idx === 0 || l.length > 0);
-  const firstLine = rawLines[0] || '';
-  const continuationLines = rawLines.slice(1).map((l) => `  ${l}`);
-
-  const newLine = `- ${timeStr} #${seq} ${firstLine}`;
-  lines.push(newLine, ...continuationLines);
-
-  await writeFileAtomic(filePath, lines.join('\n') + '\n');
-
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const [hh, mm] = [now.getHours(), now.getMinutes()];
-
-  return {
-    id: `${dateStr}:${seq}`,
-    seq,
-    createdAt: new Date(y, m - 1, d, hh, mm).getTime(),
-    text: rawLines.join('\n'),
+  const newEntry: LogEntry = {
+    id: `${dateStr}:${nextSeq}`,
+    seq: nextSeq,
+    createdAt: now.getTime(),
+    text: cleanText,
   };
+
+  entries.unshift(newEntry);
+  await writeFileAtomic(logFilePath, serializeLogEntries(entries, false));
+  return newEntry;
 }
 
-export async function updateLog(logDir: string, id: string, text: string): Promise<void> {
-  const colonIdx = id.lastIndexOf(':');
-  if (colonIdx === -1) return;
+export async function updateLog(logFilePath: string, id: string, text: string): Promise<void> {
+  const entries = await listLog(logFilePath);
+  const entry = entries.find((e) => e.id === id);
+  if (!entry) return;
 
-  const dateStr = id.slice(0, colonIdx);
-  const targetIdPart = id.slice(colonIdx + 1);
-  const isLineIndex = targetIdPart.startsWith('line');
-  const targetNum = isLineIndex ? parseInt(targetIdPart.slice(4), 10) : parseInt(targetIdPart, 10);
-  if (Number.isNaN(targetNum)) return;
+  const rawLines = text.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string, idx: number) => idx === 0 || l.length > 0);
+  entry.text = rawLines.join('\n');
 
-  const filePath = path.join(logDir, `${dateStr}.md`);
-  let current: string;
-  try {
-    current = await fs.readFile(filePath, 'utf8');
-  } catch {
+  await writeFileAtomic(logFilePath, serializeLogEntries(entries, false));
+}
+
+export async function deleteLog(logFilePath: string, id: string): Promise<void> {
+  const entries = await listLog(logFilePath);
+  const filtered = entries.filter((e) => e.id !== id);
+  if (filtered.length === entries.length) return;
+
+  if (filtered.length === 0) {
+    await fs.rm(logFilePath, { force: true }).catch(() => undefined);
     return;
   }
 
-  const lines = current.split(/\r?\n/);
-  if (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
-
-  let updateIdx = -1;
-  let timePart = '';
-  let seqPart = '';
-
-  for (let i = 0; i < lines.length; i++) {
-    const match = lines[i].match(LOG_LINE_REGEX);
-    if (match) {
-      const seq = match[3] ? Number(match[3]) : 0;
-      const matches = isLineIndex ? i === targetNum : seq === targetNum;
-      if (matches) {
-        updateIdx = i;
-        timePart = `${match[1]}:${match[2]}`;
-        seqPart = match[3] ? ` #${match[3]}` : '';
-        break;
-      }
-    }
-  }
-
-  if (updateIdx === -1) return;
-
-  let countToRemove = 1;
-  while (updateIdx + countToRemove < lines.length && (lines[updateIdx + countToRemove].startsWith('  ') || lines[updateIdx + countToRemove].startsWith('\t'))) {
-    countToRemove++;
-  }
-
-  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter((l, idx) => idx === 0 || l.length > 0);
-  const firstLine = rawLines[0] || '';
-  const continuationLines = rawLines.slice(1).map((l) => `  ${l}`);
-  const replacement = [`- ${timePart}${seqPart} ${firstLine}`, ...continuationLines];
-
-  lines.splice(updateIdx, countToRemove, ...replacement);
-  await writeFileAtomic(filePath, lines.join('\n') + '\n');
+  await writeFileAtomic(logFilePath, serializeLogEntries(filtered, false));
 }
 
-export async function deleteLog(logDir: string, id: string): Promise<void> {
-  const colonIdx = id.lastIndexOf(':');
-  if (colonIdx === -1) return;
-
-  const dateStr = id.slice(0, colonIdx);
-  const targetIdPart = id.slice(colonIdx + 1);
-  const isLineIndex = targetIdPart.startsWith('line');
-  const targetNum = isLineIndex ? parseInt(targetIdPart.slice(4), 10) : parseInt(targetIdPart, 10);
-  if (Number.isNaN(targetNum)) return;
-
-  const filePath = path.join(logDir, `${dateStr}.md`);
-  let current: string;
-  try {
-    current = await fs.readFile(filePath, 'utf8');
-  } catch {
-    return;
-  }
-
-  const lines = current.split(/\r?\n/);
-  if (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
-
-  let removeIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const match = lines[i].match(LOG_LINE_REGEX);
-    if (match) {
-      const seq = match[3] ? Number(match[3]) : 0;
-      const matches = isLineIndex ? i === targetNum : seq === targetNum;
-      if (matches) {
-        removeIdx = i;
-        break;
-      }
-    }
-  }
-
-  if (removeIdx === -1) return;
-
-  let countToRemove = 1;
-  while (removeIdx + countToRemove < lines.length && (lines[removeIdx + countToRemove].startsWith('  ') || lines[removeIdx + countToRemove].startsWith('\t'))) {
-    countToRemove++;
-  }
-
-  lines.splice(removeIdx, countToRemove);
-
-  const remainingText = lines.join('\n').trim();
-  if (!remainingText) {
-    await fs.rm(filePath, { force: true }).catch(() => undefined);
-    return;
-  }
-
-  await writeFileAtomic(filePath, lines.join('\n') + '\n');
+export async function restoreLog(logFilePath: string, entry: LogEntry): Promise<void> {
+  const entries = await listLog(logFilePath);
+  if (entries.some((e) => e.id === entry.id)) return;
+  entries.push(entry);
+  await writeFileAtomic(logFilePath, serializeLogEntries(entries, false));
 }
 
-// ---------------------------------------------------------------------------
-// Global Redundant Log
-// ---------------------------------------------------------------------------
+export async function renumberLog(_spaceDir: string): Promise<number> {
+  return 0;
+}
 
 export async function addGlobalLog(
-  baseDir: string,
+  globalLogFile: string,
   text: string,
   spaceId: string,
   spaceLogId: string,
   spaceName: string,
   now = new Date()
 ): Promise<LogEntry> {
-  const logDir = path.join(baseDir, 'log');
-  await fs.mkdir(logDir, { recursive: true });
-  const seq = await nextLogNumber(baseDir);
-  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter((l, idx) => idx === 0 || l.length > 0);
-  const firstLine = rawLines[0] || '';
-  const continuationLines = rawLines.slice(1).map((l) => `  ${l}`);
+  await fs.mkdir(path.dirname(globalLogFile), { recursive: true });
+  const entries = await listLog(globalLogFile);
   const dateStr = formatLocalDate(now);
-  const timeStr = formatLocalTime(now);
-  const filePath = path.join(logDir, `${dateStr}.md`);
 
-  let current = '';
-  try {
-    current = await fs.readFile(filePath, 'utf8');
-  } catch {
-    current = '';
+  const todays = entries.filter((e) => e.id.startsWith(dateStr));
+  let maxSeq = 0;
+  for (const e of todays) {
+    if (e.seq && e.seq > maxSeq) maxSeq = e.seq;
   }
+  const nextSeq = maxSeq + 1;
 
-  const lines = current.length > 0 ? current.split(/\r?\n/) : [];
-  if (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
+  const rawLines = text.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string, idx: number) => idx === 0 || l.length > 0);
+  const cleanText = rawLines.join('\n');
 
-  const marker = `<!--ref:${spaceId}:${spaceLogId}-->`;
-  const spaceBadge = spaceName ? `[${spaceName}] ` : '';
-  const newLine = `- ${timeStr} #${seq} ${marker}${spaceBadge}${firstLine}`;
-  lines.push(newLine, ...continuationLines);
-
-  await writeFileAtomic(filePath, lines.join('\n') + '\n');
-
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const [hh, mm] = [now.getHours(), now.getMinutes()];
-
-  return {
-    id: `${dateStr}:${seq}`,
-    seq,
-    createdAt: new Date(y, m - 1, d, hh, mm).getTime(),
-    text: `${spaceBadge}${rawLines.join('\n')}`,
+  const newEntry: LogEntry = {
+    id: `${dateStr}:${nextSeq}`,
+    seq: nextSeq,
+    createdAt: now.getTime(),
+    text: cleanText,
     spaceId,
     spaceName,
     refId: spaceLogId,
   };
+
+  entries.unshift(newEntry);
+  await writeFileAtomic(globalLogFile, serializeLogEntries(entries, true));
+  return newEntry;
 }
 
-export async function listGlobalLogs(baseDir: string): Promise<LogEntry[]> {
-  const logDir = path.join(baseDir, 'log');
-  const raw = await listLog(logDir);
-  return raw.map((entry) => {
-    let cleanText = entry.text;
-    let spaceId: string | undefined;
-    let refId: string | undefined;
-    let spaceName: string | undefined;
-
-    const refMatch = cleanText.match(/<!--ref:([^:]+):([^>]+)-->/);
-    if (refMatch) {
-      spaceId = refMatch[1];
-      refId = refMatch[2];
-      cleanText = cleanText.replace(refMatch[0], '');
-    }
-
-    const spaceMatch = cleanText.match(/^\[([^\]]+)\]\s*/);
-    if (spaceMatch) {
-      spaceName = spaceMatch[1];
-      cleanText = cleanText.slice(spaceMatch[0].length);
-    }
-
-    return {
-      ...entry,
-      text: cleanText,
-      spaceId,
-      spaceName,
-      refId,
-    };
-  });
+export async function listGlobalLogs(globalLogFile: string): Promise<LogEntry[]> {
+  return listLog(globalLogFile);
 }
 
-export async function deleteGlobalLogRef(baseDir: string, spaceId: string, spaceLogId: string): Promise<void> {
-  const colonIdx = spaceLogId.lastIndexOf(':');
-  if (colonIdx === -1) return;
-  const dateStr = spaceLogId.slice(0, colonIdx);
-  const logDir = path.join(baseDir, 'log');
-  const filePath = path.join(logDir, `${dateStr}.md`);
+export async function deleteGlobalLogRef(globalLogFile: string, spaceId: string, spaceLogId: string): Promise<void> {
+  const entries = await listLog(globalLogFile);
+  const filtered = entries.filter((e) => !(e.spaceId === spaceId && e.refId === spaceLogId));
+  if (filtered.length === entries.length) return;
 
-  let current: string;
-  try {
-    current = await fs.readFile(filePath, 'utf8');
-  } catch {
+  if (filtered.length === 0) {
+    await fs.rm(globalLogFile, { force: true }).catch(() => undefined);
     return;
   }
 
-  const lines = current.split(/\r?\n/);
-  if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-
-  const needle = `<!--ref:${spaceId}:${spaceLogId}-->`;
-  let removeIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes(needle)) {
-      removeIdx = i;
-      break;
-    }
-  }
-
-  if (removeIdx === -1) return;
-
-  let countToRemove = 1;
-  while (removeIdx + countToRemove < lines.length && (lines[removeIdx + countToRemove].startsWith('  ') || lines[removeIdx + countToRemove].startsWith('\t'))) {
-    countToRemove++;
-  }
-  lines.splice(removeIdx, countToRemove);
-
-  const remainingText = lines.join('\n').trim();
-  if (!remainingText) {
-    await fs.rm(filePath, { force: true }).catch(() => undefined);
-    return;
-  }
-  await writeFileAtomic(filePath, lines.join('\n') + '\n');
+  await writeFileAtomic(globalLogFile, serializeLogEntries(filtered, true));
 }
 
 export async function deleteFromGlobalAndSpace(
-  baseDir: string,
+  globalLogFile: string,
   globalId: string,
-  spacesDirFn: (id: string) => string
+  spaceLogFileFn: (spaceId: string) => string
 ): Promise<{ spaceId?: string; spaceLogId?: string }> {
-  const colonIdx = globalId.lastIndexOf(':');
-  if (colonIdx === -1) return {};
-  const dateStr = globalId.slice(0, colonIdx);
-  const logDir = path.join(baseDir, 'log');
-  const filePath = path.join(logDir, `${dateStr}.md`);
+  const entries = await listLog(globalLogFile);
+  const target = entries.find((e) => e.id === globalId);
+  if (!target) return {};
 
-  let current: string;
-  try {
-    current = await fs.readFile(filePath, 'utf8');
-  } catch {
-    return {};
+  const filtered = entries.filter((e) => e.id !== globalId);
+  await writeFileAtomic(globalLogFile, serializeLogEntries(filtered, true));
+
+  if (target.spaceId && target.refId) {
+    const sLogFile = spaceLogFileFn(target.spaceId);
+    await deleteLog(sLogFile, target.refId).catch(() => undefined);
+    return { spaceId: target.spaceId, spaceLogId: target.refId };
   }
 
-  let spaceId: string | undefined;
-  let spaceLogId: string | undefined;
-
-  const targetIdPart = globalId.slice(colonIdx + 1);
-  const isLineIndex = targetIdPart.startsWith('line');
-  const targetNum = isLineIndex ? parseInt(targetIdPart.slice(4), 10) : parseInt(targetIdPart, 10);
-
-  const lines = current.split(/\r?\n/);
-  if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-
-  let removeIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const match = lines[i].match(LOG_LINE_REGEX);
-    if (match) {
-      const seq = match[3] ? Number(match[3]) : 0;
-      const matches = isLineIndex ? i === targetNum : seq === targetNum;
-      if (matches) {
-        removeIdx = i;
-        const refMatch = lines[i].match(/<!--ref:([^:]+):([^>]+)-->/);
-        if (refMatch) {
-          spaceId = refMatch[1];
-          spaceLogId = refMatch[2];
-        }
-        break;
-      }
-    }
-  }
-
-  if (removeIdx !== -1) {
-    let countToRemove = 1;
-    while (removeIdx + countToRemove < lines.length && (lines[removeIdx + countToRemove].startsWith('  ') || lines[removeIdx + countToRemove].startsWith('\t'))) {
-      countToRemove++;
-    }
-    lines.splice(removeIdx, countToRemove);
-
-    const remainingText = lines.join('\n').trim();
-    if (!remainingText) {
-      await fs.rm(filePath, { force: true }).catch(() => undefined);
-    } else {
-      await writeFileAtomic(filePath, lines.join('\n') + '\n');
-    }
-  }
-
-  // If this entry belonged to a space, delete it from the space too!
-  if (spaceId && spaceLogId) {
-    const sLogDir = path.join(spacesDirFn(spaceId), 'log');
-    await deleteLog(sLogDir, spaceLogId).catch(() => undefined);
-  }
-
-  return { spaceId, spaceLogId };
-}
-
-export async function restoreLog(logDir: string, entry: LogEntry): Promise<void> {
-  const d = new Date(entry.createdAt);
-  const dateStr = formatLocalDate(d);
-  const timeStr = formatLocalTime(d);
-  const entryMinutes = d.getHours() * 60 + d.getMinutes();
-  const textLines = entry.text.split(/\r?\n/).map((l) => l.trim()).filter((l, idx) => idx === 0 || l.length > 0);
-  const seqPart = entry.seq > 0 ? ` #${entry.seq}` : '';
-  const linesToInsert = [
-    `- ${timeStr}${seqPart} ${textLines[0] || ''}`,
-    ...textLines.slice(1).map((l) => `  ${l}`),
-  ];
-  const filePath = path.join(logDir, `${dateStr}.md`);
-
-  let current = '';
-  try {
-    current = await fs.readFile(filePath, 'utf8');
-  } catch {
-    current = '';
-  }
-
-  const lines = current.length > 0 ? current.split(/\r?\n/) : [];
-  if (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
-
-  let insertIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const match = lines[i].match(LOG_LINE_REGEX);
-    if (match) {
-      const lineMinutes = Number(match[1]) * 60 + Number(match[2]);
-      if (lineMinutes > entryMinutes) {
-        insertIdx = i;
-        break;
-      }
-    }
-  }
-
-  if (insertIdx !== -1) {
-    lines.splice(insertIdx, 0, ...linesToInsert);
-  } else {
-    lines.push(...linesToInsert);
-  }
-
-  await writeFileAtomic(filePath, lines.join('\n') + '\n');
-}
-
-export async function renumberLog(spaceDir: string): Promise<number> {
-  const { spaceDir: sDir, logDir } = resolveSpaceAndLogDir(spaceDir);
-  const metaFile = path.join(sDir, 'meta.json');
-  const meta = await readSpaceMeta(metaFile);
-
-  let dayFiles: string[] = [];
-  try {
-    const items = await fs.readdir(logDir, { withFileTypes: true });
-    dayFiles = items
-      .filter((it) => it.isFile() && /^\d{4}-\d{2}-\d{2}\.md$/.test(it.name) && !it.name.endsWith('.tmp'))
-      .map((it) => it.name)
-      .sort();
-  } catch {
-    return meta.lastLogSeq ?? 0;
-  }
-
-  let maxSeq = meta.lastLogSeq ?? 0;
-  const fileData: Array<{ fileName: string; filePath: string; lines: string[] }> = [];
-
-  for (const f of dayFiles) {
-    const filePath = path.join(logDir, f);
-    const content = await fs.readFile(filePath, 'utf8');
-    const lines = content.split(/\r?\n/);
-    for (const line of lines) {
-      const m = line.match(LOG_LINE_REGEX);
-      if (m && m[3]) {
-        const num = Number(m[3]);
-        if (num > maxSeq) maxSeq = num;
-      }
-    }
-    fileData.push({ fileName: f, filePath, lines });
-  }
-
-  for (const file of fileData) {
-    let modified = false;
-    for (let i = 0; i < file.lines.length; i++) {
-      const m = file.lines[i].match(LOG_LINE_REGEX);
-      if (m && !m[3]) {
-        maxSeq++;
-        const timePart = `${m[1]}:${m[2]}`;
-        const text = m[4];
-        file.lines[i] = `- ${timePart} #${maxSeq} ${text}`;
-        modified = true;
-      }
-    }
-    if (modified) {
-      await writeFileAtomic(file.filePath, file.lines.join('\n'));
-    }
-  }
-
-  meta.lastLogSeq = maxSeq;
-  await writeSpaceMeta(metaFile, meta);
-  return maxSeq;
+  return {};
 }
 
 // ---------------------------------------------------------------------------

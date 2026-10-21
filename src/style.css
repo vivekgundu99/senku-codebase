@@ -1959,25 +1959,94 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.log-date-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.log-date-label {
+  font: 700 10px var(--mono);
+  color: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.log-date-picker {
+  height: 26px;
+  padding: 0 6px;
+  font: 500 11px var(--mono);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+}
+
+.log-date-picker:focus {
+  border-color: var(--green);
+}
+
+.log-mini-btn {
+  height: 26px;
+  padding: 0 7px;
+  font: 700 10.5px var(--mono);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.log-mini-btn:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.log-search-wrap {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  padding-right: 4px;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.log-search-wrap:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
 }
 
 .log-search-small {
-  width: 130px;
-  max-width: 130px;
-  height: 28px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0 8px;
-  font: 500 12px var(--sans);
-  background: #fff;
+  width: 120px;
+  border: none;
+  background: transparent;
+  padding: 0 6px;
+  font: 500 11.5px var(--sans);
   color: var(--ink);
   outline: none;
-  transition: border-color .15s;
 }
 
-.log-search-small:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
+.log-search-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  color: var(--soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.log-search-btn:hover {
+  color: var(--ink);
 }
 
 /* Log Single-Line Capture Card (auto-grows on Shift+Enter, Enter saves) */

@@ -47,8 +47,7 @@ export function setState(snapshot: AppSnapshot): void {
     activeNoteId = snapshot.activeNoteId ?? (snapshot.notes && snapshot.notes[0]?.id) ?? null;
     noteFilter = '';
     logFilter = '';
-    logDay = '';
-    logLimit = LOG_PAGE;
+    resetLogDates();
     fileFilter = '';
     fileLimit = FILE_PAGE;
   } else if (snapshot.currentPath !== currentPath) {
@@ -68,7 +67,7 @@ export function setState(snapshot: AppSnapshot): void {
 
 export function setView(view: string): void {
   if ((currentView === 'Log' && view === 'AllLog') || (currentView === 'AllLog' && view === 'Log')) {
-    logDay = '';
+    resetLogDates();
   }
   currentView = view;
 }
@@ -108,15 +107,38 @@ export function visibleEntries(): { items: FileEntry[]; matched: number; total: 
 export const LOG_PAGE = 40;
 export let logFilter = '';
 export let logLimit = LOG_PAGE;
-export let logDay = '';
+
+export function defaultLogFromDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 7);
+  return toLocalDateString(d.getTime());
+}
+
+export function defaultLogToDate(): string {
+  return toLocalDateString(Date.now());
+}
+
+export let logFromDate = defaultLogFromDate();
+export let logToDate = defaultLogToDate();
 export let allLog: LogEntry[] = [];
 
 export function setAllLog(entries: LogEntry[]): void {
   allLog = entries;
 }
 
-export function setLogDay(day: string): void {
-  logDay = day;
+export function setLogFromDate(date: string): void {
+  logFromDate = date;
+  logLimit = LOG_PAGE;
+}
+
+export function setLogToDate(date: string): void {
+  logToDate = date;
+  logLimit = LOG_PAGE;
+}
+
+export function resetLogDates(): void {
+  logFromDate = defaultLogFromDate();
+  logToDate = defaultLogToDate();
   logLimit = LOG_PAGE;
 }
 
@@ -154,10 +176,10 @@ export function visibleLogEntries(scope: 'space' | 'all' = 'space'): { items: Lo
       const numberMatch = numSearch !== null && entry.seq === numSearch;
       if (!textMatch && !numberMatch) return false;
     }
-    // 2. Day match
-    if (logDay) {
-      if (toLocalDateString(entry.createdAt) !== logDay) return false;
-    }
+    // 2. Date range match
+    const entryDate = toLocalDateString(entry.createdAt);
+    if (logFromDate && entryDate < logFromDate) return false;
+    if (logToDate && entryDate > logToDate) return false;
     return true;
   });
 
