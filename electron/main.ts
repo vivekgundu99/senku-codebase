@@ -556,8 +556,25 @@ function scheduleSaveOverlayPosition(): void {
 }
 
 function showMainWindow(): void {
-  mainWindow?.show();
-  mainWindow?.focus();
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    void createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function toggleMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    void createWindow();
+    return;
+  }
+  if (mainWindow.isVisible() && mainWindow.isFocused()) {
+    mainWindow.hide();
+  } else {
+    showMainWindow();
+  }
 }
 
 async function createWindow(): Promise<void> {
@@ -891,10 +908,15 @@ app.whenReady().then(async () => {
     ]),
   );
   tray.on('click', showMainWindow);
+
+  // Global launch shortcut: Ctrl+Alt+Space (Cmd+Alt+Space on macOS)
+  globalShortcut.register('CommandOrControl+Alt+Space', () => {
+    toggleMainWindow();
+  });
 });
 
 app.on('will-quit', () => {
-  // Global shortcuts cleanup
+  globalShortcut.unregisterAll();
 });
 
 app.on('before-quit', () => {

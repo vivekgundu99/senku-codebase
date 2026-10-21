@@ -214,11 +214,11 @@ textarea {
 }
 .topbar-left {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
 }
 .topbar-view-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 750;
   color: var(--ink);
   letter-spacing: -.01em;
