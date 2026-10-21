@@ -39,6 +39,10 @@ const UI_ICONS: Record<string, string> = {
   search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   dots: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
   tools: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+  arrowUp: '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>',
+  chevronRight: '<polyline points="9 18 15 12 9 6"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
 };
 
 export const uiIcon = (name: string, size = 16): string =>
@@ -242,10 +246,10 @@ export function fileEntryMarkup(entry: FileEntry): string {
         ${entry.pinned ? '<span class="pinned-indicator">pinned</span>' : ''}
       </button>
       <span class="file-actions">
-        <button data-file-action="code" data-path="${escapeHtml(entry.path)}" class="quick-code-btn" title="Open in VS Code">Code</button>
+        <button data-file-action="code" data-path="${escapeHtml(entry.path)}" class="quick-code-btn" title="Open in VS Code">${uiIcon('code', 11)} <span>Code</span></button>
         <button data-path="${escapeHtml(entry.path)}" ${pinAction}
           class="pin-button ${entry.pinned ? 'active' : ''}" aria-label="${entry.pinned ? 'Unpin' : 'Pin'}">${uiIcon('star', 12)}</button>
-        <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" title="Copy path">Copy</button>
+        <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" class="quick-copy-btn" title="Copy path">${uiIcon('copy', 11)} <span>Copy</span></button>
       </span>
     </div>`;
 }
@@ -268,7 +272,7 @@ export function fileListMarkup(): string {
 
 export function fileCountLabel(): string {
   const { matched, total } = visibleEntries();
-  if (!fileFilter.trim()) return '';
+  if (!fileFilter.trim()) return total > 0 ? `${total} items` : '';
   return `${matched} of ${total}`;
 }
 
@@ -277,9 +281,6 @@ export function filePanelMarkup(): string {
   if (!ws) {
     return `
       <section class="files-panel">
-        <div class="section-heading">
-          <div><h2>Files</h2></div>
-        </div>
         <div class="empty-files-unlinked">
           <div class="empty-unlinked-icon">${iconSvg('folder', 32)}</div>
           <h3>No folder linked</h3>
@@ -291,10 +292,13 @@ export function filePanelMarkup(): string {
   if (state.workspaceFolderAvailability[ws.id] === false) {
     return `
       <section class="files-panel">
-        <div class="section-heading">
-          <div><h2>Files</h2></div>
+        <div class="file-top-bar">
+          <div class="folder-path missing-warning">
+            <span class="crumb-icon" style="color: var(--orange);">${uiIcon('alert', 14)}</span>
+            <span class="crumb-name" style="color: var(--orange); font-weight: 700;">Folder missing</span>
+          </div>
           <div class="file-panel-actions">
-            <button class="text-button" data-action="workspace-settings" title="Space settings">Settings</button>
+            <button class="file-action-btn primary" data-action="workspace-settings" title="Space settings">Settings</button>
           </div>
         </div>
         <div class="empty-files-unlinked">
@@ -311,25 +315,38 @@ export function filePanelMarkup(): string {
 
   const atRoot = isSamePath(state.currentPath, ws.masterFolder);
   const crumbs = pathCrumbs(ws.masterFolder, state.currentPath);
-  const shown = crumbs.length > 3 ? crumbs.slice(-3) : crumbs;
+  const shown = crumbs.length > 2 ? crumbs.slice(-2) : crumbs;
   const breadcrumb =
-    (crumbs.length > 3 ? '<span>/</span><span class="crumb-gap">…</span>' : '') +
-    shown.map((c) => `<span>/</span><button data-breadcrumb="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button>`).join('');
+    (crumbs.length > 2 ? `<span class="crumb-sep">›</span><span class="crumb-gap">…</span>` : '') +
+    shown.map((c) => `<span class="crumb-sep">›</span><button class="crumb-btn" data-breadcrumb="${escapeHtml(c.path)}" title="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button>`).join('');
 
   return `
     <section class="files-panel">
-      <div class="section-heading">
-        <div><h2>Files</h2></div>
-        <div class="file-panel-actions">
-          <button class="text-button" id="open-in-vscode" title="Open in VS Code">Code</button>
-          <button class="text-button" id="open-in-terminal" title="Open in Terminal">Terminal</button>
-          <button class="text-button" id="open-folder" title="Open File Explorer">Explorer</button>
+      <div class="file-top-bar">
+        <div class="folder-path">
+          <button id="go-up" class="up-button" title="Up one folder (R)" aria-label="Up one folder" ${atRoot ? 'disabled' : ''}>
+            ${uiIcon('arrowUp', 13)}
+          </button>
+          <div class="breadcrumbs-scroll">
+            <button id="go-root" class="crumb-btn root-crumb" title="Go to ${escapeHtml(ws.name)} folder">
+              <span class="crumb-icon">${uiIcon('folder', 13)}</span>
+              <span class="crumb-name">${escapeHtml(folderName(ws.masterFolder))}</span>
+            </button>
+            ${breadcrumb}
+          </div>
         </div>
-      </div>
-      <div class="folder-path">
-        <button id="go-up" class="up-button" title="Up one folder (R)" aria-label="Up one folder" ${atRoot ? 'disabled' : ''}>↑</button>
-        <button id="go-root" title="Go to main folder">${escapeHtml(folderName(ws.masterFolder))}</button>
-        ${breadcrumb}
+        <div class="file-panel-actions">
+          <button class="file-action-btn primary" id="open-folder" title="Open folder in File Explorer">
+            ${uiIcon('folder', 13)}
+            <span class="action-label">Explorer</span>
+          </button>
+          <button class="file-action-btn" id="open-in-vscode" title="Open in VS Code">
+            ${uiIcon('code', 13)}
+          </button>
+          <button class="file-action-btn" id="open-in-terminal" title="Open in Terminal">
+            ${uiIcon('terminal', 13)}
+          </button>
+        </div>
       </div>
       <div class="file-tools">
         <div class="file-search-wrap">
