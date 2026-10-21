@@ -518,7 +518,107 @@ export function serializeLogEntries(entries: LogEntry[], isGlobal = false): stri
   return chunks.join('\n').trim() + '\n';
 }
 
+export async function ensureMigratedFromLegacyLogDir(logFilePath: string): Promise<void> {
+  const dir = path.dirname(logFilePath);
+  const legacyDir = path.join(dir, 'log');
+  try {
+    const stat = await fs.stat(legacyDir);
+    if (!stat.isDirectory()) return;
+
+    const files = await fs.readdir(legacyDir);
+    const mdFiles = files.filter((f) => f.endsWith('.md')).sort();
+    if (mdFiles.length === 0) {
+      await fs.rm(legacyDir, { recursive: true, force: true }).catch(() => undefined);
+      return;
+    }
+
+    const legacyEntries: LogEntry[] = [];
+    for (const file of mdFiles) {
+      const dateStr = file.replace(/\.md$/, '');
+      const content = await fs.readFile(path.join(legacyDir, file), 'utf8');
+      const lines = content.split(/\r?\n/);
+      let currentEntry: LogEntry | null = null;
+
+      for (const line of lines) {
+        const match = line.match(/^-\s+(\d{2}:\d{2}(?::\d{2})?)\s+(?:#(\d+)\s+)?(.*)$/);
+        if (match) {
+          const timeStr = match[1];
+          const seq = match[2] ? parseInt(match[2], 10) : 0;
+          let rawText = match[3] || '';
+          const [y, m, d] = dateStr.split('-').map(Number);
+          const timeParts = timeStr.split(':').map(Number);
+          const hh = timeParts[0] || 0;
+          const mm = timeParts[1] || 0;
+          const ss = timeParts[2] || 0;
+          const createdAt = new Date(y, m - 1, d, hh, mm, ss).getTime();
+
+          let spaceId: string | undefined;
+          let refId: string | undefined;
+          let spaceName: string | undefined;
+
+          const refMatch = rawText.match(/<!--ref:([^:]+):([^>]+)-->/);
+          if (refMatch) {
+            spaceId = refMatch[1];
+            refId = refMatch[2];
+            rawText = rawText.replace(refMatch[0], '');
+          }
+
+          const spaceMatch = rawText.match(/^\[([^\]]+)\]\s*/);
+          if (spaceMatch) {
+            spaceName = spaceMatch[1];
+            rawText = rawText.slice(spaceMatch[0].length);
+          }
+
+          currentEntry = {
+            id: seq > 0 ? `${dateStr}:${seq}` : `${dateStr}:${timeStr}`,
+            seq,
+            createdAt,
+            text: rawText,
+            spaceId,
+            spaceName,
+            refId,
+          };
+          legacyEntries.push(currentEntry);
+        } else if (currentEntry && (line.startsWith('  ') || line.startsWith('\t'))) {
+          currentEntry.text += '\n' + line.trim();
+        }
+      }
+    }
+
+    let existingEntries: LogEntry[] = [];
+    try {
+      const existingText = await fs.readFile(logFilePath, 'utf8');
+      existingEntries = parseLogMarkdown(existingText);
+    } catch {
+      existingEntries = [];
+    }
+
+    const mergedMap = new Map<string, LogEntry>();
+    for (const e of legacyEntries) {
+      mergedMap.set(e.id, e);
+    }
+    for (const e of existingEntries) {
+      if (mergedMap.has(e.id)) {
+        const maxSeq = Math.max(...Array.from(mergedMap.values()).map((m) => m.seq || 0), 0);
+        e.seq = maxSeq + 1;
+        const d = new Date(e.createdAt);
+        const dateStr = formatLocalDate(d);
+        e.id = `${dateStr}:${e.seq}`;
+      }
+      mergedMap.set(e.id, e);
+    }
+
+    const allMerged = Array.from(mergedMap.values());
+    const isGlobal = path.basename(logFilePath).startsWith('global');
+    await fs.writeFile(logFilePath, serializeLogEntries(allMerged, isGlobal), 'utf8');
+    await fs.rm(legacyDir, { recursive: true, force: true }).catch(() => undefined);
+  } catch {
+    // Ignore if legacy directory doesn't exist
+  }
+}
+
 export async function listLog(logFilePath: string): Promise<LogEntry[]> {
+  await ensureMigratedFromLegacyLogDir(logFilePath);
   try {
     const text = await fs.readFile(logFilePath, 'utf8');
     return parseLogMarkdown(text);

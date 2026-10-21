@@ -37,7 +37,32 @@
   background: var(--bg);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 54, 47, 0.18) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(41, 54, 47, 0.18);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 [hidden] { display: none !important; }
 html, body {
   margin: 0;
@@ -2357,9 +2382,8 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .home-lp-deck {
-  flex: 0 1 auto;
-  max-height: 220px;
-  min-height: 70px;
+  flex: 0 0 auto;
+  max-height: 190px;
 }
 
 .home-log-station {
@@ -2414,9 +2438,7 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 .home-launchpads-wrap {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  flex: 1 1 0;
-  min-height: 0;
+  gap: 2px;
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -2427,15 +2449,14 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   justify-content: space-between;
   gap: 8px;
   padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  transition: background 0.12s ease, border-color 0.12s ease;
+  border-radius: 5px;
+  background: transparent;
+  border: none;
+  transition: background 0.12s ease;
 }
 
 .home-lp-row:hover {
-  background: var(--bg-hover);
-  border-color: rgba(41, 54, 47, 0.14);
+  background: var(--hover);
 }
 
 .home-lp-launch-btn {
@@ -2449,14 +2470,15 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   min-width: 0;
   flex: 1 1 0;
   text-align: left;
+  color: inherit;
 }
 
 .home-lp-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 4px;
   background: rgba(30, 90, 58, 0.08);
   color: var(--green);
@@ -2475,19 +2497,12 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .home-lp-name {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.home-lp-count {
-  font: 500 10.5px var(--mono);
-  color: var(--soft);
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .home-lp-actions {

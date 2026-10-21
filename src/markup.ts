@@ -362,16 +362,12 @@ export function overviewPanelMarkup(): string {
 }
 
 function homeLaunchpadRowMarkup(lp: Launchpad): string {
-  const count = lp.paths.length;
-  const countLabel = count === 1 ? '1 item' : `${count} items`;
-
   return `
     <div class="home-lp-row" data-id="${escapeHtml(lp.id)}">
       <button type="button" class="home-lp-launch-btn" data-launch-id="${escapeHtml(lp.id)}" title="Launch ${escapeHtml(lp.name)}">
         <span class="home-lp-icon">${uiIcon('play', 10)}</span>
         <span class="home-lp-name">${escapeHtml(lp.name)}</span>
       </button>
-      <span class="home-lp-count">${countLabel}</span>
       <div class="home-lp-actions">
         <button type="button" class="home-lp-pin-btn ${lp.pinned ? 'active' : ''}" data-pin-lp="${escapeHtml(lp.id)}" data-pinned="${Boolean(lp.pinned)}" title="${lp.pinned ? 'Unpin' : 'Pin to Home'}">
           ${uiIcon('star', 12)}
