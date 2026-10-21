@@ -346,14 +346,16 @@ export function filePanelMarkup(): string {
           <button class="file-action-btn" id="open-in-terminal" title="Open in Terminal">
             ${uiIcon('terminal', 13)}
           </button>
+          <div class="file-search-expandable ${fileFilter ? 'open' : ''}" id="file-search-expandable">
+            <button type="button" class="file-action-btn search-trigger-btn" id="file-search-trigger" title="Search files (/)">
+              ${uiIcon('search', 13)}
+            </button>
+            <div class="file-search-input-wrap">
+              <input id="file-filter" type="text" placeholder="Search… (Enter)" value="${escapeHtml(fileFilter)}" autocomplete="off" spellcheck="false" />
+              <button type="button" id="file-search-clear" class="file-search-clear" title="Clear (Esc)">✕</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="file-tools">
-        <div class="file-search-wrap">
-          <input id="file-filter" type="text" placeholder="Search (Enter)…" value="${escapeHtml(fileFilter)}" autocomplete="off" spellcheck="false" />
-          <button type="button" id="file-search-btn" class="file-search-btn" title="Search">${uiIcon('search', 12)}</button>
-        </div>
-        <span class="file-count" id="file-count">${fileCountLabel()}</span>
       </div>
       <div class="file-list">${fileListMarkup()}</div>
     </section>`;
@@ -423,6 +425,9 @@ export function homePanelV3Markup(): string {
 
   return `
     <section class="home-panel-v3">
+      <div class="panel-header-line">
+        <h2 class="panel-header-title">Overview</h2>
+      </div>
       <div class="home-decks-container">
         <!-- Top: Quick Launchpads -->
         <div class="home-recent-deck home-lp-deck">

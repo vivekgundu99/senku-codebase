@@ -501,7 +501,24 @@ function bindFileActions(load: LoadFn): void {
     refreshList();
   };
 
+  const searchExpandable = panel.querySelector<HTMLElement>('#file-search-expandable');
   const fileInput = panel.querySelector<HTMLInputElement>('#file-filter');
+  const searchTrigger = panel.querySelector<HTMLElement>('#file-search-trigger');
+  const searchClear = panel.querySelector<HTMLElement>('#file-search-clear');
+
+  searchTrigger?.addEventListener('click', () => {
+    searchExpandable?.classList.add('open');
+    fileInput?.focus();
+    fileInput?.select();
+  });
+
+  searchClear?.addEventListener('click', () => {
+    if (fileInput) fileInput.value = '';
+    setFileFilter('');
+    refreshList();
+    searchExpandable?.classList.remove('open');
+  });
+
   if (fileInput) {
     fileInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -511,12 +528,11 @@ function bindFileActions(load: LoadFn): void {
         fileInput.value = '';
         setFileFilter('');
         refreshList();
+        searchExpandable?.classList.remove('open');
         fileInput.blur();
       }
     });
   }
-
-  panel.querySelector('#file-search-btn')?.addEventListener('click', runFileSearch);
 }
 
 // ---------------------------------------------------------------------------

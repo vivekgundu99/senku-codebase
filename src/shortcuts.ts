@@ -25,6 +25,8 @@ const shortcuts = [
   {
     key: '/',
     run: () => {
+      const searchExp = document.querySelector<HTMLElement>('#file-search-expandable');
+      if (searchExp) searchExp.classList.add('open');
       const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('#file-filter, #log-search, input[type="search"]'));
       const visible = inputs.find((el) => el.offsetParent !== null);
       if (visible) {
