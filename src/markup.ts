@@ -35,6 +35,7 @@ const UI_ICONS: Record<string, string> = {
   alert: '<path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>',
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
   folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
 };
 
 export const uiIcon = (name: string, size = 16): string =>
@@ -781,10 +782,8 @@ export function notesPanelMarkup(): string {
   if (allNotes.length === 0 && bundles.length === 0) {
     notesListHtml = `
       <div class="notes-empty-list">
-        <div class="notes-empty-badge">${uiIcon('note', 20)}</div>
         <p>No notes yet</p>
-        <small>Create your first note or folder.</small>
-        <button class="primary-button mini" id="create-note-empty-btn">+ Create a Note</button>
+        <small>Click + to create one.</small>
       </div>`;
   } else if (q && notes.length === 0) {
     notesListHtml = `
@@ -842,23 +841,24 @@ export function notesPanelMarkup(): string {
     </div>`
     : `
     <div class="notes-editor-placeholder">
-      <div class="notes-placeholder-icon">${uiIcon('note', 32)}</div>
-      <h3>${allNotes.length ? 'Select a note to read or edit' : 'No note selected'}</h3>
-      <p>${allNotes.length ? 'Choose a note from the left sidebar to start editing.' : 'Capture thoughts, code snippets, and ideas in distraction-free markdown.'}</p>
-      <button class="primary-button" id="create-note-placeholder-btn">+ New Note</button>
+      <div class="notes-placeholder-icon">${uiIcon('note', 34)}</div>
+      <h3>${allNotes.length ? 'Select a note' : 'Distraction-free notes'}</h3>
+      <p>${allNotes.length ? 'Choose a note from the list on the left to read or edit.' : 'Your notes are stored locally as pure Markdown. Write distraction-free or open in VS Code anytime.'}</p>
+      <button class="primary-button notes-cta-btn" id="create-note-placeholder-btn">+ New Note</button>
     </div>`;
 
   return `
     <section class="notes-panel">
       <div class="notes-sidebar">
         <div class="notes-sidebar-head">
-          <span class="section-kicker">NOTES</span>
+          <span class="notes-sidebar-title">Notes</span>
           <div class="notes-sidebar-actions">
-            <button class="ghost-button mini" id="create-bundle-btn" title="Create a folder">+ Folder</button>
-            <button class="primary-button mini" id="create-note-btn" title="Create a new note">+ Note</button>
+            <button class="notes-head-btn" id="create-bundle-btn" title="New folder" aria-label="New folder">${uiIcon('folder', 14)}</button>
+            <button class="notes-head-btn primary" id="create-note-btn" title="New note" aria-label="New note">${uiIcon('plus', 14)}</button>
           </div>
         </div>
         <div class="notes-search-wrap">
+          <span class="notes-search-icon">${uiIcon('search', 12)}</span>
           <input
             id="notes-search-input"
             type="search"

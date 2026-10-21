@@ -482,25 +482,26 @@ export function openTrashModal(load: () => Promise<void>): void {
 export function openCreateNoteModal(load: (path?: string) => Promise<void>, render: () => void, defaultBundle?: string): void {
   const bundles = state.bundles ?? [];
   const bundleOptions = bundles.length > 0 ? `
-    <label>Folder (optional)
-      <select name="bundle" class="modal-select">
+    <div class="dialog-field">
+      <label for="create-note-bundle-select">Folder (optional)</label>
+      <select name="bundle" id="create-note-bundle-select" class="modal-select">
         <option value="" ${!defaultBundle ? 'selected' : ''}>No folder (loose note)</option>
         ${bundles.map((b) => `<option value="${escapeHtml(b)}" ${defaultBundle === b ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}
       </select>
-    </label>` : '';
+    </div>` : '';
 
   const overlay = createOverlay(`
-    <form class="modal-card" style="width:min(400px,100%)">
-      <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">NEW NOTE</span>
-      <h2>Name your note</h2>
-      <p class="modal-copy">A new text file will be created inside Senku. You can write, append snippets, and export anytime.</p>
-      <label>Note name
-        <input name="name" id="new-note-name-input" required placeholder="e.g. DSA Ideas, Daily Plan, Resources" autocomplete="off" autofocus />
-      </label>
+    <form class="modal-card note-dialog-card">
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
+      <span class="settings-kicker">NEW NOTE</span>
+      <h2 class="dialog-title">New Note</h2>
+      <div class="dialog-field">
+        <label for="new-note-name-input">Note Name</label>
+        <input name="name" id="new-note-name-input" required placeholder="e.g. Algorithms" autocomplete="off" autofocus />
+      </div>
       ${bundleOptions}
       <p class="form-error" id="note-create-error"></p>
-      <button class="primary-button" type="submit">Create Note <span>→</span></button>
+      <button class="primary-button mini" type="submit">Create Note</button>
     </form>`);
 
   requestAnimationFrame(() => {
@@ -545,16 +546,16 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
 
 export function openCreateBundleModal(load: (path?: string) => Promise<void>, render: () => void): void {
   const overlay = createOverlay(`
-    <form class="modal-card" style="width:min(400px,100%)">
-      <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">NEW FOLDER</span>
-      <h2>Create note folder</h2>
-      <p class="modal-copy">Organize your notes into folders (e.g. CN Notes, Machine Learning, Work).</p>
-      <label>Folder name
-        <input name="name" id="new-bundle-name-input" required placeholder="e.g. CN Notes, System Design" autocomplete="off" autofocus />
-      </label>
+    <form class="modal-card note-dialog-card">
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
+      <span class="settings-kicker">NEW FOLDER</span>
+      <h2 class="dialog-title">New Folder</h2>
+      <div class="dialog-field">
+        <label for="new-bundle-name-input">Folder Name</label>
+        <input name="name" id="new-bundle-name-input" required placeholder="e.g. College" autocomplete="off" autofocus />
+      </div>
       <p class="form-error" id="bundle-create-error"></p>
-      <button class="primary-button" type="submit">Create Folder <span>→</span></button>
+      <button class="primary-button mini" type="submit">Create Folder</button>
     </form>`);
 
   requestAnimationFrame(() => {
