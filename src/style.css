@@ -3660,12 +3660,12 @@ body.overlay-mini-body {
 .overlay-mini-drag {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   -webkit-app-region: drag;
   cursor: grab;
   flex-shrink: 0;
-  padding: 3px 6px;
-  border-radius: 6px;
+  padding: 2px 4px;
+  border-radius: 5px;
   border: 1px solid transparent;
   transition: background .12s ease, border-color .12s ease;
 }
@@ -3679,23 +3679,8 @@ body.overlay-mini-body {
   cursor: grabbing;
 }
 
-.overlay-mini-grip {
-  font-size: 13px;
-  line-height: 1;
-  color: var(--soft);
-  opacity: 0.65;
-  user-select: none;
-  cursor: grab;
-  transition: opacity .12s ease, color .12s ease;
-}
-
-.overlay-mini-drag:hover .overlay-mini-grip {
-  opacity: 1;
-  color: var(--muted);
-}
-
 .overlay-mini-icon {
-  font-size: 13px;
+  font-size: 11.5px;
   color: var(--green);
   font-weight: 800;
 }
@@ -3704,9 +3689,9 @@ body.overlay-mini-body {
   font: 700 11px var(--mono);
   color: var(--muted);
   background: var(--green-pale);
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 4px;
-  max-width: 110px;
+  max-width: 105px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3740,14 +3725,14 @@ body.overlay-mini-body {
 }
 
 .overlay-mini-close {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
   border: none;
   background: transparent;
   color: var(--soft);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 11px;
   display: grid;
   place-items: center;
   transition: all .1s;
@@ -3860,9 +3845,13 @@ body.overlay-mini-body {
 }
 
 /* Quick-note overlay: chat-style box that grows with its text (the window grows with it) */
-.overlay-mini-bar { align-items: flex-start; padding: 6px 6px 6px 10px; }
-.overlay-mini-drag { margin-top: 5px; }
-.overlay-mini-close { margin-top: 3px; }
+.overlay-mini-bar {
+  align-items: flex-start;
+  padding: 3px 4px 3px 6px;
+  gap: 6px;
+}
+.overlay-mini-drag { margin-top: 3px; }
+.overlay-mini-close { margin-top: 4px; }
 textarea.overlay-mini-input {
   display: block;
   height: 34px;

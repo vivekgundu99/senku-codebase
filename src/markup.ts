@@ -618,16 +618,14 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
           .map(
             (e) => {
               const cleanText = e.text.replace(/^\[[^\]]+\]\s*/, '');
-              const seqLabel = e.seq && e.seq > 0 ? `#${e.seq}` : '';
               const rawSpace = e.spaceName || (scope === 'all' && (!e.spaceId || e.spaceId === 'senku') ? '#senku' : '');
               const spaceBadge = scope === 'all' && rawSpace
                 ? `<span class="log-row-space" data-space-filter="${escapeHtml(rawSpace)}" title="Filter by ${escapeHtml(rawSpace)}">${escapeHtml(rawSpace)}</span>`
                 : '';
               return `
                   <div class="log-row-compact${cleanText.includes('\n') ? ' multi' : ''}" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
-                    <span class="log-row-seq">${seqLabel}</span>
                     <span class="log-row-time">${formatLogTimeOnly(e.createdAt)}</span>
-                    <span class="log-row-text" title="Double click to edit">${escapeHtml(cleanText)}</span>
+                    <span class="log-row-text">${escapeHtml(cleanText)}</span>
                     ${spaceBadge}
                     <button type="button" class="log-row-del-btn" data-delete-log="${e.id}" data-space-id="${e.spaceId || ''}" title="Delete log">${uiIcon('x', 11)}</button>
                   </div>`;

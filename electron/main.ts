@@ -662,18 +662,18 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
   } else {
     const primary = screen.getPrimaryDisplay();
     const wa = primary.workArea;
-    posX = Math.round(wa.x + (wa.width - 480) / 2);
+    posX = Math.round(wa.x + (wa.width - 440) / 2);
     posY = Math.round(wa.y + wa.height * 0.15);
   }
 
   overlayWindow = new BrowserWindow({
-    width: 480,
-    height: 48,
+    width: 440,
+    height: 42,
     x: posX,
     y: posY,
-    minWidth: 480,
-    maxWidth: 480,
-    minHeight: 48,
+    minWidth: 440,
+    maxWidth: 440,
+    minHeight: 42,
     maxHeight: 200,
     frame: false,
     backgroundColor: '#f5f2ea',
@@ -1689,7 +1689,7 @@ ipcMain.handle('overlay:minimize', async () => {
 // Users cannot drag-resize it (see 'will-resize'); only the page asks for a height.
 ipcMain.handle('overlay:resize', async (_event, height: number) => {
   if (!overlayWindow || overlayWindow.isDestroyed()) return { ok: false };
-  const next = Math.max(48, Math.min(200, Math.round(Number(height) || 48)));
+  const next = Math.max(42, Math.min(200, Math.round(Number(height) || 42)));
   const [width, current] = overlayWindow.getSize();
   if (current === next) return { ok: true };
   const wasResizable = overlayWindow.isResizable();

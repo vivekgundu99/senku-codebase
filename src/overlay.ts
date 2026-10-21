@@ -8,7 +8,7 @@ let activeWorkspaceId: string | undefined;
 
 const MIN_BOX = 34; // one line
 const MAX_BOX = 140; // about six lines, then the box scrolls
-const WINDOW_CHROME = 14; // bar padding + border around the box
+const WINDOW_CHROME = 8; // bar padding (3px top + 3px bottom) + border (2px)
 let lastWindowHeight = 0;
 
 /** Grow the text box with its content and ask the window to follow. */

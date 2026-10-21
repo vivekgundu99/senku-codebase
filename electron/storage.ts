@@ -571,7 +571,6 @@ export function serializeLogEntries(entries: LogEntry[]): string {
     for (const e of dayEntries) {
       const d = new Date(e.createdAt);
       const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-      const seqStr = e.seq && e.seq > 0 ? `#${e.seq} ` : '';
       const refTag = e.spaceId ? `<!--ref:${e.spaceId}-->` : '';
       const spaceTag = e.spaceName ? `[${e.spaceName}] ` : '';
 
@@ -579,7 +578,7 @@ export function serializeLogEntries(entries: LogEntry[]): string {
       const firstLine = rawLines[0] || '';
       const continuationLines = rawLines.slice(1).map((l: string) => `  ${l}`);
 
-      chunks.push(`- ${timeStr} ${seqStr}${refTag}${spaceTag}${firstLine}`);
+      chunks.push(`- ${timeStr} ${refTag}${spaceTag}${firstLine}`);
       if (continuationLines.length > 0) {
         chunks.push(...continuationLines);
       }
@@ -714,18 +713,13 @@ export async function addLog(
   const entries = await listLog(logFilePath);
   const dateStr = formatLocalDate(now);
 
-  let maxSeq = 0;
-  for (const e of entries) {
-    if (e.seq && e.seq > maxSeq) maxSeq = e.seq;
-  }
-  const nextSeq = maxSeq + 1;
-
   const rawLines = text.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string, idx: number) => idx === 0 || l.length > 0);
   const cleanText = rawLines.join('\n');
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
   const newEntry: LogEntry = {
-    id: `${dateStr}:${nextSeq}`,
-    seq: nextSeq,
+    id: `${dateStr}:${timeStr}-${now.getTime().toString(36)}`,
+    seq: 0,
     createdAt: now.getTime(),
     text: cleanText,
     spaceId,

@@ -899,61 +899,7 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
     }
   });
 
-  // Double-click inline edit
-  panel.querySelector('.log-entries')?.addEventListener('dblclick', (e) => {
-    const target = e.target as HTMLElement;
-    const textEl = target.closest<HTMLElement>('.log-row-text');
-    if (!textEl) return;
-    const row = textEl.closest<HTMLElement>('.log-row-compact');
-    if (!row) return;
 
-    const id = row.dataset.id;
-    const spaceId = row.dataset.spaceId;
-    if (!id) return;
-
-    const originalText = textEl.textContent || '';
-    const editTextarea = document.createElement('textarea');
-    editTextarea.className = 'log-row-edit-textarea';
-    editTextarea.value = originalText;
-    editTextarea.rows = Math.max(2, originalText.split('\n').length);
-    textEl.replaceWith(editTextarea);
-    editTextarea.focus();
-    editTextarea.select();
-
-    let committed = false;
-    const save = async () => {
-      if (committed) return;
-      committed = true;
-      const newText = editTextarea.value.trim();
-      if (newText && newText !== originalText) {
-        await window.senku.updateLogEntry(id, newText, spaceId);
-        if (scope === 'all') {
-          const all = await window.senku.listAllLogs();
-          setAllLog(all);
-        } else {
-          await load(state.currentPath);
-        }
-      }
-      refreshList();
-    };
-
-    const cancel = () => {
-      if (committed) return;
-      committed = true;
-      refreshList();
-    };
-
-    editTextarea.addEventListener('keydown', (ev) => {
-      if (isSendKey(ev)) {
-        ev.preventDefault();
-        void save();
-      } else if (ev.key === 'Escape') {
-        ev.preventDefault();
-        cancel();
-      }
-    });
-    editTextarea.addEventListener('blur', () => void save());
-  });
 
   panel.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
