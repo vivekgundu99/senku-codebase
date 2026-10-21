@@ -62,7 +62,7 @@ export function sidebarMarkup(): string {
         <button class="space-item" data-switch-space="${space.id}" title="${escapeHtml(space.name)} · ${escapeHtml(space.masterFolder)}${missing ? ' [Folder missing]' : ''}">
           <span class="space-badge ${missing ? 'missing' : ''}">${escapeHtml(space.name.charAt(0).toUpperCase() || '?')}</span>
           <span class="space-name">${escapeHtml(space.name)}</span>
-          ${missing ? '<span class="space-missing-icon" title="Folder not found">△</span>' : ''}
+          ${missing ? `<span class="space-missing-icon" title="Folder not found">${uiIcon('alert', 12)}</span>` : ''}
         </button>
         ${isActive ? `<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">${uiIcon('gear', 13)}</button>` : ''}
       </div>`;
@@ -132,8 +132,11 @@ export function topbarMarkup(): string {
     day: 'numeric',
   }).format(new Date());
 
-  const spacePill = isSpaceView && ws
-    ? `<span class="topbar-space-pill" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">${escapeHtml(ws.name)}</span>`
+  const spacePill = ws
+    ? `<button class="topbar-space-pill" id="topbar-space-pill" data-action="workspace-settings" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">
+        <span class="topbar-space-name">${escapeHtml(ws.name)}</span>
+        <span class="topbar-space-caret">${uiIcon('gear', 11)}</span>
+      </button>`
     : '';
 
   const hasUserName = Boolean(state.settings?.userName?.trim());
@@ -280,6 +283,27 @@ export function filePanelMarkup(): string {
           <div class="empty-unlinked-icon">${iconSvg('folder', 32)}</div>
           <h3>No folder linked</h3>
           <p>Create a Space to link a folder. Your project files will show up here.</p>
+        </div>
+      </section>`;
+  }
+
+  if (state.workspaceFolderAvailability[ws.id] === false) {
+    return `
+      <section class="files-panel">
+        <div class="section-heading">
+          <div><h2>Files</h2></div>
+          <div class="file-panel-actions">
+            <button class="text-button" data-action="workspace-settings" title="Space settings">Settings</button>
+          </div>
+        </div>
+        <div class="empty-files-unlinked">
+          <div class="empty-unlinked-icon" style="color: var(--orange);">${uiIcon('alert', 32)}</div>
+          <h3>Folder not found</h3>
+          <p>The folder linked to <strong>${escapeHtml(ws.name)}</strong> no longer exists at:</p>
+          <code class="missing-path-display">${escapeHtml(ws.masterFolder)}</code>
+          <div style="margin-top: 14px;">
+            <button class="primary-button mini" data-action="workspace-settings">Update Space Folder</button>
+          </div>
         </div>
       </section>`;
   }

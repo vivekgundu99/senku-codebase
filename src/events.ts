@@ -255,8 +255,7 @@ function bindNavigation(load: LoadFn, render: RenderFn): void {
 // Sidebar
 // ---------------------------------------------------------------------------
 
-function bindSidebarButtons(load: LoadFn, render: RenderFn): void {
-  document.querySelector('#workspace-settings')?.addEventListener('click', () => openWorkspaceSettingsModal(load, render));
+function bindSidebarButtons(load: LoadFn, _render: RenderFn): void {
   document.querySelector('#open-trash')?.addEventListener('click', () => openTrashModal(load));
 }
 
@@ -802,6 +801,12 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
     if (target.closest('#add-space, #add-space-empty, #topbar-create-space, #create-space-files, #home-add-space')) {
       e.preventDefault();
       openWorkspaceFormModal(load);
+      return;
+    }
+
+    if (target.closest('#workspace-settings, #topbar-space-pill, [data-action="workspace-settings"]')) {
+      e.preventDefault();
+      openWorkspaceSettingsModal(load, render);
       return;
     }
   }, true);

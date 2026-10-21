@@ -207,12 +207,27 @@ textarea {
 .topbar-space-pill {
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 500;
-  background: transparent;
-  border: none;
-  padding: 0 4px;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--ink);
+  font-weight: 600;
+  background: #ebe7dc;
+  border: 1px solid #ddd7c7;
+  padding: 2px 8px 2px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.topbar-space-pill:hover {
+  background: #e2ded0;
+  border-color: #cac3b0;
+}
+.topbar-space-caret {
+  display: inline-flex;
+  color: var(--soft);
+}
+.topbar-space-pill:hover .topbar-space-caret {
+  color: var(--ink);
 }
 .top-actions { display: flex; align-items: center; gap: 8px; }
 .content-grid {
@@ -487,7 +502,28 @@ textarea {
   flex: 0 0 auto;
 }
 .space-strict-icon { font-size: 10px; color: var(--green); }
-.space-missing-icon { font-size: 10px; color: var(--orange); }
+.space-missing-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--orange);
+  line-height: 1;
+}
+.missing-path-display {
+  display: inline-block;
+  font-size: 11px;
+  font-family: var(--mono);
+  background: #ebe7dc;
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: var(--ink);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 6px;
+}
 .space-gear {
   flex: 0 0 auto;
   margin-right: 4px;
@@ -840,6 +876,108 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   font-weight: 700 !important;
   border-radius: 6px !important;
   margin-top: 4px !important;
+}
+
+/* Compact Dialog Card (Space creation & Space Settings) */
+.space-dialog-card {
+  width: min(390px, 92vw) !important;
+  padding: 18px 20px 16px !important;
+  border-radius: var(--r-sm, 8px) !important;
+  box-shadow: 0 16px 36px rgba(41, 54, 47, 0.14) !important;
+}
+
+.space-dialog-card .dialog-title {
+  margin: 2px 0 14px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.02em !important;
+  color: var(--ink) !important;
+}
+
+.space-dialog-card .dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.space-dialog-card .dialog-field label {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+  margin: 0 !important;
+}
+
+.space-dialog-card input {
+  width: 100%;
+  height: 32px !important;
+  padding: 0 10px !important;
+  margin-bottom: 0 !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  background: #fff !important;
+  color: var(--ink) !important;
+  outline: none !important;
+}
+
+.space-dialog-card input:focus {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15) !important;
+}
+
+.dialog-path-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dialog-path-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-browse-btn {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--bg-hover);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.dialog-browse-btn:hover {
+  background: var(--bg-active);
+  border-color: var(--border-hover);
+}
+
+.dialog-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  gap: 10px;
+}
+
+.danger-text-btn {
+  background: transparent;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--red, #cf4338);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: opacity 0.15s ease;
+}
+
+.danger-text-btn:hover {
+  background: rgba(207, 67, 56, 0.08);
 }
 
 .settings-modal-header {

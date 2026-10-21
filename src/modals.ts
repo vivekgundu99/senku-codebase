@@ -201,22 +201,23 @@ export function openAppSettingsModal(render: () => void): void {
 
 export function openWorkspaceFormModal(load: (path?: string) => Promise<void>): void {
   const overlay = createOverlay(`
-    <form class="modal-card">
-      <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">NEW SPACE</span>
-      <h2>Give a folder its own Space.</h2>
-      <p class="modal-copy">Pick one folder for a subject or project, like “DSA” or “WebDev”. You get full file navigation and quick actions instantly.</p>
-      <label>Space name
-        <input name="name" required placeholder="e.g. DSA, WebDev, College" />
-      </label>
-      <label>Main folder
-        <div class="path-input">
-          <input name="folder" required placeholder="C:\\Users\\you\\projects" />
-          <button type="button" id="browse-folder" class="ghost-button">Browse</button>
+    <form class="modal-card space-dialog-card">
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
+      <span class="settings-kicker">NEW SPACE</span>
+      <h2 class="dialog-title">New Space</h2>
+      <div class="dialog-field">
+        <label for="new-space-name-input">Space Name</label>
+        <input name="name" id="new-space-name-input" required placeholder="e.g. Algorithms, College, WebDev" autocomplete="off" autofocus />
+      </div>
+      <div class="dialog-field">
+        <label for="new-space-folder-input">Main Folder</label>
+        <div class="dialog-path-row">
+          <input name="folder" id="new-space-folder-input" required placeholder="C:\\path\\to\\project" autocomplete="off" />
+          <button type="button" id="browse-folder" class="dialog-browse-btn">Browse</button>
         </div>
-      </label>
+      </div>
       <p class="form-error" id="workspace-error"></p>
-      <button class="primary-button" type="submit">Create Space <span>→</span></button>
+      <button class="primary-button mini" type="submit">Create Space</button>
     </form>`);
 
   overlay.querySelector('#browse-folder')?.addEventListener('click', async () => {
@@ -256,23 +257,26 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
   const ws = state.workspace;
 
   const overlay = createOverlay(`
-    <form class="modal-card">
-      <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">SPACE SETTINGS</span>
-      <h2>Settings for ${escapeHtml(ws.name)}</h2>
-      <p class="modal-copy">Main folder: ${escapeHtml(ws.masterFolder)}</p>
-      <label>Space name
-        <input name="name" required value="${escapeHtml(ws.name)}" />
-      </label>
-      <label>Main folder
-        <div class="path-input">
-          <input name="folder" required value="${escapeHtml(ws.masterFolder)}" />
-          <button type="button" id="browse-space-folder" class="ghost-button">Browse</button>
+    <form class="modal-card space-dialog-card">
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
+      <span class="settings-kicker">SPACE SETTINGS</span>
+      <h2 class="dialog-title">Settings for ${escapeHtml(ws.name)}</h2>
+      <div class="dialog-field">
+        <label for="edit-space-name-input">Space Name</label>
+        <input name="name" id="edit-space-name-input" required value="${escapeHtml(ws.name)}" autocomplete="off" />
+      </div>
+      <div class="dialog-field">
+        <label for="edit-space-folder-input">Main Folder</label>
+        <div class="dialog-path-row">
+          <input name="folder" id="edit-space-folder-input" required value="${escapeHtml(ws.masterFolder)}" autocomplete="off" />
+          <button type="button" id="browse-space-folder" class="dialog-browse-btn">Browse</button>
         </div>
-      </label>
+      </div>
       <p class="form-error" id="workspace-settings-error"></p>
-      <button class="primary-button" type="submit">Save Space settings <span>→</span></button>
-      <button type="button" class="danger-button" id="delete-workspace">Delete this Space</button>
+      <div class="dialog-actions-row">
+        <button class="primary-button mini" type="submit">Save Changes</button>
+        <button type="button" class="danger-text-btn" id="delete-workspace">Delete Space</button>
+      </div>
     </form>`);
 
   overlay.querySelector('#browse-space-folder')?.addEventListener('click', async () => {
