@@ -669,7 +669,7 @@ async function createOverlayWindow(): Promise<BrowserWindow> {
     minWidth: 480,
     maxWidth: 480,
     minHeight: 48,
-    maxHeight: 48,
+    maxHeight: 200,
     frame: false,
     backgroundColor: '#f5f2ea',
     alwaysOnTop: true,
@@ -1602,6 +1602,20 @@ ipcMain.handle('overlay:hide', async () => {
 
 ipcMain.handle('overlay:minimize', async () => {
   minimizeOverlayWindow();
+  return { ok: true };
+});
+
+// The overlay grows downward while the user types a multi-line note (Shift+Enter).
+// Users cannot drag-resize it (see 'will-resize'); only the page asks for a height.
+ipcMain.handle('overlay:resize', async (_event, height: number) => {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return { ok: false };
+  const next = Math.max(48, Math.min(200, Math.round(Number(height) || 48)));
+  const [width, current] = overlayWindow.getSize();
+  if (current === next) return { ok: true };
+  const wasResizable = overlayWindow.isResizable();
+  overlayWindow.setResizable(true);
+  overlayWindow.setSize(width, next);
+  overlayWindow.setResizable(wasResizable);
   return { ok: true };
 });
 

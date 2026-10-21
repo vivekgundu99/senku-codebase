@@ -14,16 +14,15 @@
         <span class="overlay-mini-icon" title="Hold & drag to move">✎</span>
         <span class="overlay-mini-note" id="overlay-target-name">Notes</span>
       </div>
-      <input
-        type="text"
+      <textarea
         id="overlay-input"
         class="overlay-mini-input"
-        placeholder="Write note & hit Enter..."
-        autocomplete="off"
+        rows="1"
+        placeholder="Write note · Shift+Enter for new line"
         spellcheck="false"
         maxlength="1000"
         autofocus
-      />
+      ></textarea>
       <button type="button" class="overlay-mini-close" id="overlay-close-btn" title="Close (Esc)">✕</button>
     </div>
     <script type="module" src="/overlay.ts"></script>

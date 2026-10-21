@@ -339,11 +339,12 @@ export function overviewPanelMarkup(): string {
         <textarea
           id="home-capture-textarea"
           class="home-capture-textarea"
+          placeholder="Log what you did…   Enter to save · Shift+Enter for a new line"
           spellcheck="false"
           rows="3"
         >${escapeHtml(homeLogDraft)}</textarea>
         <div class="home-capture-box-foot">
-          <button class="primary-button mini" id="home-capture-submit">+ Add Log</button>
+          <button class="primary-button mini" id="home-capture-submit" title="Add log (Enter)">+ Add Log</button>
         </div>
       </div>
 
@@ -526,7 +527,7 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
                 ? `<span class="log-row-space">${escapeHtml(e.spaceName)}</span>`
                 : '';
               return `
-                  <div class="log-row-compact" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
+                  <div class="log-row-compact${e.text.includes('\n') ? ' multi' : ''}" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
                     <span class="log-row-seq">${seqLabel}</span>
                     <span class="log-row-time">${formatLogTimeOnly(e.createdAt)}</span>
                     <span class="log-row-text" title="Double click to edit">${escapeHtml(e.text)}</span>
@@ -566,11 +567,12 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
         <textarea
           id="log-compose-textarea"
           class="log-compose-textarea"
+          placeholder="Log what you did…   Enter to save · Shift+Enter for a new line"
           spellcheck="false"
           rows="2"
         >${escapeHtml(logPageDraft)}</textarea>
         <div class="log-compose-box-foot">
-          <button class="primary-button mini" id="log-compose-submit">+ Add Log</button>
+          <button class="primary-button mini" id="log-compose-submit" title="Add log (Enter)">+ Add Log</button>
         </div>
       </div>`
     : '';

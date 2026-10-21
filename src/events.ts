@@ -345,6 +345,18 @@ function bindFileActions(load: LoadFn): void {
 // Home actions: Quick capture
 // ---------------------------------------------------------------------------
 
+/** Chat-style send key: Enter sends, Shift+Enter inserts a new line. */
+function isSendKey(e: KeyboardEvent): boolean {
+  return e.key === 'Enter' && !e.shiftKey && !e.isComposing;
+}
+
+/** Grow a textarea with its content (like a chat box), up to a maximum height. */
+function growTextarea(el: HTMLTextAreaElement, minPx: number, maxPx = 200): void {
+  el.style.height = 'auto';
+  el.style.height = `${Math.min(maxPx, Math.max(minPx, el.scrollHeight))}px`;
+  el.style.overflowY = el.scrollHeight > maxPx ? 'auto' : 'hidden';
+}
+
 function bindHomeActions(load: LoadFn, render: RenderFn): void {
   const textarea = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
   const btn = document.querySelector<HTMLButtonElement>('#home-capture-submit');
@@ -352,11 +364,11 @@ function bindHomeActions(load: LoadFn, render: RenderFn): void {
   if (textarea) {
     textarea.addEventListener('input', () => {
       setHomeLogDraft(textarea.value);
-      textarea.style.height = 'auto';
-      textarea.style.height = `${Math.max(68, textarea.scrollHeight)}px`;
+      growTextarea(textarea, 68);
     });
+    if (textarea.value) growTextarea(textarea, 68);
     textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      if (isSendKey(e)) {
         e.preventDefault();
         void submit();
       }
@@ -436,11 +448,11 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
   if (textarea) {
     textarea.addEventListener('input', () => {
       setLogPageDraft(textarea.value);
-      textarea.style.height = 'auto';
-      textarea.style.height = `${Math.max(54, textarea.scrollHeight)}px`;
+      growTextarea(textarea, 54);
     });
+    if (textarea.value) growTextarea(textarea, 54);
     textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      if (isSendKey(e)) {
         e.preventDefault();
         void submit();
       }
@@ -526,7 +538,7 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
     };
 
     editTextarea.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+      if (isSendKey(ev)) {
         ev.preventDefault();
         void save();
       } else if (ev.key === 'Escape') {
@@ -684,8 +696,8 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'Enter') {
       e.preventDefault();
-      const homeInput = document.querySelector<HTMLInputElement>('#home-capture-input');
-      const logInput = document.querySelector<HTMLInputElement>('#log-compose-input');
+      const homeInput = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
+      const logInput = document.querySelector<HTMLTextAreaElement>('#log-compose-textarea');
       if (homeInput) {
         homeInput.focus();
       } else if (logInput) {
@@ -693,7 +705,7 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       } else {
         setView('Log');
         render();
-        setTimeout(() => document.querySelector<HTMLInputElement>('#log-compose-input')?.focus(), 50);
+        setTimeout(() => document.querySelector<HTMLTextAreaElement>('#log-compose-textarea')?.focus(), 50);
       }
     }
   }, { capture: true });

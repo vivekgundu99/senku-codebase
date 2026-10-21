@@ -54,6 +54,7 @@ declare global {
       showOverlay(): Promise<{ ok: boolean }>;
       hideOverlay(): Promise<{ ok: boolean }>;
       minimizeOverlay(): Promise<{ ok: boolean }>;
+      resizeOverlay(height: number): Promise<{ ok: boolean }>;
       getActiveNote(): Promise<{ activeId: string; activeName: string; workspaceId?: string; notes: Array<{ id: string; name: string }> }>;
       setActiveNote(id: string): Promise<{ ok: boolean }>;
       appendToActiveNote(snippet: string, targetId?: string): Promise<{ ok: boolean; noteName?: string; error?: string }>;

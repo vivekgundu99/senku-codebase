@@ -147,6 +147,9 @@ const api = {
   minimizeOverlay: () =>
     ipcRenderer.invoke('overlay:minimize') as Promise<{ ok: boolean }>,
 
+  resizeOverlay: (height: number) =>
+    ipcRenderer.invoke('overlay:resize', height) as Promise<{ ok: boolean }>,
+
   getActiveNote: () =>
     ipcRenderer.invoke('notes:get-active') as Promise<{ activeId: string; activeName: string; workspaceId?: string; notes: Array<{ id: string; name: string }> }>,
 

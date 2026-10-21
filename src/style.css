@@ -2380,4 +2380,34 @@ body.overlay-mini-body {
   text-decoration: underline;
 }
 
+/* An empty count badge (no filter active) should not draw an empty pill */
+.log-count-badge:empty { display: none; }
+
+/* ---------- Multiline support (Shift+Enter) ---------- */
+
+/* A multi-line log entry shows all of its lines; single-line rows are unchanged */
+.log-row-compact.multi { align-items: flex-start; }
+.log-row-compact.multi .log-row-seq,
+.log-row-compact.multi .log-row-time { padding-top: 1px; }
+.log-row-compact.multi .log-row-text {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Quick-note overlay: chat-style box that grows with its text (the window grows with it) */
+.overlay-mini-bar { align-items: flex-start; padding: 6px 6px 6px 10px; }
+.overlay-mini-drag { margin-top: 5px; }
+.overlay-mini-close { margin-top: 3px; }
+textarea.overlay-mini-input {
+  display: block;
+  height: 34px;
+  min-height: 34px;
+  max-height: 140px;
+  padding: 7px 10px;
+  line-height: 20px;
+  resize: none;
+  overflow-y: hidden;
+}
 

@@ -35,7 +35,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         <input
           class="palette-input"
           type="text"
-          placeholder="Type a command, space, note, file, or log..."
+          placeholder="Search or run a command"
           autocomplete="off"
           spellcheck="false"
         />

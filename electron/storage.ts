@@ -894,9 +894,12 @@ export async function restoreLog(logDir: string, entry: LogEntry): Promise<void>
   const dateStr = formatLocalDate(d);
   const timeStr = formatLocalTime(d);
   const entryMinutes = d.getHours() * 60 + d.getMinutes();
-  const cleanText = entry.text.replace(/[\r\n]+/g, ' ').trim();
+  const textLines = entry.text.split(/\r?\n/).map((l) => l.trim()).filter((l, idx) => idx === 0 || l.length > 0);
   const seqPart = entry.seq > 0 ? ` #${entry.seq}` : '';
-  const lineToInsert = `- ${timeStr}${seqPart} ${cleanText}`;
+  const linesToInsert = [
+    `- ${timeStr}${seqPart} ${textLines[0] || ''}`,
+    ...textLines.slice(1).map((l) => `  ${l}`),
+  ];
   const filePath = path.join(logDir, `${dateStr}.md`);
 
   let current = '';
@@ -924,9 +927,9 @@ export async function restoreLog(logDir: string, entry: LogEntry): Promise<void>
   }
 
   if (insertIdx !== -1) {
-    lines.splice(insertIdx, 0, lineToInsert);
+    lines.splice(insertIdx, 0, ...linesToInsert);
   } else {
-    lines.push(lineToInsert);
+    lines.push(...linesToInsert);
   }
 
   await writeFileAtomic(filePath, lines.join('\n') + '\n');
