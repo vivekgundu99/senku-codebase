@@ -22,7 +22,7 @@ import {
   logPageDraft,
   setLogPageDraft,
 } from './state';
-import { fileCountLabel, fileListMarkup, logListMarkup } from './markup';
+import { fileCountLabel, fileListMarkup, logListMarkup, uiIcon } from './markup';
 import { isSamePath, parentOf } from './utils';
 import { registerShortcuts } from './shortcuts';
 import { toast } from './toast';
@@ -108,16 +108,69 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     }),
   );
 
-  // Delete bundle
-  panel.querySelectorAll<HTMLElement>('[data-delete-bundle]').forEach((btn) =>
-    btn.addEventListener('click', async (e) => {
+  // Folder options menu (Open in VS Code, Delete folder)
+  panel.querySelectorAll<HTMLElement>('[data-bundle-menu]').forEach((btn) =>
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const bundle = btn.dataset.deleteBundle;
+      e.preventDefault();
+      const bundle = btn.dataset.bundleMenu;
       if (!bundle) return;
-      if (!confirm(`Delete folder "${bundle}" and all notes inside it?`)) return;
-      const snap = await window.senku.deleteBundle(bundle);
-      setState(snap);
-      render();
+
+      document.querySelectorAll('.bundle-menu-popover').forEach((p) => p.remove());
+
+      const popover = document.createElement('div');
+      popover.className = 'bundle-menu-popover';
+      popover.innerHTML = `
+        <button class="bundle-menu-item" id="bundle-menu-vscode">
+          ${uiIcon('code', 13)}
+          <span>Open in VS Code</span>
+        </button>
+        <button class="bundle-menu-item danger" id="bundle-menu-delete">
+          ${uiIcon('x', 13)}
+          <span>Delete Folder</span>
+        </button>
+      `;
+
+      const rect = btn.getBoundingClientRect();
+      popover.style.top = `${rect.bottom + 4}px`;
+      popover.style.left = `${Math.max(10, rect.right - 145)}px`;
+
+      document.body.appendChild(popover);
+
+      const closePopover = () => {
+        popover.remove();
+        document.removeEventListener('click', onDocClick);
+        document.removeEventListener('keydown', onDocKey);
+      };
+
+      const onDocClick = (evt: MouseEvent) => {
+        if (!popover.contains(evt.target as Node) && evt.target !== btn) {
+          closePopover();
+        }
+      };
+
+      const onDocKey = (evt: KeyboardEvent) => {
+        if (evt.key === 'Escape') closePopover();
+      };
+
+      setTimeout(() => {
+        document.addEventListener('click', onDocClick);
+        document.addEventListener('keydown', onDocKey);
+      }, 0);
+
+      popover.querySelector('#bundle-menu-vscode')?.addEventListener('click', async () => {
+        closePopover();
+        const res = await window.senku.openBundleInVSCode(bundle);
+        if (!res.ok) toast(res.error ?? 'Could not open folder in VS Code.');
+      });
+
+      popover.querySelector('#bundle-menu-delete')?.addEventListener('click', async () => {
+        closePopover();
+        if (!confirm(`Delete folder "${bundle}" and all notes inside it?`)) return;
+        const snap = await window.senku.deleteBundle(bundle);
+        setState(snap);
+        render();
+      });
     }),
   );
 

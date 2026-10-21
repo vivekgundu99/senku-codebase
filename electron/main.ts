@@ -1519,6 +1519,20 @@ ipcMain.handle('notes:open-vscode', async (_event, id: string) => {
   }
 });
 
+ipcMain.handle('notes:open-bundle-vscode', async (_event, bundleName: string) => {
+  const nDir = globalNotesDir();
+  const folderPath = path.join(nDir, bundleName);
+  try {
+    await fs.mkdir(folderPath, { recursive: true });
+    const cp = await import('node:child_process');
+    cp.spawn('code', [folderPath], { shell: true, detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  } catch {
+    const err = await shell.openPath(folderPath);
+    return { ok: !err, error: err || undefined };
+  }
+});
+
 ipcMain.handle('notes:export-all', async () => {
   const nDir = globalNotesDir();
   const notes = await listNotes(nDir);

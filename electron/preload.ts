@@ -134,6 +134,9 @@ const api = {
   openNoteInVSCode: (id: string) =>
     ipcRenderer.invoke('notes:open-vscode', id) as Promise<{ ok: boolean; error?: string }>,
 
+  openBundleInVSCode: (bundleName: string) =>
+    ipcRenderer.invoke('notes:open-bundle-vscode', bundleName) as Promise<{ ok: boolean; error?: string }>,
+
   importNotes: () =>
     ipcRenderer.invoke('notes:import') as Promise<{ snapshot: AppSnapshot; count: number; firstNoteId?: string } | null>,
 

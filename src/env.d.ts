@@ -49,6 +49,7 @@ declare global {
       restoreNote(note: NoteFile): Promise<AppSnapshot>;
       exportNote(id: string): Promise<{ ok: boolean; error?: string }>;
       openNoteInVSCode(id: string): Promise<{ ok: boolean; error?: string }>;
+      openBundleInVSCode(bundleName: string): Promise<{ ok: boolean; error?: string }>;
       importNotes(): Promise<{ snapshot: AppSnapshot; count: number; firstNoteId?: string } | null>;
       exportAllNotes(): Promise<{ ok: boolean; count?: number; empty?: boolean; error?: string }>;
       // Floating Overlay

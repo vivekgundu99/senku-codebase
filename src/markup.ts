@@ -36,6 +36,7 @@ const UI_ICONS: Record<string, string> = {
   code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
   folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
   search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  dots: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
 };
 
 export const uiIcon = (name: string, size = 16): string =>
@@ -782,8 +783,8 @@ export function notesPanelMarkup(): string {
             <span class="bundle-count">${bNotes.length}</span>
           </button>
           <div class="bundle-actions">
-            <button class="bundle-action-btn" data-add-to-bundle="${escapeHtml(bundleName)}" title="Add note to ${escapeHtml(bundleName)}" aria-label="Add note to folder">${uiIcon('plus', 11)}</button>
-            <button class="bundle-action-btn danger" data-delete-bundle="${escapeHtml(bundleName)}" title="Delete folder" aria-label="Delete folder">${uiIcon('x', 11)}</button>
+            <button class="bundle-action-btn" data-add-to-bundle="${escapeHtml(bundleName)}" title="New note in folder" aria-label="Add note to folder">${uiIcon('plus', 11)}</button>
+            <button class="bundle-action-btn" data-bundle-menu="${escapeHtml(bundleName)}" title="Folder options" aria-label="Folder options">${uiIcon('dots', 13)}</button>
           </div>
         </div>
         ${!isCollapsed ? `<div class="bundle-notes-list">${notesInside || '<div class="bundle-empty">Empty folder</div>'}</div>` : ''}
