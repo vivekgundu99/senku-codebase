@@ -9,8 +9,8 @@ type ShortcutContext = {
 const shortcuts = [
   { key: 'h', run: ({ render }: ShortcutContext) => { setView('Home'); render(); } },
   { key: 's', run: ({ render }: ShortcutContext) => { setView('Overview'); render(); } },
-  { key: 'l', run: ({ render }: ShortcutContext) => { setView('Log'); render(); } },
-  { key: 'p', run: ({ render }: ShortcutContext) => { setView('Launchpads'); render(); } },
+  { key: 'l', run: ({ render }: ShortcutContext) => { setView('Launchpads'); render(); } },
+  { key: 'g', run: ({ render }: ShortcutContext) => { setView('Log'); render(); } },
   { key: 'n', run: ({ render }: ShortcutContext) => { setView('Notes'); render(); } },
   { key: 'o', run: () => { void window.senku.showOverlay(); } },
   {

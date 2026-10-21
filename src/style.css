@@ -213,7 +213,7 @@ textarea {
   font-weight: 600;
   background: #ebe7dc;
   border: 1px solid #ddd7c7;
-  padding: 2px 8px 2px 9px;
+  padding: 2px 10px;
   border-radius: 999px;
   cursor: pointer;
   transition: all .15s ease;
@@ -221,13 +221,6 @@ textarea {
 .topbar-space-pill:hover {
   background: #e2ded0;
   border-color: #cac3b0;
-}
-.topbar-space-caret {
-  display: inline-flex;
-  color: var(--soft);
-}
-.topbar-space-pill:hover .topbar-space-caret {
-  color: var(--ink);
 }
 .top-actions { display: flex; align-items: center; gap: 8px; }
 .content-grid {
@@ -2351,7 +2344,7 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .bundle-count {
-  font: 500 10px var(--mono);
+  font: 600 10.5px var(--sans);
   color: var(--soft);
   background: var(--line);
   padding: 1px 5px;
@@ -2361,7 +2354,8 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 .bundle-actions {
   display: none;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
+  margin-right: 2px;
 }
 
 .bundle-header:hover .bundle-actions {
@@ -2369,31 +2363,36 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .bundle-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
   background: transparent;
   border: none;
-  color: var(--muted);
-  font-size: 11px;
+  color: var(--soft);
   cursor: pointer;
-  padding: 2px 5px;
   border-radius: 4px;
-  line-height: 1;
+  padding: 0;
+  transition: all .12s ease;
 }
 
 .bundle-action-btn:hover {
-  background: var(--line);
+  background: #e2ded0;
   color: var(--ink);
 }
 
 .bundle-action-btn.danger:hover {
-  color: var(--orange);
+  background: rgba(207, 67, 56, 0.12);
+  color: var(--red);
 }
 
 .bundle-notes-list {
   padding-left: 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-top: 2px;
+  gap: 1px;
+  margin-top: 1px;
 }
 
 .bundle-empty {
@@ -2406,43 +2405,38 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 /* Note items */
 .notes-list-item {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
   width: 100%;
-  padding: 7px 10px;
-  border-radius: 6px;
+  height: 27px;
+  padding: 0 8px;
+  border-radius: 5px;
   background: transparent;
   text-align: left;
   cursor: pointer;
   transition: background .12s, color .12s;
-  border: 1px solid transparent;
+  border: none;
 }
 
 .notes-list-item:hover {
-  background: var(--hover);
+  background: var(--bg-hover);
 }
 
 .notes-list-item.active {
-  background: var(--green-pale);
-  border-color: rgba(95, 128, 95, 0.15);
+  background: #ebe7dc;
 }
 
 .notes-list-item.active .notes-item-title {
-  color: var(--green);
+  color: var(--ink);
+  font-weight: 650;
 }
 
 .notes-item-title {
-  font-size: 12.5px;
-  font-weight: 650;
-  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.notes-item-date {
-  font: 500 10.5px var(--mono);
-  color: var(--soft);
 }
 
 .notes-section-divider {
@@ -2520,22 +2514,28 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   flex: 1 1 0;
 }
 
-.notes-bundle-tag {
-  font: 700 11.5px var(--mono);
-  color: var(--green);
-  white-space: nowrap;
+.notes-breadcrumb-root {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--soft);
 }
 
-.notes-editor-meta-info {
-  font: 500 11px var(--mono);
-  color: var(--soft);
+.notes-crumb-sep {
+  font-size: 11px;
+  color: var(--line);
+}
+
+.notes-bundle-tag {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
   white-space: nowrap;
 }
 
 .notes-editor-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -2550,11 +2550,12 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 10px;
+  height: 27px;
+  padding: 0 10px;
   border: 1px solid var(--line);
-  border-radius: var(--r-sm, 8px);
-  background: #fff;
-  color: var(--muted);
+  border-radius: var(--r-sm, 6px);
+  background: var(--bg-hover);
+  color: var(--ink-soft);
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
@@ -2562,27 +2563,31 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .notes-action-btn:hover {
-  border-color: var(--green);
+  border-color: var(--border-hover);
   color: var(--ink);
-  background: var(--green-pale);
+  background: var(--bg-active);
 }
 
 .notes-action-btn.vscode-btn {
-  background: rgba(95, 128, 95, .08);
-  border-color: rgba(95, 128, 95, .25);
-  color: var(--green);
+  background: #ebe7dc;
+  border-color: #ddd7c7;
+  color: var(--ink);
 }
 
 .notes-action-btn.vscode-btn:hover {
-  background: var(--green);
-  color: #fff;
-  border-color: var(--green);
+  background: #e2ded0;
+  border-color: #cac3b0;
+  color: var(--ink);
+}
+
+.notes-action-btn.danger {
+  padding: 0 7px;
 }
 
 .notes-action-btn.danger:hover {
-  border-color: var(--orange);
-  color: var(--orange);
-  background: var(--orange-pale);
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(207, 67, 56, 0.08);
 }
 
 /* Distraction-Free Document Canvas */
@@ -2597,14 +2602,14 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 
 .notes-title-input {
   width: 100%;
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 19px;
+  font-weight: 700;
   color: var(--ink);
-  letter-spacing: -.03em;
+  letter-spacing: -.02em;
   background: transparent;
   border: none;
   outline: none;
-  padding: 4px 0 10px;
+  padding: 6px 0 8px;
   line-height: 1.25;
 }
 

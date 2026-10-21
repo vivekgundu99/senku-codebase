@@ -135,7 +135,6 @@ export function topbarMarkup(): string {
   const spacePill = ws
     ? `<button class="topbar-space-pill" id="topbar-space-pill" data-action="workspace-settings" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">
         <span class="topbar-space-name">${escapeHtml(ws.name)}</span>
-        <span class="topbar-space-caret">${uiIcon('gear', 11)}</span>
       </button>`
     : '';
 
@@ -769,7 +768,6 @@ export function notesPanelMarkup(): string {
         (n) => `
       <button class="notes-list-item in-bundle ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}" title="${escapeHtml(n.name)}">
         <span class="notes-item-title">${escapeHtml(n.name)}</span>
-        <span class="notes-item-date">${formatRelativeTime(n.updatedAt)}</span>
       </button>`,
       )
       .join('');
@@ -784,8 +782,8 @@ export function notesPanelMarkup(): string {
             <span class="bundle-count">${bNotes.length}</span>
           </button>
           <div class="bundle-actions">
-            <button class="bundle-action-btn" data-add-to-bundle="${escapeHtml(bundleName)}" title="Add note to ${escapeHtml(bundleName)}">+</button>
-            <button class="bundle-action-btn danger" data-delete-bundle="${escapeHtml(bundleName)}" title="Delete folder">${uiIcon('x', 11)}</button>
+            <button class="bundle-action-btn" data-add-to-bundle="${escapeHtml(bundleName)}" title="Add note to ${escapeHtml(bundleName)}" aria-label="Add note to folder">${uiIcon('plus', 11)}</button>
+            <button class="bundle-action-btn danger" data-delete-bundle="${escapeHtml(bundleName)}" title="Delete folder" aria-label="Delete folder">${uiIcon('x', 11)}</button>
           </div>
         </div>
         ${!isCollapsed ? `<div class="bundle-notes-list">${notesInside || '<div class="bundle-empty">Empty folder</div>'}</div>` : ''}
@@ -797,7 +795,6 @@ export function notesPanelMarkup(): string {
       (n) => `
     <button class="notes-list-item ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}" title="${escapeHtml(n.name)}">
       <span class="notes-item-title">${escapeHtml(n.name)}</span>
-      <span class="notes-item-date">${formatRelativeTime(n.updatedAt)}</span>
     </button>`,
     )
     .join('');
@@ -826,8 +823,8 @@ export function notesPanelMarkup(): string {
     ? `
     <div class="notes-editor-head">
       <div class="notes-title-wrap">
-        ${active.bundle ? `<span class="notes-bundle-tag" title="Folder: ${escapeHtml(active.bundle)}">${escapeHtml(active.bundle)} /</span>` : ''}
-        <span class="notes-editor-meta-info">Updated ${formatRelativeTime(active.updatedAt)}</span>
+        <span class="notes-breadcrumb-root">Notes</span>
+        ${active.bundle ? `<span class="notes-crumb-sep">/</span><span class="notes-bundle-tag">${escapeHtml(active.bundle)}</span>` : ''}
       </div>
       <div class="notes-editor-actions">
         <span class="note-save-status" id="note-save-status"></span>
