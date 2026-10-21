@@ -67,8 +67,7 @@ export function sidebarMarkup(): string {
   const spacesContent = sortedWorkspaces.length > 0
     ? sortedWorkspaces.map(spaceRow).join('')
     : `<div class="empty-spaces-box">
-         <p class="empty-spaces-text">No Spaces yet</p>
-         <button class="empty-space-add-btn" id="add-space-empty">+ Create first Space</button>
+         <span class="empty-spaces-text">No Spaces yet</span>
        </div>`;
 
   return `
@@ -133,7 +132,10 @@ export function topbarMarkup(): string {
     ? `<span class="topbar-space-pill" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">${escapeHtml(ws.name)}</span>`
     : '';
 
-  const userInitial = state.settings?.userName ? state.settings.userName.charAt(0).toUpperCase() : 'S';
+  const hasUserName = Boolean(state.settings?.userName?.trim());
+  const avatarContent = hasUserName
+    ? escapeHtml(state.settings.userName.trim().charAt(0).toUpperCase())
+    : uiIcon('gear', 14);
 
   return `
     <header class="topbar">
@@ -144,8 +146,8 @@ export function topbarMarkup(): string {
         ${spacePill}
         <button class="icon-button" id="topbar-quicknote" title="Quick note (O)">${uiIcon('pen', 14)}</button>
         <button class="icon-button" id="refresh-button" title="Refresh">${uiIcon('refresh', 14)}</button>
-        <button class="avatar-button" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
-          ${escapeHtml(userInitial)}
+        <button class="avatar-button${hasUserName ? '' : ' icon-avatar'}" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
+          ${avatarContent}
         </button>
       </div>
     </header>`;
@@ -273,8 +275,7 @@ export function filePanelMarkup(): string {
         <div class="empty-files-unlinked">
           <div class="empty-unlinked-icon">${iconSvg('folder', 32)}</div>
           <h3>No folder linked</h3>
-          <p>Create a Space and choose a project folder. Your files will show up here.</p>
-          <button class="primary-button" id="create-space-files" style="max-width:220px; margin: 14px auto 0;">+ Create a Space <span>→</span></button>
+          <p>Create a Space to link a folder. Your project files will show up here.</p>
         </div>
       </section>`;
   }
@@ -322,8 +323,8 @@ export function overviewPanelMarkup(): string {
     <section class="home-panel-v3">
       <div class="home-hero">
         <h1 class="home-greeting">${greeting}</h1>
-        <p style="margin-top: 16px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
-        <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
+        <p class="home-hero-subtitle">Link a project folder to log progress, launch resources, and track files.</p>
+        <button class="primary-button" id="create-space-files">+ Create a Space</button>
       </div>
     </section>`;
   }

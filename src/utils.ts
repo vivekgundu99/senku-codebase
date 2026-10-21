@@ -29,11 +29,26 @@ export const toLocalDatetimeInput = (date: Date): string => {
   return copy.toISOString().slice(0, 16);
 };
 
+/** Get dynamic time-of-day greeting (morning, afternoon, evening) */
+export function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 /** Default greeting template. */
 export const DEFAULT_GREETING = 'Good morning, {name}.';
 
 export const renderGreeting = (greeting: string, userName: string): string => {
-  const template = (greeting || DEFAULT_GREETING).trim();
+  let template = (greeting || DEFAULT_GREETING).trim();
+  const timeGreeting = getTimeGreeting();
+
+  // If using default template or a 'Good morning/afternoon/evening' template, dynamically adjust to current time
+  if (/^Good (morning|afternoon|evening)/i.test(template)) {
+    template = template.replace(/^Good (morning|afternoon|evening)/i, timeGreeting);
+  }
+
   const trimmedName = userName.trim();
 
   if (trimmedName) {
