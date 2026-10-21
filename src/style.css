@@ -1830,61 +1830,62 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
 }
 
-/* Log Compose Box */
-.log-compose-box {
+/* Log Single-Line Capture Card (auto-grows on Shift+Enter, Enter saves) */
+.log-capture-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 12px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-  flex: 0 0 auto;
-}
-
-.log-compose-box-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.log-compose-title {
-  font: 700 9.5px var(--mono);
-  color: var(--soft);
-  letter-spacing: .08em;
-}
-
-.log-compose-textarea {
-  width: 100%;
-  min-height: 54px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font: 500 13px var(--sans);
-  color: var(--ink);
-  background: #fff;
-  resize: vertical;
-  outline: none;
-  line-height: 1.45;
-  box-sizing: border-box;
+  border-radius: var(--r-sm, 8px);
   transition: border-color .15s, box-shadow .15s;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  margin-bottom: 14px;
 }
 
-.log-compose-textarea:focus {
+.log-capture-card:focus-within {
   border-color: var(--green);
   box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
 }
 
-.log-compose-box-foot {
+.log-capture-icon {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  color: var(--soft);
+  margin-top: 3px;
+  flex: 0 0 auto;
 }
 
-.log-compose-shortcut-tip {
-  font: 500 11px var(--mono);
+.log-capture-icon svg {
+  display: block;
+}
+
+.log-capture-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  min-height: 22px;
+  max-height: 180px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  font: 500 13px var(--sans);
+  color: var(--ink);
+  line-height: 22px;
+  resize: none;
+  outline: none !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.log-capture-input::placeholder {
   color: var(--soft);
+  opacity: .7;
 }
 
 .log-row-edit-textarea {

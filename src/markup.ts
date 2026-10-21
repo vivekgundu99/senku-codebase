@@ -364,7 +364,7 @@ export function overviewPanelMarkup(): string {
   const recentLogsHtml = recentLogs.length
     ? recentLogs.map((e) => `
         <div class="home-recent-log-item">
-          <span class="home-log-text">${escapeHtml(e.text)}</span>
+          <span class="home-log-text">${escapeHtml(e.text.replace(/^\[[^\]]+\]\s*/, ''))}</span>
           <span class="home-log-time">${formatRelativeTime(e.createdAt)}</span>
         </div>`).join('')
     : `<p class="home-log-empty">No entries logged yet. Type above to record what you just did.</p>`;
@@ -567,15 +567,16 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
           ${group.entries
           .map(
             (e) => {
+              const cleanText = e.text.replace(/^\[[^\]]+\]\s*/, '');
               const seqLabel = e.seq && e.seq > 0 ? `#${e.seq}` : '';
               const spaceBadge = scope === 'all' && e.spaceName
                 ? `<span class="log-row-space">${escapeHtml(e.spaceName)}</span>`
                 : '';
               return `
-                  <div class="log-row-compact${e.text.includes('\n') ? ' multi' : ''}" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
+                  <div class="log-row-compact${cleanText.includes('\n') ? ' multi' : ''}" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
                     <span class="log-row-seq">${seqLabel}</span>
                     <span class="log-row-time">${formatLogTimeOnly(e.createdAt)}</span>
-                    <span class="log-row-text" title="Double click to edit">${escapeHtml(e.text)}</span>
+                    <span class="log-row-text" title="Double click to edit">${escapeHtml(cleanText)}</span>
                     ${spaceBadge}
                     <button type="button" class="log-row-del-btn" data-delete-log="${e.id}" data-space-id="${e.spaceId || ''}" title="Delete log">${uiIcon('x', 11)}</button>
                   </div>`;
@@ -605,20 +606,15 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
 
   const composeBoxHtml = scope === 'space'
     ? `
-      <div class="log-compose-box">
-        <div class="log-compose-box-head">
-          ${logPageDraft.trim() ? '<span class="draft-indicator">Draft saved</span>' : ''}
-        </div>
+      <div class="log-capture-card">
+        <span class="log-capture-icon">${uiIcon('pen', 14)}</span>
         <textarea
           id="log-compose-textarea"
-          class="log-compose-textarea"
-          placeholder="Log what you did…   Enter to save · Shift+Enter for a new line"
+          class="log-capture-input"
+          placeholder="Log what you did… (Enter to save · Shift+Enter for new line)"
           spellcheck="false"
-          rows="2"
+          rows="1"
         >${escapeHtml(logPageDraft)}</textarea>
-        <div class="log-compose-box-foot">
-          <button class="primary-button mini" id="log-compose-submit" title="Add log (Enter)">+ Add Log</button>
-        </div>
       </div>`
     : '';
 

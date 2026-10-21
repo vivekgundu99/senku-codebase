@@ -767,6 +767,7 @@ export async function listGlobalLogs(baseDir: string): Promise<LogEntry[]> {
     const spaceMatch = cleanText.match(/^\[([^\]]+)\]\s*/);
     if (spaceMatch) {
       spaceName = spaceMatch[1];
+      cleanText = cleanText.slice(spaceMatch[0].length);
     }
 
     return {

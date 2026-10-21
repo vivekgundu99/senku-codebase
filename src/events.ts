@@ -532,14 +532,27 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
   });
 
   const textarea = panel.querySelector<HTMLTextAreaElement>('#log-compose-textarea');
-  const submitBtn = panel.querySelector<HTMLButtonElement>('#log-compose-submit');
+
+  const adjustLogHeight = () => {
+    if (!textarea) return;
+    textarea.style.height = '22px';
+    const scrollH = textarea.scrollHeight;
+    if (scrollH > 26) {
+      const targetH = Math.min(180, scrollH);
+      textarea.style.height = `${targetH}px`;
+      textarea.style.overflowY = scrollH > 180 ? 'auto' : 'hidden';
+    } else {
+      textarea.style.height = '22px';
+      textarea.style.overflowY = 'hidden';
+    }
+  };
 
   if (textarea) {
     textarea.addEventListener('input', () => {
       setLogPageDraft(textarea.value);
-      growTextarea(textarea, 54);
+      adjustLogHeight();
     });
-    if (textarea.value) growTextarea(textarea, 54);
+    adjustLogHeight();
     textarea.addEventListener('keydown', (e) => {
       if (isSendKey(e)) {
         e.preventDefault();
@@ -549,9 +562,15 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
   }
 
   const submit = async () => {
-    const text = logPageDraft.trim();
+    const rawVal = textarea ? textarea.value : logPageDraft;
+    const text = rawVal.trim();
     if (!text) return;
     setLogPageDraft('');
+    if (textarea) {
+      textarea.value = '';
+      textarea.style.height = '22px';
+      textarea.style.overflowY = 'hidden';
+    }
     const spaceId = state.workspace?.id;
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
@@ -560,8 +579,6 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
       document.querySelector<HTMLTextAreaElement>('#log-compose-textarea')?.focus();
     });
   };
-
-  submitBtn?.addEventListener('click', () => void submit());
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   panel.querySelector<HTMLInputElement>('#log-search')?.addEventListener('input', (event) => {
