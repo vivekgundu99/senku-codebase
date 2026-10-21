@@ -1166,7 +1166,7 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   if (!trimmed) return snapshot();
 
   if (spaceId === 'global') {
-    await addLog(masterLogFile(), trimmed, undefined, undefined);
+    await addLog(masterLogFile(), trimmed, 'senku', '#senku');
     mainWindow?.webContents.send('snapshot:updated');
     return snapshot();
   }
@@ -1174,7 +1174,7 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   const workspaces = await getWorkspaces();
   const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
   if (!targetSpaceId) {
-    await addLog(masterLogFile(), trimmed, undefined, undefined);
+    await addLog(masterLogFile(), trimmed, 'senku', '#senku');
     mainWindow?.webContents.send('snapshot:updated');
     return snapshot();
   }

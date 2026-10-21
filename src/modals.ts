@@ -403,33 +403,49 @@ export function openTrashModal(load: () => Promise<void>): void {
           hour: 'numeric',
           minute: '2-digit',
         });
+        const spaceName = (t.name || '').trim() || 'Untitled Space';
         return `
           <div class="trash-space-row" data-id="${t.id}">
             <div class="trash-space-info">
-              <strong class="trash-space-name">${escapeHtml(t.name)}</strong>
-              <span class="trash-space-path">${escapeHtml(t.masterFolder)}</span>
-              <small class="trash-space-time">Deleted ${deletedStr}</small>
+              <div class="trash-space-name-row">
+                <span class="trash-space-icon">${uiIcon('folder', 13)}</span>
+                <strong class="trash-space-name">${escapeHtml(spaceName)}</strong>
+              </div>
+              <span class="trash-space-path" title="${escapeHtml(t.masterFolder)}">${escapeHtml(t.masterFolder)}</span>
+              <span class="trash-space-time">Deleted ${deletedStr}</span>
             </div>
             <div class="trash-space-actions">
-              <button type="button" class="primary-button mini" data-restore-id="${t.id}">↺ Restore</button>
-              <button type="button" class="danger-button mini" data-purge-id="${t.id}">Delete</button>
+              <button type="button" class="trash-btn restore" data-restore-id="${t.id}" title="Restore space to sidebar">
+                ${uiIcon('refresh', 11)}
+                <span>Restore</span>
+              </button>
+              <button type="button" class="trash-btn purge" data-purge-id="${t.id}" title="Delete permanently">
+                ${uiIcon('x', 11)}
+                <span>Delete</span>
+              </button>
             </div>
           </div>`;
       }).join('')
-    : `<div class="trash-empty"><p>Trash is empty.</p></div>`;
+    : `
+      <div class="trash-empty-state">
+        <div class="trash-empty-icon">${uiIcon('folder', 26)}</div>
+        <p class="trash-empty-title">Trash is empty</p>
+        <p class="trash-empty-sub">Deleted spaces will appear here before permanent deletion.</p>
+      </div>`;
 
   const overlay = createOverlay(`
-    <div class="modal-card">
-      <button type="button" class="modal-close" id="close-modal">×</button>
-      <span class="section-kicker">SPACES TRASH</span>
-      <h2>Deleted Spaces</h2>
-      <p class="modal-copy">Restoring a Space brings it back to your sidebar with its notes intact. Your Windows folders were never touched.</p>
+    <div class="modal-card space-dialog-card trash-modal-card">
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
+      <span class="settings-kicker">SPACES TRASH</span>
+      <h2 class="dialog-title">Deleted Spaces</h2>
+      <p class="dialog-desc">Restoring a Space brings it back to your sidebar with its notes intact. Windows folders are never touched.</p>
 
       <div class="trash-list">${itemsList}</div>
 
       ${trash.length ? `
-        <div class="trash-footer">
-          <button type="button" class="danger-button" id="empty-all-trash">Empty entire Trash</button>
+        <div class="trash-dialog-footer">
+          <span class="trash-count-label">${trash.length} space${trash.length === 1 ? '' : 's'} in trash</span>
+          <button type="button" class="danger-text-btn" id="empty-all-trash">Empty entire Trash</button>
         </div>` : ''}
     </div>`);
 

@@ -829,7 +829,7 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
       return;
     }
     const lines: string[] = [];
-    const title = scope === 'all' ? 'Senku Global Logs' : `${state.workspace?.name || 'Senku'} Logs`;
+    const title = scope === 'all' ? 'Senku All Logs' : `${state.workspace?.name || 'Senku'} Logs`;
     lines.push(`# ${title}\n`);
     if (logFromDate || logToDate || logFilter) {
       const filters: string[] = [];
@@ -852,13 +852,13 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
       for (const item of dayItems) {
         const d = new Date(item.createdAt);
         const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        const spaceTag = item.spaceName ? `[${item.spaceName}] ` : '';
+        const spaceTag = item.spaceName ? `[${item.spaceName}] ` : (scope === 'all' && (!item.spaceId || item.spaceId === 'senku') ? '[#senku] ' : '');
         lines.push(`- **${timeStr}** ${spaceTag}${item.text}`);
       }
       lines.push('');
     }
 
-    const defaultName = scope === 'all' ? 'senku-global-logs.md' : `${(state.workspace?.name || 'senku').toLowerCase().replace(/\s+/g, '-')}-logs.md`;
+    const defaultName = scope === 'all' ? 'senku-all-logs.md' : `${(state.workspace?.name || 'senku').toLowerCase().replace(/\s+/g, '-')}-logs.md`;
     const res = await window.senku.exportLogs(lines.join('\n'), defaultName);
     if (res.ok) {
       toast(`Exported ${items.length} log entries to Desktop.`);

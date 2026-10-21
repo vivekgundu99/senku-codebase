@@ -619,8 +619,9 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
             (e) => {
               const cleanText = e.text.replace(/^\[[^\]]+\]\s*/, '');
               const seqLabel = e.seq && e.seq > 0 ? `#${e.seq}` : '';
-              const spaceBadge = scope === 'all' && e.spaceName
-                ? `<span class="log-row-space" data-space-filter="${escapeHtml(e.spaceName)}" title="Filter by ${escapeHtml(e.spaceName)}">${escapeHtml(e.spaceName)}</span>`
+              const rawSpace = e.spaceName || (scope === 'all' && (!e.spaceId || e.spaceId === 'senku') ? '#senku' : '');
+              const spaceBadge = scope === 'all' && rawSpace
+                ? `<span class="log-row-space" data-space-filter="${escapeHtml(rawSpace)}" title="Filter by ${escapeHtml(rawSpace)}">${escapeHtml(rawSpace)}</span>`
                 : '';
               return `
                   <div class="log-row-compact${cleanText.includes('\n') ? ' multi' : ''}" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
@@ -657,7 +658,7 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'all'): string {
   const spaceLabel = ws ? ws.name : 'Current Space';
 
   const placeholderText = scope === 'all'
-    ? 'Log a global thought… (Enter to save · Shift+Enter for new line)'
+    ? 'Write an independent log… #senku (Enter to save · Shift+Enter for new line)'
     : `Log to ${escapeHtml(spaceLabel)}… (Enter to save · Shift+Enter for new line)`;
 
   const composeBoxHtml = `
@@ -676,8 +677,8 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'all'): string {
     <section class="log-panel" data-scope="${scope}">
       <div class="log-top-bar">
         <div class="log-scope-nav">
-          <button class="log-scope-btn ${scope === 'all' ? 'active' : ''}" data-log-scope="all" title="View Full Global Logs">
-            <span>Global</span>
+          <button class="log-scope-btn ${scope === 'all' ? 'active' : ''}" data-log-scope="all" title="View All Logs">
+            <span>All Logs</span>
           </button>
           <button class="log-scope-btn ${scope === 'space' ? 'active' : ''}" data-log-scope="space" title="${escapeHtml(spaceLabel)} Logs">
             <span>${escapeHtml(spaceLabel)}</span>
