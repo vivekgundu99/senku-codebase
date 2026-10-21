@@ -41,24 +41,24 @@ export function getTimeGreeting(): string {
 export const DEFAULT_GREETING = 'Good morning, {name}.';
 
 export const renderGreeting = (greeting: string, userName: string): string => {
-  let template = (greeting || '').trim();
+  const custom = (greeting || '').trim();
   const timeGreeting = getTimeGreeting();
   const trimmedName = userName.trim();
 
-  // If no custom greeting set, or using the standard time greeting:
-  if (!template || /^Good (morning|afternoon|evening)/i.test(template)) {
+  // If no custom tagline set, or user set standard time greeting:
+  if (!custom || /^Good (morning|afternoon|evening)/i.test(custom)) {
     if (trimmedName) {
       return `${timeGreeting}, ${escapeHtml(trimmedName)}.`;
     }
     return `${timeGreeting}.`;
   }
 
-  // If template has {name} placeholder:
-  if (template.includes('{name}')) {
+  // If custom tagline explicitly contains {name}:
+  if (custom.includes('{name}')) {
     if (trimmedName) {
-      return escapeHtml(template.replaceAll('{name}', trimmedName));
+      return escapeHtml(custom.replaceAll('{name}', trimmedName));
     }
-    let res = template
+    let res = custom
       .replace(/,\s*\{name\}/g, '')
       .replace(/\s*\{name\}/g, '')
       .replace(/\{name\}\s*,?/g, '')
@@ -66,19 +66,15 @@ export const renderGreeting = (greeting: string, userName: string): string => {
       .replace(/,\s*([.!?])/g, '$1')
       .replace(/\s+/g, ' ')
       .trim();
-    if (/[.!?]$/.test(template) && !/[.!?]$/.test(res)) {
-      res += template.match(/[.!?]$/)?.[0] ?? '.';
+    if (/[.!?]$/.test(custom) && !/[.!?]$/.test(res)) {
+      res += custom.match(/[.!?]$/)?.[0] ?? '.';
     }
     return escapeHtml(res);
   }
 
-  // If custom tagline without {name} (e.g. "Deep focus"):
-  if (trimmedName) {
-    const clean = template.replace(/[.!?]+$/, '');
-    return `${escapeHtml(clean)}, ${escapeHtml(trimmedName)}.`;
-  }
-
-  return escapeHtml(/[.!?]$/.test(template) ? template : `${template}.`);
+  // Pure custom tagline (e.g. "One step at a time"): DO NOT append name!
+  const hasPunctuation = /[.!?]$/.test(custom);
+  return escapeHtml(hasPunctuation ? custom : `${custom}.`);
 };
 
 // ---------------------------------------------------------------------------

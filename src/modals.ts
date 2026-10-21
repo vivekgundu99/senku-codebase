@@ -90,7 +90,6 @@ export function openProfileModal(render: () => void): void {
       <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
 
       <div class="settings-modal-header">
-        <div class="settings-header-icon">${uiIcon('gear', 18)}</div>
         <div>
           <span class="settings-kicker">PREFERENCES</span>
           <h2>Settings</h2>
