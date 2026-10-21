@@ -12,7 +12,6 @@ import {
   Tray,
 } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
-import dotenv from 'dotenv';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -75,14 +74,12 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 if (!app.isPackaged) {
-  dotenv.config();
   app.setName('senku-dev');
   app.setPath('userData', path.join(app.getPath('appData'), 'senku-dev'));
 }
-const isTesting = process.env.testing === '1';
 
 // Only one Senku at a time per environment (isolated lock for dev vs installed)
-const gotSingleInstanceLock = isTesting || app.requestSingleInstanceLock();
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) app.quit();
 app.on('second-instance', () => showMainWindow());
 

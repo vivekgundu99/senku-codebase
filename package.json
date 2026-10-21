@@ -45,8 +45,5 @@
       "target": "nsis",
       "icon": "assets/senku.ico"
     }
-  },
-  "dependencies": {
-    "dotenv": "^18.0.5"
   }
 }
