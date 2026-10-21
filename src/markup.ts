@@ -754,7 +754,7 @@ function launchpadCardMarkup(lp: Launchpad): string {
           <button type="button" class="lp-menu-btn" data-lp-menu="${lp.id}" title="Launchpad options" aria-label="Launchpad options">${uiIcon('dots', 13)}</button>
         </div>
       </div>
-      <div class="lp-paths">${pathChips || '<span class="lp-empty-paths">No resources added yet</span>'}</div>
+      ${pathChips ? `<div class="lp-paths">${pathChips}</div>` : ''}
     </div>`;
 }
 
@@ -763,7 +763,7 @@ export function launchpadsPanelMarkup(): string {
     return `
     <section class="launchpads-panel">
       <div class="panel-header-line">
-        <h2 class="panel-header-title">Launchpads</h2>
+        <h2 class="panel-header-title">Total 0</h2>
       </div>
       <div class="lp-empty-state">
         <p>Create or select a Space to manage launchpads.</p>
@@ -783,12 +783,9 @@ export function launchpadsPanelMarkup(): string {
   return `
     <section class="launchpads-panel">
       <div class="panel-header-line">
-        <div class="panel-header-left">
-          <h2 class="panel-header-title">Launchpads</h2>
-          <span class="panel-header-badge">${launchpads.length}</span>
-        </div>
+        <h2 class="panel-header-title">Total ${launchpads.length}</h2>
         <div class="panel-header-actions">
-          <button class="primary-button mini" id="add-launchpad">+ New Launchpad</button>
+          <button type="button" class="lp-header-add-btn" id="add-launchpad" title="New Launchpad" aria-label="New Launchpad">${uiIcon('plus', 13)}</button>
         </div>
       </div>
       <div class="launchpads-list">${content}</div>

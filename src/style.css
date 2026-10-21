@@ -1851,6 +1851,31 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   flex-direction: column;
 }
 
+.lp-header-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  transition: all .12s ease;
+}
+
+.lp-header-add-btn:hover {
+  background: var(--hover);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.lp-header-add-btn svg {
+  display: block;
+}
+
 .launchpads-list {
   display: flex;
   flex-direction: column;
