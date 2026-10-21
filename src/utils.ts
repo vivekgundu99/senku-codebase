@@ -41,35 +41,44 @@ export function getTimeGreeting(): string {
 export const DEFAULT_GREETING = 'Good morning, {name}.';
 
 export const renderGreeting = (greeting: string, userName: string): string => {
-  let template = (greeting || DEFAULT_GREETING).trim();
+  let template = (greeting || '').trim();
   const timeGreeting = getTimeGreeting();
-
-  // If using default template or a 'Good morning/afternoon/evening' template, dynamically adjust to current time
-  if (/^Good (morning|afternoon|evening)/i.test(template)) {
-    template = template.replace(/^Good (morning|afternoon|evening)/i, timeGreeting);
-  }
-
   const trimmedName = userName.trim();
 
+  // If no custom greeting set, or using the standard time greeting:
+  if (!template || /^Good (morning|afternoon|evening)/i.test(template)) {
+    if (trimmedName) {
+      return `${timeGreeting}, ${escapeHtml(trimmedName)}.`;
+    }
+    return `${timeGreeting}.`;
+  }
+
+  // If template has {name} placeholder:
+  if (template.includes('{name}')) {
+    if (trimmedName) {
+      return escapeHtml(template.replaceAll('{name}', trimmedName));
+    }
+    let res = template
+      .replace(/,\s*\{name\}/g, '')
+      .replace(/\s*\{name\}/g, '')
+      .replace(/\{name\}\s*,?/g, '')
+      .replace(/\s+,/g, ',')
+      .replace(/,\s*([.!?])/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (/[.!?]$/.test(template) && !/[.!?]$/.test(res)) {
+      res += template.match(/[.!?]$/)?.[0] ?? '.';
+    }
+    return escapeHtml(res);
+  }
+
+  // If custom tagline without {name} (e.g. "Deep focus"):
   if (trimmedName) {
-    return escapeHtml(template.replaceAll('{name}', trimmedName));
+    const clean = template.replace(/[.!?]+$/, '');
+    return `${escapeHtml(clean)}, ${escapeHtml(trimmedName)}.`;
   }
 
-  let res = template
-    .replace(/,\s*\{name\}/g, '')
-    .replace(/\s*\{name\}/g, '')
-    .replace(/\{name\}\s*,?/g, '')
-    .replace(/\s+,/g, ',')
-    .replace(/,\s*([.!?])/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (/[.!?]$/.test(template) && !/[.!?]$/.test(res)) {
-    const lastPunct = template.match(/[.!?]$/)?.[0] ?? '.';
-    res += lastPunct;
-  }
-
-  return escapeHtml(res);
+  return escapeHtml(/[.!?]$/.test(template) ? template : `${template}.`);
 };
 
 // ---------------------------------------------------------------------------

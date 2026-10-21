@@ -1,6 +1,7 @@
 import type { Launchpad } from '../electron/types';
 import { setState, state, setActiveNoteId, setView, activeNoteId } from './state';
 import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
+import { uiIcon } from './markup';
 import { toast } from './toast';
 import pkg from '../package.json';
 
@@ -80,39 +81,55 @@ function showFormError(overlay: HTMLElement, selector: string, message: string):
 export function openProfileModal(render: () => void): void {
   if (!state) return;
 
-  const userInitial = state.settings.userName ? state.settings.userName.charAt(0).toUpperCase() : 'S';
+  const currentGreeting = (state.settings.greeting || '').trim();
+  const isCustom = currentGreeting && !/^Good (morning|afternoon|evening)/i.test(currentGreeting);
+  const displayGreeting = isCustom ? currentGreeting : '';
 
   const overlay = createOverlay(`
     <form class="modal-card profile-modal-card">
-      <button type="button" class="modal-close" id="close-modal">×</button>
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
 
-      <div class="profile-modal-header">
-        <div class="profile-modal-avatar">
-          <span>${escapeHtml(userInitial)}</span>
-        </div>
+      <div class="settings-modal-header">
+        <div class="settings-header-icon">${uiIcon('gear', 18)}</div>
         <div>
-          <span class="section-kicker">SETTINGS &amp; IDENTITY</span>
-          <h2>${escapeHtml(state.settings.userName || 'Profile')}</h2>
+          <span class="settings-kicker">PREFERENCES</span>
+          <h2>Settings</h2>
         </div>
       </div>
 
-      <div class="profile-modal-body">
-        <label>Your display name
-          <input name="userName" id="profile-user-name" required value="${escapeHtml(state.settings.userName)}" placeholder="e.g. Vivek" autocomplete="off" />
-        </label>
-
-        <label>Daily morning greeting
-          <input name="greeting" id="profile-greeting" value="${escapeHtml(state.settings.greeting || DEFAULT_GREETING)}" placeholder="${escapeHtml(DEFAULT_GREETING)}" autocomplete="off" />
-        </label>
-
-        <div class="profile-chips-line">
-          <button type="button" class="preset-chip" data-set-greeting="Good morning, {name}.">Good morning</button>
-          <button type="button" class="preset-chip" data-set-greeting="Deep focus mode, {name}.">Deep focus</button>
-          <button type="button" class="preset-chip" data-set-greeting="Let's build, {name}.">Let's build</button>
-          <button type="button" class="preset-chip" data-set-greeting="One tiny step at a time.">One step</button>
+      <div class="settings-form-body">
+        <div class="settings-form-group">
+          <label for="profile-user-name">Your Name</label>
+          <input
+            name="userName"
+            id="profile-user-name"
+            value="${escapeHtml(state.settings.userName || '')}"
+            placeholder="e.g. Vivek (optional)"
+            autocomplete="off"
+            spellcheck="false"
+          />
         </div>
 
-        <div class="profile-toggle-row">
+        <div class="settings-form-group">
+          <label for="profile-greeting">Custom Motto or Tagline</label>
+          <input
+            name="greeting"
+            id="profile-greeting"
+            value="${escapeHtml(displayGreeting)}"
+            placeholder="Leave empty for time of day (Good morning / afternoon / evening)"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <small class="settings-field-hint">By default, Senku dynamically greets you by the time of day.</small>
+          <div class="settings-chips-line">
+            <button type="button" class="preset-chip" data-set-greeting="">Time of Day (Default)</button>
+            <button type="button" class="preset-chip" data-set-greeting="Deep focus">Deep focus</button>
+            <button type="button" class="preset-chip" data-set-greeting="Let's build">Let's build</button>
+            <button type="button" class="preset-chip" data-set-greeting="One step at a time">One step</button>
+          </div>
+        </div>
+
+        <div class="settings-toggle-row">
           <div class="toggle-text">
             <strong>Launch on Windows startup</strong>
             <small>Open automatically so your files and focus are ready when you log in.</small>
@@ -120,7 +137,7 @@ export function openProfileModal(render: () => void): void {
           <button type="button" id="app-startup-toggle" class="toggle ${state.settings.launchAtStartup ? 'on' : ''}" aria-label="Toggle launch at startup"><span></span></button>
         </div>
 
-        <button id="user-guide" class="profile-guide-btn" type="button">
+        <button id="user-guide" class="settings-guide-btn" type="button">
           <span>Senku User Guide &amp; Shortcuts</span>
           <span>↗</span>
         </button>
@@ -128,9 +145,9 @@ export function openProfileModal(render: () => void): void {
 
       <p class="form-error" id="profile-error"></p>
 
-      <div class="profile-modal-footer">
-        <button class="primary-button" type="submit">Save Changes <span>→</span></button>
-        <div class="profile-version-tag">Senku v${pkg.version} · Made by a Navodayan</div>
+      <div class="settings-modal-footer">
+        <button class="primary-button" type="submit">Save Changes</button>
+        <span class="settings-version-tag">Senku v${pkg.version} · Made by a Navodayan</span>
       </div>
     </form>`);
 
@@ -138,8 +155,8 @@ export function openProfileModal(render: () => void): void {
   overlay.querySelectorAll<HTMLElement>('[data-set-greeting]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const input = overlay.querySelector<HTMLInputElement>('#profile-greeting');
-      if (input && btn.dataset.setGreeting) {
-        input.value = btn.dataset.setGreeting;
+      if (input) {
+        input.value = btn.dataset.setGreeting || '';
         input.focus();
       }
     });
@@ -160,11 +177,7 @@ export function openProfileModal(render: () => void): void {
     e.preventDefault();
     const data = new FormData(e.currentTarget as HTMLFormElement);
     const name = String(data.get('userName') ?? '').trim();
-    if (!name) {
-      showFormError(overlay, '#profile-error', 'Enter a display name.');
-      return;
-    }
-    const greeting = String(data.get('greeting') ?? '').trim() || DEFAULT_GREETING;
+    const greeting = String(data.get('greeting') ?? '').trim();
     const launchAtStartup = overlay.querySelector('#app-startup-toggle')?.classList.contains('on') ?? state.settings.launchAtStartup;
 
     const snapshot = await window.senku.saveSettings({
