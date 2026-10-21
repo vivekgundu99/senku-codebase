@@ -1844,26 +1844,37 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 /* Launchpads */
 .launchpads-panel {
   padding: 8px 0;
-  max-width: 800px;
+  width: 100%;
+  max-width: 900px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .launchpads-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
-  max-height: calc(100vh - 240px);
+  gap: 10px;
+  margin-top: 14px;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
+  padding-right: 4px;
 }
 
 .launchpad-card {
-  padding: 14px 16px;
+  padding: 11px 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.launchpad-card:hover {
+  border-color: var(--line-strong, #ccc);
 }
 
 .lp-card-head {
@@ -1874,15 +1885,16 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 
 .lp-name {
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--ink);
 }
 
 .lp-card-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .lp-pin-btn {
@@ -1892,9 +1904,9 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   background: transparent;
   border: 1px solid var(--line);
   color: #b3bbb0;
-  border-radius: 6px;
-  width: 26px;
-  height: 26px;
+  border-radius: 5px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   cursor: pointer;
   transition: color .12s, border-color .12s;
@@ -1911,13 +1923,13 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 26px;
-  padding: 0 10px;
+  height: 24px;
+  padding: 0 9px;
   background: var(--green);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  font-size: 11.5px;
+  border-radius: 5px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: opacity .12s;
@@ -1934,13 +1946,13 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   background: transparent;
   border: 1px solid var(--line);
   color: var(--muted);
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
   transition: all .12s;
 }
@@ -1969,11 +1981,11 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .lp-path-chip {
-  font: 500 11.5px var(--mono);
+  font: 500 11px var(--mono);
   background: var(--bg);
   border: 1px solid var(--line);
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 2.5px 7px;
+  border-radius: 5px;
   color: var(--muted);
 }
 
@@ -3629,11 +3641,11 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 /* ==========================================================================
-   MINIMALIST FLOATING QUICK NOTE OVERLAY
+   MINIMALIST FLOATING QUICK NOTE OVERLAY (SEAMLESS PILL)
    ========================================================================== */
 
 body.overlay-mini-body {
-  background: var(--bg);
+  background: var(--surface);
   margin: 0;
   padding: 0;
   width: 100vw;
@@ -3641,92 +3653,98 @@ body.overlay-mini-body {
   overflow: hidden;
   box-sizing: border-box;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   user-select: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  -webkit-app-region: drag;
+  transition: background .2s ease, border-color .2s ease;
+}
+
+body.overlay-mini-body.saved-flash {
+  background: var(--green-pale) !important;
+  border-color: var(--green) !important;
 }
 
 .overlay-mini-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
   height: 100%;
-  padding: 4px 6px 4px 10px;
+  padding: 5px 6px 5px 8px;
   box-sizing: border-box;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  gap: 8px;
+  background: transparent;
+  gap: 6px;
+  -webkit-app-region: drag;
 }
 
-.overlay-mini-drag {
-  display: flex;
+.overlay-mini-badge {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  -webkit-app-region: drag;
-  cursor: grab;
   flex-shrink: 0;
-  padding: 2px 4px;
+  padding: 2px 6px;
+  margin-top: 1px;
   border-radius: 5px;
   border: 1px solid transparent;
-  transition: background .12s ease, border-color .12s ease;
-}
-
-.overlay-mini-drag:hover {
-  background: var(--bg);
-  border-color: var(--line);
-}
-
-.overlay-mini-drag:active {
-  cursor: grabbing;
-}
-
-.overlay-mini-icon {
-  font-size: 11.5px;
-  color: var(--green);
-  font-weight: 800;
-}
-
-.overlay-mini-note {
-  font: 700 11px var(--mono);
-  color: var(--muted);
   background: var(--green-pale);
-  padding: 2px 6px;
-  border-radius: 4px;
-  max-width: 105px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overlay-mini-input {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0 10px;
-  outline: none;
-  background: #fff;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
-  transition: border-color .15s, box-shadow .15s, background .15s;
+  cursor: pointer;
+  transition: all .12s ease;
   -webkit-app-region: no-drag;
 }
 
-.overlay-mini-input:focus {
+.overlay-mini-badge:hover {
+  background: #dbeef0;
   border-color: var(--green);
-  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
 }
 
-.overlay-mini-input.saved-flash {
-  border-color: var(--green);
-  background: var(--green-pale);
+.overlay-mini-icon {
+  font-size: 11px;
+  color: var(--green);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.overlay-mini-note {
+  font: 700 10.5px var(--mono);
+  color: var(--green-deep, #3b5e43);
+  max-width: 95px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+textarea.overlay-mini-input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 24px;
+  min-height: 24px;
+  max-height: 140px;
+  padding: 2px 4px;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 20px;
+  resize: none;
+  overflow-y: hidden;
+  -webkit-app-region: no-drag;
+}
+
+textarea.overlay-mini-input::placeholder {
+  color: var(--soft);
+  font-size: 12px;
 }
 
 .overlay-mini-close {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
   border-radius: 5px;
   border: none;
   background: transparent;
@@ -3735,7 +3753,7 @@ body.overlay-mini-body {
   font-size: 11px;
   display: grid;
   place-items: center;
-  transition: all .1s;
+  transition: all .12s ease;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
@@ -3747,7 +3765,7 @@ body.overlay-mini-body {
 
 /* Command Palette */
 .palette-box {
-  width: 560px;
+  width: 580px;
   max-width: 90vw;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -3761,8 +3779,14 @@ body.overlay-mini-body {
 .palette-input-wrap {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--line);
+  gap: 10px;
+}
+
+.palette-input-icon {
+  font-size: 13px;
+  opacity: 0.6;
 }
 
 .palette-input {
@@ -3770,7 +3794,7 @@ body.overlay-mini-body {
   background: transparent;
   border: none;
   outline: none;
-  font: 500 14px var(--sans);
+  font: 500 13.5px var(--sans);
   color: var(--ink);
 }
 
@@ -3790,19 +3814,22 @@ body.overlay-mini-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 16px;
+  padding: 8px 14px;
+  margin: 1px 6px;
+  border-radius: 6px;
   cursor: pointer;
   border: none;
   background: transparent;
-  width: 100%;
+  width: calc(100% - 12px);
   text-align: left;
   outline: none;
   color: var(--ink);
   font: 500 13px var(--sans);
+  transition: background .1s ease;
 }
 
 .palette-row.selected {
-  background: var(--hover);
+  background: var(--green-pale);
 }
 
 .palette-row-text {
@@ -3813,12 +3840,57 @@ body.overlay-mini-body {
   white-space: nowrap;
 }
 
-.palette-row-type {
-  font: 600 11px var(--mono);
-  color: var(--soft);
-  margin-left: 12px;
-  text-transform: uppercase;
+.palette-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.palette-row-kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font: 700 10px var(--mono);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+.palette-row-type {
+  font: 700 9.5px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.palette-row-type.type-view {
+  background: rgba(95, 128, 95, 0.15);
+  color: var(--green);
+}
+
+.palette-row-type.type-space {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.palette-row-type.type-launchpad {
+  background: rgba(168, 85, 247, 0.12);
+  color: #9333ea;
+}
+
+.palette-row-type.type-note {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+
+.palette-row-type.type-action {
+  background: var(--line);
+  color: var(--ink);
 }
 
 .palette-row mark {
@@ -3826,6 +3898,33 @@ body.overlay-mini-body {
   color: var(--green);
   font-weight: 700;
   text-decoration: underline;
+}
+
+.palette-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  font: 500 11px var(--mono);
+  color: var(--muted);
+}
+
+.palette-footer-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.palette-footer-item kbd {
+  padding: 1px 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font: 700 9.5px var(--mono);
+  color: var(--ink);
 }
 
 /* An empty count badge (no filter active) should not draw an empty pill */
@@ -3842,24 +3941,5 @@ body.overlay-mini-body {
   text-overflow: clip;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-/* Quick-note overlay: chat-style box that grows with its text (the window grows with it) */
-.overlay-mini-bar {
-  align-items: flex-start;
-  padding: 3px 4px 3px 6px;
-  gap: 6px;
-}
-.overlay-mini-drag { margin-top: 3px; }
-.overlay-mini-close { margin-top: 4px; }
-textarea.overlay-mini-input {
-  display: block;
-  height: 34px;
-  min-height: 34px;
-  max-height: 140px;
-  padding: 7px 10px;
-  line-height: 20px;
-  resize: none;
-  overflow-y: hidden;
 }
 

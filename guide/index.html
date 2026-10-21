@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f5f2ea" />
-  <title>Senku — User Guide &amp; Master Shortcuts</title>
+  <title>Senku V3 — Official Guide &amp; Master Shortcuts</title>
   <style>
     :root {
       --ink: #29362f;
@@ -13,8 +13,10 @@
       --green: #5f805f;
       --green-deep: #436444;
       --green-light: #e5eee2;
+      --green-pale: #eef4ec;
       --paper: #fbfbf8;
       --bg: #f5f2ea;
+      --surface: #ffffff;
       --card-bg: #fffdf8;
       --line: #dedcd4;
       --line-subtle: #eae8df;
@@ -22,15 +24,21 @@
       --kbd-border: #cbcaa5;
       --amber: #b86214;
       --amber-bg: #fdf5ea;
+      --blue: #2563eb;
+      --blue-bg: #eff6ff;
+      --purple: #9333ea;
+      --purple-bg: #faf5ff;
       --shadow-sm: 0 2px 8px rgba(41, 54, 47, 0.04);
-      --shadow-md: 0 8px 24px rgba(41, 54, 47, 0.07);
+      --shadow-md: 0 10px 30px rgba(41, 54, 47, 0.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
-      background: radial-gradient(circle at 85% 0%, var(--green-light) 0%, transparent 28%), var(--bg);
+      background: radial-gradient(circle at 85% 0%, var(--green-light) 0%, transparent 32%), var(--bg);
       color: var(--ink);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: var(--sans);
       font-size: 16px;
       line-height: 1.65;
       -webkit-font-smoothing: antialiased;
@@ -40,10 +48,10 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      padding: 14px max(24px, calc((100% - 1000px)/2));
+      padding: 14px max(24px, calc((100% - 1040px)/2));
       border-bottom: 1px solid var(--line);
-      background: rgba(251, 251, 248, 0.92);
-      backdrop-filter: blur(12px);
+      background: rgba(251, 251, 248, 0.94);
+      backdrop-filter: blur(14px);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -52,7 +60,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 19px;
+      font-size: 20px;
       font-weight: 800;
       letter-spacing: -0.04em;
       color: var(--ink);
@@ -60,10 +68,10 @@
     }
     .header-logo .badge {
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      padding: 2px 8px;
+      padding: 3px 9px;
       border-radius: 999px;
       background: var(--green-light);
       color: var(--green-deep);
@@ -71,7 +79,7 @@
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
     .header-link {
       font-size: 13px;
@@ -92,7 +100,7 @@
       color: #fff;
       background: var(--green-deep);
       text-decoration: none;
-      padding: 7px 14px;
+      padding: 7px 15px;
       border-radius: 6px;
       transition: background 0.15s ease;
     }
@@ -101,14 +109,14 @@
     }
 
     main {
-      width: min(1000px, calc(100% - 44px));
-      margin: 50px auto 100px;
+      width: min(1040px, calc(100% - 48px));
+      margin: 48px auto 100px;
     }
 
     .hero-eyebrow {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       color: var(--green-deep);
       font-size: 12px;
       font-weight: 800;
@@ -117,66 +125,45 @@
       margin-bottom: 14px;
     }
     .hero-eyebrow span {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: var(--green);
     }
     h1 {
-      max-width: 840px;
-      font-size: clamp(38px, 6vw, 68px);
-      line-height: 1.05;
+      max-width: 860px;
+      font-size: clamp(36px, 5.5vw, 64px);
+      line-height: 1.06;
       letter-spacing: -0.05em;
       font-weight: 800;
       color: var(--ink);
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
     h1 em {
       font-style: normal;
       color: var(--green);
-      position: relative;
     }
     .hero-lead {
-      max-width: 720px;
+      max-width: 740px;
       color: var(--ink-soft);
-      font-size: clamp(18px, 2.2vw, 21px);
-      line-height: 1.5;
-      margin-bottom: 30px;
-    }
-
-    .quote-box {
-      margin: 28px 0 36px;
-      padding: 18px 22px;
-      border-left: 3px solid var(--green);
-      background: var(--card-bg);
-      border-radius: 0 10px 10px 0;
-      border-top: 1px solid var(--line-subtle);
-      border-right: 1px solid var(--line-subtle);
-      border-bottom: 1px solid var(--line-subtle);
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--ink);
-    }
-    .quote-box span {
-      display: block;
-      margin-top: 4px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--muted);
+      font-size: clamp(17px, 2vw, 20px);
+      line-height: 1.55;
+      margin-bottom: 28px;
     }
 
     nav.toc {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin: 36px 0 60px;
-      padding: 16px;
+      margin: 28px 0 52px;
+      padding: 14px;
       background: var(--card-bg);
       border: 1px solid var(--line);
       border-radius: 12px;
+      box-shadow: var(--shadow-sm);
     }
     nav.toc a {
-      padding: 6px 12px;
+      padding: 6px 13px;
       border-radius: 6px;
       color: var(--ink-soft);
       text-decoration: none;
@@ -200,20 +187,20 @@
     .section-tag {
       font-size: 11px;
       font-weight: 800;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--green);
       margin-bottom: 6px;
     }
     h2 {
-      font-size: clamp(26px, 3.5vw, 36px);
+      font-size: clamp(24px, 3.2vw, 34px);
       letter-spacing: -0.04em;
       font-weight: 800;
       color: var(--ink);
       margin-bottom: 16px;
     }
     h3 {
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: -0.02em;
       color: var(--ink);
@@ -221,7 +208,7 @@
     }
     p {
       color: var(--ink-soft);
-      font-size: 16px;
+      font-size: 15.5px;
       margin-bottom: 16px;
       line-height: 1.7;
     }
@@ -231,27 +218,32 @@
 
     .feature-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
       gap: 16px;
-      margin: 24px 0 16px;
+      margin: 22px 0 16px;
     }
     .feature-card {
       background: var(--card-bg);
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 22px;
+      border-radius: 10px;
+      padding: 20px;
       box-shadow: var(--shadow-sm);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     }
     .feature-card:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
       border-color: var(--green);
     }
-    .feature-icon {
-      font-size: 24px;
-      margin-bottom: 10px;
+    .feature-badge {
       display: inline-block;
+      font: 700 10px var(--mono);
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      background: var(--green-light);
+      color: var(--green-deep);
     }
     .feature-card h4 {
       font-size: 16px;
@@ -273,12 +265,16 @@
       border-left: 4px solid var(--green);
       background: var(--green-light);
       color: var(--ink);
-      font-size: 15px;
+      font-size: 14.5px;
       line-height: 1.6;
     }
     .callout-amber {
       border-left-color: var(--amber);
       background: var(--amber-bg);
+    }
+    .callout-blue {
+      border-left-color: var(--blue);
+      background: var(--blue-bg);
     }
     .callout-title {
       font-weight: 700;
@@ -290,9 +286,9 @@
 
     /* Shortcuts Table */
     .shortcuts-wrapper {
-      margin: 24px 0;
+      margin: 20px 0 28px;
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 10px;
       overflow: hidden;
       background: var(--card-bg);
       box-shadow: var(--shadow-sm);
@@ -304,8 +300,8 @@
     }
     table.shortcuts-table th {
       background: #f7f6f0;
-      padding: 12px 18px;
-      font-size: 12px;
+      padding: 11px 16px;
+      font-size: 11.5px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -313,7 +309,7 @@
       border-bottom: 1px solid var(--line);
     }
     table.shortcuts-table td {
-      padding: 14px 18px;
+      padding: 12px 16px;
       font-size: 14px;
       border-bottom: 1px solid var(--line-subtle);
       color: var(--ink-soft);
@@ -326,20 +322,33 @@
     }
     kbd {
       display: inline-block;
-      padding: 3px 8px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
+      padding: 2px 7px;
+      font-family: var(--mono);
+      font-size: 11.5px;
       font-weight: 700;
       color: var(--ink);
       background: var(--kbd-bg);
       border: 1px solid var(--kbd-border);
-      border-radius: 5px;
-      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
       margin: 0 2px;
     }
 
+    .tag-badge {
+      display: inline-block;
+      font: 700 11px var(--mono);
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--line-subtle);
+      color: var(--ink);
+    }
+    .tag-badge.senku {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
     footer {
-      padding: 40px 20px;
+      padding: 44px 20px;
       border-top: 1px solid var(--line);
       color: var(--muted);
       text-align: center;
@@ -353,7 +362,7 @@
     @media (max-width: 640px) {
       .header-actions { display: none; }
       nav.toc { gap: 6px; }
-      h1 { font-size: 34px; }
+      h1 { font-size: 32px; }
     }
   </style>
 </head>
@@ -361,321 +370,383 @@
   <header>
     <a href="#" class="header-logo">
       <span>senku</span>
-      <span class="badge" data-version-badge>v2.4.0</span>
+      <span class="badge" data-version-badge>v3.0.0</span>
     </a>
     <div class="header-actions">
-      <a href="#launchpad" class="header-link">Next Up</a>
-      <a href="#shortcuts" class="header-link">Shortcuts</a>
       <a href="#spaces" class="header-link">Spaces</a>
-      <a href="#shortcuts" class="header-btn">Cheatsheet</a>
+      <a href="#logs" class="header-link">Quiet Log</a>
+      <a href="#notes" class="header-link">Notes</a>
+      <a href="#launchpads" class="header-link">Launchpads</a>
+      <a href="#overlay" class="header-link">Overlay</a>
+      <a href="#palette" class="header-link">Cmd Palette</a>
+      <a href="#shortcuts" class="header-btn">Shortcuts</a>
     </div>
   </header>
 
   <main>
     <div class="hero-eyebrow">
-      <span></span> Built for Students Who Actually Build
+      <span></span> Pure Focus · Local-First · Instant Start
     </div>
-    <h1>Stop planning your work.<br><em>Start it in 120 seconds.</em></h1>
+    <h1>The Distraction-Free Cockpit<br>for <em>Builders &amp; Thinkers</em></h1>
     <p class="hero-lead">
-      You don't need another 50-feature productivity app with 10 colored tags, sub-tasks, and complex kanban boards that you abandon next Tuesday. You need to start. In the next two minutes.
+      Senku eliminates the noise of modern productivity tools. No multi-tier databases, no complex task hierarchies, and zero cloud lock-in. Just instant start, append-only logs, pure markdown notes, and 1-click resource launchpads.
     </p>
 
-    <div class="quote-box">
-      “Senku is a spark, you are the fire.”
-      <span>Action creates motivation — not the other way around.</span>
-    </div>
-
-    <nav class="toc" aria-label="Table of Contents">
-      <a href="#why-senku">The Senku Philosophy</a>
-      <a href="#launchpad">Next Up Launchpad</a>
-      <a href="#tiny-step">The 2-Minute First Step</a>
-      <a href="#paradigms">Scheduled vs. Flexible</a>
-      <a href="#pick-for-me">Pick For Me</a>
-      <a href="#soft-missed">Soft Missed Tasks</a>
-      <a href="#spaces">Spaces &amp; Files</a>
-      <a href="#rough-note">Rough Note</a>
-      <a href="#shortcuts">Keyboard Shortcuts</a>
-      <a href="#privacy">Zero-Cloud Privacy</a>
+    <nav class="toc">
+      <a href="#spaces">1. Spaces</a>
+      <a href="#logs">2. Quiet Log &amp; #senku</a>
+      <a href="#notes">3. Notes &amp; Folders</a>
+      <a href="#launchpads">4. Launchpads</a>
+      <a href="#overlay">5. Floating Pill Overlay</a>
+      <a href="#palette">6. Command Palette</a>
+      <a href="#shortcuts">7. Master Shortcuts</a>
+      <a href="#storage">8. Storage &amp; Portability</a>
     </nav>
 
-    <!-- SECTION 1: THE PHILOSOPHY -->
-    <section id="why-senku">
-      <div class="section-tag">01 · The Problem We Solved</div>
-      <h2>The Real Enemy Isn't Discipline. It's Initiation Friction.</h2>
-      <p>
-        Every student coder knows the feeling: you have an assignment due tomorrow or a 40-video DSA playlist waiting. You want to work. But opening the browser, finding the tutorial link, navigating 5 nested Windows folders to open VS Code, and remembering what line of code you wrote yesterday feels like lifting a boulder.
-      </p>
-      <p>
-        Psychologists call this <strong>initiation friction</strong> and subtle <strong>executive dysfunction</strong>. In high-demand college routines, you also deal with <strong>time blindness</strong> — hours vanish while you fiddle with setups or worry about how much work is left.
-      </p>
-      <div class="callout">
-        <div class="callout-title">The Senku Rule:</div>
-        Senku does not track your life. Senku exists solely to push you past the first 120 seconds of resistance. Once you are in motion, your own brain takes over.
-      </div>
-    </section>
-
-    <!-- SECTION 2: NEXT UP LAUNCHPAD -->
-    <section id="launchpad">
-      <div class="section-tag">02 · The Home Screen</div>
-      <h2>The Next Up Launchpad</h2>
-      <p>
-        When you open Senku, you are not assaulted with 30 overdue red alerts or a wall of tasks. You see exactly <strong>one clean hero card</strong>: what is next right now.
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🚀</div>
-          <h4>One-Click Start &amp; Launch</h4>
-          <p>Click the big hero button. Senku simultaneously opens your code editor, your browser links, your project folders, and sets your headspace into motion.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <h4>Zero Context Switching</h4>
-          <p>Everything you need for that specific task is pre-linked. No searching for files, no bookmark diving, no distractions.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <h4>Rapid Micro-Actions</h4>
-          <p>Finished early? Hit <strong>✓ Done</strong>. Need a coffee break? Hit <strong>Snooze 15m</strong>. Ran out of steam? Hit <strong>Make flexible</strong> without any guilt.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- SECTION 3: THE TINY FIRST STEP -->
-    <section id="tiny-step">
-      <div class="section-tag">03 · Defeating Overwhelm</div>
-      <h2>The 2-Minute Tiny First Step</h2>
-      <p>
-        Never write a task titled <em>"Build entire frontend authentication system"</em>. Your brain will immediately resist and procrastinate.
-      </p>
-      <p>
-        Instead, every task in Senku gives you a prominent <strong>Tiny First Step</strong> prompt. Make it ridiculously small and easy:
-      </p>
-      <ul style="margin: 0 0 16px 24px; color: var(--ink-soft); line-height: 1.8;">
-        <li><em>"Open login.tsx and import useState"</em></li>
-        <li><em>"Watch just the first 4 minutes of Striver's Dynamic Programming video"</em></li>
-        <li><em>"Create the folder structure: /components /services"</em></li>
-      </ul>
-      <p>
-        When you click <strong>Start &amp; Launch</strong>, that tiny first step is displayed right in front of you. Once you complete the first 2 minutes, momentum carries you forward effortlessly.
-      </p>
-    </section>
-
-    <!-- SECTION 4: TASK PARADIGMS -->
-    <section id="paradigms">
-      <div class="section-tag">04 · Work Structure</div>
-      <h2>Scheduled vs. Flexible Tasks</h2>
-      <p>
-        Real students don't work like corporate managers. Some tasks have hard deadlines; other projects are ongoing explorations. Senku separates them cleanly:
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">📅</div>
-          <h4>Scheduled Tasks</h4>
-          <p>For work that must happen at a specific hour — college lab submissions, live lectures, or designated study blocks. Senku triggers native desktop reminders and auto-launches resources at start time.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🌊</div>
-          <h4>Flexible Tasks</h4>
-          <p>For ongoing self-paced journeys without arbitrary calendar deadlines — like finishing a 100-problem LeetCode list or building a side project. No overdue pressure, ever.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- SECTION 5: PICK FOR ME -->
-    <section id="pick-for-me">
-      <div class="section-tag">05 · Analysis Paralysis Cure</div>
-      <h2>🎲 Pick For Me</h2>
-      <p>
-        You have 7 flexible tasks on your backlog: learn Docker, practice trees, write that blog post, clean up your Git repo. You stare at the screen for 25 minutes unable to choose which one to do first.
-      </p>
-      <p>
-        Switch to Flexible (<kbd>F</kbd>) or use the Next Up Flexible tab, and click <strong>🎲 Pick for me</strong>. Senku instantly rolls the dice and surfaces one task at random. Stop debating. Accept the challenge and start building.
-      </p>
-    </section>
-
-    <!-- SECTION 6: SOFT MISSED TASKS -->
-    <section id="soft-missed">
-      <div class="section-tag">06 · Zero Guilt</div>
-      <h2>Soft Missed Tasks Conversion</h2>
-      <p>
-        Life happens. You fell asleep, college ran late, or an emergency popped up. Other productivity apps punish you with blaring red "OVERDUE" badges that make you feel like a failure.
-      </p>
-      <div class="callout callout-amber">
-        <div class="callout-title">⚠️ Missed is not Failure. It's just a reschedule.</div>
-        In Senku, missed tasks are treated with zero shame. Open the Missed view (<kbd>M</kbd>) and convert any task with one click:
-        <ul style="margin: 8px 0 0 20px; line-height: 1.6;">
-          <li><strong>Make Flexible:</strong> Remove the time lock and keep it alive in your backlog.</li>
-          <li><strong>Reschedule Today:</strong> Give yourself a clean start for this evening.</li>
-          <li><strong>Mark Done:</strong> Completed offline? Archive it without guilt.</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- SECTION 7: SPACES & FILES -->
+    <!-- 1. SPACES -->
     <section id="spaces">
-      <div class="section-tag">07 · Clean Mental Boundaries</div>
-      <h2>Spaces: One Context at a Time</h2>
+      <div class="section-tag">Foundation</div>
+      <h2>Spaces: Local Workspaces That Bind to Your Folders</h2>
       <p>
-        Don't mix your Computer Networks homework with your DSA practice or your React freelance gig.
+        In Senku, a <strong>Space</strong> represents a project, subject, or focus area (e.g., <em>Computer Networks</em>, <em>Compiler Design</em>, <em>SaaS App</em>). Each Space links directly to a master folder on your local file system.
       </p>
-      <p>
-        Create a <strong>Space</strong> for each domain (e.g., <code>DSA</code>, <code>College</code>, <code>WebDev</code>, <code>Senku</code>). Each Space links directly to its own local Windows folder, its own task list, and its own file explorer.
-      </p>
-      <ul style="margin: 0 0 16px 24px; color: var(--ink-soft); line-height: 1.8;">
-        <li><strong>Open in Explorer:</strong> Jump right into the Windows directory with a single click.</li>
-        <li><strong>In-Folder Search:</strong> Type to filter files and folders in real time.</li>
-        <li><strong>Fast Parent Navigation:</strong> Tap <kbd>R</kbd> anytime to navigate straight up to the parent directory (<code>cd ..</code>).</li>
-        <li><strong>Smart Resource Binding:</strong> Attach PDFs, websites, repos, or notebooks straight to any task.</li>
-      </ul>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="feature-badge">True Local Files</span>
+          <h4>Master Folder Binding</h4>
+          <p>Browse and open your project files and subfolders directly inside Senku without leaving your keyboard flow.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Instant Availability</span>
+          <h4>Smart Path Verification</h4>
+          <p>Senku verifies whether linked paths and files exist, highlighting missing or relocated files gracefully.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Total Independence</span>
+          <h4>Switch Spaces in 1 Keystroke</h4>
+          <p>Switch between spaces instantly via the Command Palette (<kbd>Ctrl+K</kbd> / <kbd>P</kbd>) or the workspace switcher.</p>
+        </div>
+      </div>
+      <div class="callout callout-blue">
+        <div class="callout-title">💡 Pro Tip</div>
+        When inside a subfolder in the File panel, press <kbd>R</kbd> to immediately navigate back up to the parent or root directory.
+      </div>
     </section>
 
-    <!-- SECTION 8: ROUGH NOTE -->
-    <section id="rough-note">
-      <div class="section-tag">08 · Scratchpad</div>
-      <h2>Rough Note (Shortcut: N)</h2>
+    <!-- 2. QUIET LOG & #senku -->
+    <section id="logs">
+      <div class="section-tag">Memory</div>
+      <h2>Quiet Log: Append-Only Stream of Consciousness</h2>
       <p>
-        During deep focus, you suddenly remember you need to buy milk, or you stumble upon a quick terminal command (<code>git stash pop</code>), or an idea strikes.
+        The <strong>Quiet Log</strong> is your digital scratchpad. It is intentionally <em>append-only and immutable</em>—you cannot edit past logs because logs capture the honest reality of what happened, when it happened.
       </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="feature-badge">Space Logs</span>
+          <h4>Contextual Log Feed</h4>
+          <p>Logs captured while a Space is active are automatically tagged to that Space, keeping your project notes coherent.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">#senku Logs</span>
+          <h4>Independent Global Logs</h4>
+          <p>Quick thoughts captured outside any space wear the clean <span class="tag-badge senku">#senku</span> badge. One click filters all independent logs.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Shift + Enter</span>
+          <h4>Multiline Capture</h4>
+          <p>Press <kbd>Shift+Enter</kbd> to type formatted code snippets, lists, or multi-line paragraphs. Press <kbd>Enter</kbd> to save.</p>
+        </div>
+      </div>
+      <h3>Filtering &amp; Exporting Logs</h3>
       <p>
-        Don't open a bloated browser tab. Press <kbd>N</kbd> from anywhere in Senku. Your <strong>Rough Note</strong> appears instantly. Type your thought, hit save (or let it autosave), and jump right back to your task.
+        Click any space badge (or the <span class="tag-badge senku">#senku</span> badge) in the log feed to instantly expand the search bar and filter by that exact tag. Press <kbd>Esc</kbd> to clear the filter instantly. Export your logs anytime to clean, date-grouped Markdown via the export button or Command Palette.
       </p>
     </section>
 
-    <!-- SECTION 9: KEYBOARD SHORTCUTS TABLE -->
+    <!-- 3. NOTES & FOLDERS -->
+    <section id="notes">
+      <div class="section-tag">Writing</div>
+      <h2>Notes &amp; Bundle Folders: Distraction-Free Markdown</h2>
+      <p>
+        Senku's Notes editor is built for deep work. It supports full Markdown syntax, code blocks, checklists, and auto-saves instantly as you type.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="feature-badge">Instant Auto-Save</span>
+          <h4>Never Lose a Word</h4>
+          <p>Every keystroke is saved directly to your local notes database. No save dialogs, no spinners, no lost drafts.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Organization</span>
+          <h4>Bundle Folders</h4>
+          <p>Group notes into collapsible bundle folders (e.g., <em>Units</em>, <em>Lectures</em>, <em>Specs</em>) with drag-and-drop ease.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Clean Hierarchy</span>
+          <h4>Structured Global Export</h4>
+          <p>Exporting all notes generates a clean 4-level Markdown book: <code># All Space Notes</code> → <code>## Space</code> → <code>### Folder</code> → <code>#### Page</code>.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-title">📁 Import &amp; Export Sovereignty</div>
+        You can drag and drop <code>.md</code> and <code>.txt</code> files directly into the notes sidebar, or use the Command Palette to import and export entire note bundles at will.
+      </div>
+    </section>
+
+    <!-- 4. LAUNCHPADS -->
+    <section id="launchpads">
+      <div class="section-tag">Action</div>
+      <h2>Launchpads: 1-Click Multi-Resource Launchers</h2>
+      <p>
+        Stop hunting through browser bookmarks, terminal windows, and nested folders every time you start work. A <strong>Launchpad</strong> bundles your URLs, local files, scripts, and folders into a single launch deck.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="feature-badge">All at Once</span>
+          <h4>1-Click Launch All</h4>
+          <p>Click <strong>Launch</strong> to simultaneously open all bundled resources in your default browser and native desktop applications.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Quick Access</span>
+          <h4>Pin to Home</h4>
+          <p>Star your most critical Launchpads to display them right at the top of your Home dashboard for instant morning access.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Single Resource Launch</span>
+          <h4>Interactive Path Chips</h4>
+          <p>Click any individual resource chip on the Launchpad card to open just that specific file, folder, or website.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. FLOATING PILL OVERLAY -->
+    <section id="overlay">
+      <div class="section-tag">Capture</div>
+      <h2>Floating Quick Note: The Sleek 38px Seamless Pill</h2>
+      <p>
+        Never interrupt your train of thought. Press <kbd>Ctrl+Shift+Space</kbd> from anywhere in Windows (or <kbd>O</kbd> inside Senku) to summon the floating pill overlay.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="feature-badge">Tiny &amp; Sleek</span>
+          <h4>Seamless Unified Pill</h4>
+          <p>Only 38px high with zero border clutter. Sits effortlessly above all your applications without obscuring your screen.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Gold Standard</span>
+          <h4>Downward Auto-Expand</h4>
+          <p>Type as much as you want with <kbd>Shift+Enter</kbd>—the pill expands downwards naturally and resets to a slim pill upon saving.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Instant Switch</span>
+          <h4>Toggle Note vs Log</h4>
+          <p>Click the badge or press <kbd>Tab</kbd> to toggle instantly between appending to your active Note or posting to Quiet Log.</p>
+        </div>
+      </div>
+      <div class="callout callout-amber">
+        <div class="callout-title">⚡ Keyboard Ninja Tip</div>
+        In the overlay: <kbd>Enter</kbd> saves &amp; flashes green, <kbd>Tab</kbd> switches Note/Log mode, and <kbd>Esc</kbd> hides the pill.
+      </div>
+    </section>
+
+    <!-- 6. COMMAND PALETTE -->
+    <section id="palette">
+      <div class="section-tag">Navigation</div>
+      <h2>Command Palette: Complete Keyboard Powerhouse</h2>
+      <p>
+        Press <kbd>Ctrl+K</kbd>, <kbd>Ctrl+P</kbd>, or single-key <kbd>P</kbd> from anywhere in the app to open the fuzzy-search Command Palette.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <span class="feature-badge">Speed</span>
+          <h4>Jump to Any View</h4>
+          <p>Switch between Home, Overview, Quiet Log, All Logs, Launchpads, and Notes with instant fuzzy search.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Deep Links</span>
+          <h4>Spaces &amp; Notes</h4>
+          <p>Type the name of any space, launchpad, note, or local file to jump directly to it without clicking around.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-badge">Instant Capture</span>
+          <h4>Direct Quick Logging</h4>
+          <p>Type any text and hit <kbd>Enter</kbd> to log directly, or prefix with <code>n &lt;text&gt;</code> to append straight into your active note.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. MASTER SHORTCUTS -->
     <section id="shortcuts">
-      <div class="section-tag">09 · Speed of Thought</div>
-      <h2>Master Keyboard Shortcuts</h2>
+      <div class="section-tag">Reference</div>
+      <h2>Master Shortcuts Cheatsheet</h2>
       <p>
-        True speed means keeping your hands on the keyboard. Senku is wired for single-key navigation:
+        Senku is designed to be operated 100% from your keyboard. When you are not typing inside an input field or editor, single-key navigation is active.
       </p>
 
+      <h3>1. Single-Key View Navigation (When not typing)</h3>
       <div class="shortcuts-wrapper">
         <table class="shortcuts-table">
           <thead>
             <tr>
-              <th style="width: 25%;">Key</th>
-              <th style="width: 35%;">Action</th>
-              <th style="width: 40%;">Description</th>
+              <th style="width: 130px;">Key</th>
+              <th style="width: 220px;">Action</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><kbd>Ctrl</kbd> + <kbd>K</kbd></td>
-              <td><strong>Command Palette</strong></td>
-              <td>Open the keyboard-first launcher to search views, spaces, launchpads, notes, files, or log.</td>
-            </tr>
-            <tr>
               <td><kbd>H</kbd></td>
-              <td><strong>Home View</strong></td>
-              <td>Jump back to your Next Up Launchpad and folder view.</td>
+              <td>Home Dashboard</td>
+              <td>Jump to Home overview with pinned launchpads and recent logs.</td>
             </tr>
             <tr>
-              <td><kbd>T</kbd></td>
-              <td><strong>Today View</strong></td>
-              <td>Inspect all tasks scheduled for today.</td>
+              <td><kbd>S</kbd></td>
+              <td>Space Overview</td>
+              <td>View active space dashboard with file tree and quick actions.</td>
             </tr>
             <tr>
-              <td><kbd>U</kbd></td>
-              <td><strong>Upcoming View</strong></td>
-              <td>Browse tasks scheduled starting tomorrow and beyond.</td>
+              <td><kbd>L</kbd></td>
+              <td>Launchpads</td>
+              <td>Full-screen launchpads view to manage and launch resource decks.</td>
             </tr>
             <tr>
-              <td><kbd>F</kbd></td>
-              <td><strong>Flexible View</strong></td>
-              <td>View your ongoing, self-paced backlog.</td>
-            </tr>
-            <tr>
-              <td><kbd>M</kbd></td>
-              <td><strong>Missed View</strong></td>
-              <td>Inspect past scheduled tasks and softly reschedule them.</td>
-            </tr>
-            <tr>
-              <td><kbd>C</kbd></td>
-              <td><strong>Completed View</strong></td>
-              <td>Review your finished victories.</td>
+              <td><kbd>G</kbd></td>
+              <td>All Logs (#senku)</td>
+              <td>Browse global log stream across all spaces and independent logs.</td>
             </tr>
             <tr>
               <td><kbd>N</kbd></td>
-              <td><strong>Rough Note</strong></td>
-              <td>Open your immediate scratchpad for quick notes.</td>
+              <td>Notes Editor</td>
+              <td>Open distraction-free markdown note editor and bundle folders.</td>
+            </tr>
+            <tr>
+              <td><kbd>P</kbd></td>
+              <td>Command Palette</td>
+              <td>Open fuzzy-search command palette to run any action or jump anywhere.</td>
+            </tr>
+            <tr>
+              <td><kbd>O</kbd></td>
+              <td>Quick Note Overlay</td>
+              <td>Open floating 38px mini pill overlay for instant note capture.</td>
             </tr>
             <tr>
               <td><kbd>R</kbd></td>
-              <td><strong>Folder Up (<code>cd ..</code>)</strong></td>
-              <td>In the file explorer, instantly navigate up to the parent directory.</td>
+              <td>Parent Directory</td>
+              <td>Navigate one folder up in the local file explorer panel.</td>
             </tr>
             <tr>
-              <td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd></td>
-              <td><strong>Summon Senku</strong></td>
-              <td>Global hotkey to bring Senku to the front from anywhere in Windows.</td>
+              <td><kbd>/</kbd></td>
+              <td>Instant Search</td>
+              <td>Expands search bar and focuses filter input in active view.</td>
+            </tr>
+            <tr>
+              <td><kbd>?</kbd></td>
+              <td>User Guide</td>
+              <td>Open this official guide and master cheatsheet window.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2. Global Hotkeys (Works Everywhere)</h3>
+      <div class="shortcuts-wrapper">
+        <table class="shortcuts-table">
+          <thead>
+            <tr>
+              <th style="width: 220px;">Shortcut</th>
+              <th style="width: 200px;">Scope</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>K</kbd> / <kbd>P</kbd></td>
+              <td>Global in App</td>
+              <td>Open Command Palette from any screen or modal.</td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd></td>
+              <td>System-Wide (OS)</td>
+              <td>Toggle floating Quick Note pill above all desktop applications.</td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td>
+              <td>Global in App</td>
+              <td>Jump directly to log input textarea from anywhere.</td>
             </tr>
             <tr>
               <td><kbd>Esc</kbd></td>
-              <td><strong>Close / Cancel</strong></td>
-              <td>Dismiss modals, escape forms, or return to Home.</td>
+              <td>Search / Dialogs</td>
+              <td>Clears non-empty search input first; otherwise closes modal or blurs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3. Floating Overlay Hotkeys</h3>
+      <div class="shortcuts-wrapper">
+        <table class="shortcuts-table">
+          <thead>
+            <tr>
+              <th style="width: 180px;">Shortcut</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><kbd>Enter</kbd></td>
+              <td>Submit note or log immediately (pill flashes green upon save).</td>
+            </tr>
+            <tr>
+              <td><kbd>Shift</kbd> + <kbd>Enter</kbd></td>
+              <td>Insert a new line. Pill expands downward automatically.</td>
+            </tr>
+            <tr>
+              <td><kbd>Tab</kbd></td>
+              <td>Toggle mode between active <strong>Note</strong> and <strong>Quiet Log</strong>.</td>
+            </tr>
+            <tr>
+              <td><kbd>Esc</kbd></td>
+              <td>Hide the floating pill overlay.</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <!-- SECTION 10: PRIVACY -->
-    <section id="privacy">
-      <div class="section-tag">10 · Sovereign &amp; Offline</div>
-      <h2>100% Local, Fast &amp; Private</h2>
+    <!-- 8. STORAGE & PORTABILITY -->
+    <section id="storage">
+      <div class="section-tag">Data Sovereignty</div>
+      <h2>Storage &amp; Portability: Zero Lock-In</h2>
       <p>
-        Your tasks, folders, and notes belong to you — not some remote cloud server.
+        Your notes, logs, and configurations are stored as clean JSON and standard Markdown files inside your user profile directory:
       </p>
-      <ul style="margin: 0 0 16px 24px; color: var(--ink-soft); line-height: 1.8;">
-        <li><strong>Zero Account Creation:</strong> No email, no password, no tracking cookies.</li>
-        <li><strong>Stored in Windows AppData:</strong> All data is stored purely on your local drive in standard JSON format.</li>
-        <li><strong>Works 100% Offline:</strong> No Wi-Fi required. Open Senku in an airplane, train, or library with zero latency.</li>
-        <li><strong>Zero Telemetry:</strong> We do not log what you study or what you build.</li>
-      </ul>
+      <div class="callout">
+        <code>%APPDATA%\senku\</code> (Windows) &nbsp;|&nbsp; <code>~/.config/senku/</code> (Linux/macOS)
+      </div>
+      <p>
+        Because Senku does not use proprietary binary formats or closed cloud databases, your data remains readable, editable, and version-controllable with Git or any text editor for decades to come.
+      </p>
     </section>
   </main>
 
   <footer>
     <p>
-      <strong>Senku <span data-version-footer>v2.4.0</span></strong> · The Student Workspace Starter<br>
-      Crafted with pride by a Navodayan · Simple. Standard. Authentic.
+      <strong>Senku V3</strong> &bull; Built for builders who actually build.
     </p>
   </footer>
 
   <script>
-    // Dynamically retrieve version from URL parameters or package.json
-    (async function initVersion() {
-      function applyVersion(ver) {
-        if (!ver) return;
-        const clean = ver.startsWith('v') ? ver : 'v' + ver;
-        document.querySelectorAll('[data-version-badge], [data-version-footer]').forEach(el => {
-          el.textContent = clean;
+    // Dynamically update version badge from query parameters if provided
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get('version');
+      if (v) {
+        document.querySelectorAll('[data-version-badge]').forEach((el) => {
+          el.textContent = 'v' + v.replace(/^v/, '');
         });
-        document.title = 'Senku ' + clean + ' — User Guide & Master Shortcuts';
       }
-
-      // 1. Check query parameter passed by Electron main process (?version=2.4.0)
-      const urlParams = new URLSearchParams(window.location.search);
-      const qVersion = urlParams.get('version');
-      if (qVersion) {
-        applyVersion(qVersion);
-        return;
-      }
-
-      // 2. Fallback to fetching package.json
-      try {
-        const res = await fetch('../package.json');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.version) {
-            applyVersion(data.version);
-            return;
-          }
-        }
-      } catch (err) {
-        // Silent fallback
-      }
-    })();
+    } catch (_) {}
   </script>
 </body>
 </html>

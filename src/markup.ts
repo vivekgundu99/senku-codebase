@@ -762,8 +762,13 @@ export function launchpadsPanelMarkup(): string {
   if (!state.workspace) {
     return `
     <section class="launchpads-panel">
-      <p style="margin-top: 24px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
-      <button class="primary-button" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
+      <div class="panel-header-line">
+        <h2 class="panel-header-title">Launchpads</h2>
+      </div>
+      <div class="lp-empty-state">
+        <p>Create or select a Space to manage launchpads.</p>
+        <button class="primary-button mini" id="create-space-files" style="margin-top: 12px;">+ Create a Space</button>
+      </div>
     </section>`;
   }
 
@@ -772,13 +777,19 @@ export function launchpadsPanelMarkup(): string {
     ? launchpads.map(launchpadCardMarkup).join('')
     : `<div class="lp-empty-state">
          <p>No Launchpads yet.</p>
-         <small>Create one to bundle files, folders, and URLs and open them all at once.</small>
+         <small>Create one to bundle files, folders, and URLs to open them all in one click.</small>
        </div>`;
 
   return `
     <section class="launchpads-panel">
-      <div class="launchpads-top-row">
-        <button class="add-button" id="add-launchpad" title="Add launchpad">+</button>
+      <div class="panel-header-line">
+        <div class="panel-header-left">
+          <h2 class="panel-header-title">Launchpads</h2>
+          <span class="panel-header-badge">${launchpads.length}</span>
+        </div>
+        <div class="panel-header-actions">
+          <button class="primary-button mini" id="add-launchpad">+ New Launchpad</button>
+        </div>
       </div>
       <div class="launchpads-list">${content}</div>
     </section>`;

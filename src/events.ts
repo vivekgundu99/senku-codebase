@@ -1100,9 +1100,9 @@ function bindLaunchpadActions(load: LoadFn): void {
 export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
   registerShortcuts(load, render);
 
-  // Global Ctrl+K opens Command Palette
+  // Global Ctrl+K / Ctrl+P opens Command Palette
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.key === 'p' || e.key === 'P')) {
       e.preventDefault();
       openPalette(load, render);
     }

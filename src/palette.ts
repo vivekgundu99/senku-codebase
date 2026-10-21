@@ -3,8 +3,12 @@ import { fuzzyMatch } from './utils';
 import { toast } from './toast';
 import {
   openCreateNoteModal,
+  openCreateBundleModal,
   openLaunchpadFormModal,
   openWorkspaceFormModal,
+  openWorkspaceSettingsModal,
+  openAppSettingsModal,
+  openTrashModal,
 } from './modals';
 
 type LoadFn = (path?: string) => Promise<void>;
@@ -15,6 +19,7 @@ interface PaletteItem {
   type: 'View' | 'Space' | 'Launchpad' | 'Note' | 'File' | 'Action';
   typeOrder: number;
   text: string;
+  shortcut?: string;
   run: () => Promise<void> | void;
 }
 
@@ -32,15 +37,22 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
   overlay.innerHTML = `
     <div class="palette-box">
       <div class="palette-input-wrap">
+        <span class="palette-input-icon">🔍</span>
         <input
           class="palette-input"
           type="text"
-          placeholder="Search or run a command"
+          placeholder="Search commands, notes, spaces, or type to log…"
           autocomplete="off"
           spellcheck="false"
         />
       </div>
       <div class="palette-list" id="palette-list"></div>
+      <div class="palette-footer">
+        <span class="palette-footer-item"><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+        <span class="palette-footer-item"><kbd>↵</kbd> select</span>
+        <span class="palette-footer-item"><kbd>esc</kbd> close</span>
+        <span class="palette-footer-item"><kbd>n &lt;text&gt;</kbd> note</span>
+      </div>
     </div>
   `;
 
@@ -66,27 +78,30 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
 
     // 1. Views
     items.push(
-      { id: 'view-home', type: 'View', typeOrder: 0, text: 'Home', run: () => { setView('Home'); render(); } },
-      { id: 'view-overview', type: 'View', typeOrder: 0, text: 'Overview', run: () => { setView('Overview'); render(); } },
-      { id: 'view-log', type: 'View', typeOrder: 0, text: 'Log', run: () => { setView('Log'); render(); } },
-      { id: 'view-launchpads', type: 'View', typeOrder: 0, text: 'Launchpads', run: () => { setView('Launchpads'); render(); } },
-      { id: 'view-notes', type: 'View', typeOrder: 0, text: 'Notes', run: () => { setView('Notes'); render(); } },
-      { id: 'view-all-logs', type: 'View', typeOrder: 0, text: 'All logs', run: () => { setView('AllLog'); render(); } },
+      { id: 'view-home', type: 'View', typeOrder: 0, text: 'Home', shortcut: 'H', run: () => { setView('Home'); render(); } },
+      { id: 'view-overview', type: 'View', typeOrder: 0, text: 'Overview', shortcut: 'S', run: () => { setView('Overview'); render(); } },
+      { id: 'view-log', type: 'View', typeOrder: 0, text: 'Quiet Log (Space)', run: () => { setView('Log'); render(); } },
+      { id: 'view-all-logs', type: 'View', typeOrder: 0, text: 'All Logs (#senku)', shortcut: 'G', run: () => { setView('AllLog'); render(); } },
+      { id: 'view-launchpads', type: 'View', typeOrder: 0, text: 'Launchpads', shortcut: 'L', run: () => { setView('Launchpads'); render(); } },
+      { id: 'view-notes', type: 'View', typeOrder: 0, text: 'Notes', shortcut: 'N', run: () => { setView('Notes'); render(); } },
     );
 
     // 2. Spaces
     (state.workspaces || []).forEach((ws) => {
+      const isCurrent = state.workspace?.id === ws.id;
       items.push({
         id: `space-${ws.id}`,
         type: 'Space',
         typeOrder: 1,
-        text: ws.name,
+        text: `Space: ${ws.name}${isCurrent ? ' (active)' : ''}`,
         run: async () => {
-          await window.senku.switchWorkspace(ws.id);
-          if (currentView === 'Home' || currentView === 'AllLog') {
-            setView('Overview');
+          if (!isCurrent) {
+            await window.senku.switchWorkspace(ws.id);
+            if (currentView === 'Home' || currentView === 'AllLog') {
+              setView('Overview');
+            }
+            await load();
           }
-          await load();
         },
       });
     });
@@ -97,7 +112,8 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         id: `lp-${lp.id}`,
         type: 'Launchpad',
         typeOrder: 2,
-        text: lp.name,
+        text: `Launch: ${lp.name}`,
+        shortcut: '↗',
         run: async () => {
           const res = await window.senku.launchLaunchpad(lp.id);
           if (res.ok) {
@@ -111,11 +127,12 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
 
     // 4. Notes
     (state.notes || []).forEach((note) => {
+      const bundlePrefix = note.bundle ? `[${note.bundle}] ` : '';
       items.push({
         id: `note-${note.id}`,
         type: 'Note',
         typeOrder: 3,
-        text: note.name,
+        text: `${bundlePrefix}${note.name}`,
         run: async () => {
           setActiveNoteId(note.id);
           void window.senku.setActiveNote(note.id);
@@ -145,38 +162,78 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
     // 6. Actions
     items.push(
       {
-        id: 'action-new-note',
-        type: 'Action',
-        typeOrder: 5,
-        text: 'New note',
-        run: () => { openCreateNoteModal(load, render); },
-      },
-      {
         id: 'action-quick-note',
         type: 'Action',
         typeOrder: 5,
-        text: 'Quick note',
+        text: 'Toggle Quick Note Overlay',
+        shortcut: 'O',
         run: () => { void window.senku.showOverlay(); },
+      },
+      {
+        id: 'action-new-note',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'New Note',
+        run: () => { openCreateNoteModal(load, render); },
+      },
+      {
+        id: 'action-new-bundle',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'New Bundle Folder',
+        run: () => { openCreateBundleModal(load, render); },
       },
       {
         id: 'action-new-launchpad',
         type: 'Action',
         typeOrder: 5,
-        text: 'New launchpad',
+        text: 'New Launchpad',
         run: () => { openLaunchpadFormModal(load); },
       },
       {
         id: 'action-new-space',
         type: 'Action',
         typeOrder: 5,
-        text: 'New space',
+        text: 'New Space',
         run: () => { openWorkspaceFormModal(load); },
+      },
+      {
+        id: 'action-space-settings',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'Space Settings…',
+        run: () => { openWorkspaceSettingsModal(load, render); },
+      },
+      {
+        id: 'action-app-settings',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'App Settings & Preferences',
+        run: () => { openAppSettingsModal(render); },
+      },
+      {
+        id: 'action-trash',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'Trash & Deleted Items',
+        run: () => { openTrashModal(load); },
+      },
+      {
+        id: 'action-guide',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'Senku V3 User Guide & Shortcuts',
+        shortcut: '?',
+        run: async () => {
+          const res = await window.senku.openUserGuide();
+          if (!res.ok) toast(res.error || 'User guide not found.');
+        },
       },
       {
         id: 'action-import-notes',
         type: 'Action',
         typeOrder: 5,
-        text: 'Import notes…',
+        text: 'Import Notes (Markdown / Text)',
         run: async () => {
           if (!state.workspace) {
             toast('Create a Space first.');
@@ -199,7 +256,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         id: 'action-export-all-notes',
         type: 'Action',
         typeOrder: 5,
-        text: 'Export all notes…',
+        text: 'Export All Notes (Global Markdown)',
         run: async () => {
           if (!state.workspace) {
             toast('Create a Space first.');
@@ -213,6 +270,36 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
           } else if (res.error && res.error !== 'Cancelled.') {
             toast(res.error);
           }
+        },
+      },
+      {
+        id: 'action-export-all-logs',
+        type: 'Action',
+        typeOrder: 5,
+        text: 'Export All Logs (All spaces + #senku)',
+        run: async () => {
+          const entries = await window.senku.listAllLogs();
+          if (!entries || !entries.length) {
+            toast('No logs to export');
+            return;
+          }
+          const lines = [
+            '# Senku All Logs',
+            '',
+            `Exported: ${new Date().toLocaleString()}`,
+            '',
+            ...entries.map((e: { spaceName?: string; createdAt: string | number; text: string }) =>
+              `- **[${e.spaceName || '#senku'}]** \`${new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\`: ${e.text}`
+            ),
+          ];
+          const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'senku-all-logs.md';
+          a.click();
+          URL.revokeObjectURL(url);
+          toast(`Exported ${entries.length} log(s)`);
         },
       },
     );
@@ -247,11 +334,12 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
     const q = rawQuery.trim();
 
     if (!q) {
-      // Empty query: show Views first, then Launchpads, then Spaces
+      // Empty query: show Views first, then Launchpads, then Spaces, then top Actions
       const views = allItems.filter((it) => it.type === 'View');
       const lps = allItems.filter((it) => it.type === 'Launchpad');
       const spaces = allItems.filter((it) => it.type === 'Space');
-      const combined = [...views, ...lps, ...spaces].slice(0, 8);
+      const actions = allItems.filter((it) => it.type === 'Action').slice(0, 3);
+      const combined = [...views, ...lps, ...spaces, ...actions].slice(0, 9);
       currentRows = combined.map((item) => ({ item, highlightedHtml: escapeHtmlText(item.text) }));
     } else {
       const scored: Array<{ item: PaletteItem; score: number; indices: number[] }> = [];
@@ -273,18 +361,22 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
       }));
 
       let dynamicItem: PaletteItem;
-      if (rawQuery.startsWith('n ')) {
-        const rest = rawQuery.slice(2).trim();
+      if (/^(?:n|note)\s+/i.test(rawQuery)) {
+        const rest = rawQuery.replace(/^(?:n|note)\s+/i, '').trim();
         dynamicItem = {
           id: 'dynamic-note',
           type: 'Note',
           typeOrder: 6,
-          text: `Note: “${rest}”`,
+          text: `Append to Note: “${rest}”`,
           run: async () => {
             if (!rest) return;
-            await window.senku.appendToActiveNote(rest);
-            await load(state.currentPath);
-            toast('Logged');
+            const res = await window.senku.appendToActiveNote(rest);
+            if (res.ok) {
+              await load(state.currentPath);
+              toast('Saved to Note');
+            } else {
+              toast(res.error || 'Could not save note');
+            }
           },
         };
       } else {
@@ -292,7 +384,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
           id: 'dynamic-log',
           type: 'Action',
           typeOrder: 6,
-          text: `Log “${rawQuery}”`,
+          text: `Log: “${rawQuery}”`,
           run: async () => {
             const spaceId = state.workspace?.id;
             await window.senku.addLogEntry(rawQuery, spaceId);
@@ -318,7 +410,10 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         (row, idx) => `
       <div class="palette-row ${idx === selectedIndex ? 'selected' : ''}" data-idx="${idx}">
         <span class="palette-row-text">${row.highlightedHtml}</span>
-        <span class="palette-row-type">${row.item.type}</span>
+        <div class="palette-row-meta">
+          ${row.item.shortcut ? `<kbd class="palette-row-kbd">${escapeHtmlText(row.item.shortcut)}</kbd>` : ''}
+          <span class="palette-row-type type-${row.item.type.toLowerCase()}">${row.item.type}</span>
+        </div>
       </div>`,
       )
       .join('');

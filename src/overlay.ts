@@ -1,17 +1,18 @@
 const inputEl = document.querySelector<HTMLTextAreaElement>('#overlay-input')!;
 const targetNameEl = document.querySelector<HTMLElement>('#overlay-target-name')!;
+const modeBadgeEl = document.querySelector<HTMLButtonElement>('#overlay-mode-badge');
 const closeBtn = document.querySelector<HTMLButtonElement>('#overlay-close-btn')!;
 
 let mode: 'Note' | 'Log' = 'Note';
 let activeNoteName = 'Notes';
 let activeWorkspaceId: string | undefined;
 
-const MIN_BOX = 34; // one line
-const MAX_BOX = 140; // about six lines, then the box scrolls
-const WINDOW_CHROME = 8; // bar padding (3px top + 3px bottom) + border (2px)
+const MIN_BOX = 24; // one line of text
+const MAX_BOX = 140; // about six lines before scrolling
+const WINDOW_CHROME = 14; // bar padding (5px top + 5px bottom) + border (2px) + breathing room (2px) = 38px base height
 let lastWindowHeight = 0;
 
-/** Grow the text box with its content and ask the window to follow. */
+/** Grow the text box with its content and ask the window to follow downwards. */
 function fitToContent(): void {
   inputEl.style.height = 'auto';
   const natural = inputEl.scrollHeight;
@@ -30,11 +31,18 @@ function clearInput(): void {
   fitToContent();
 }
 
+function toggleMode(): void {
+  mode = mode === 'Note' ? 'Log' : 'Note';
+  updateTargetLabel();
+  inputEl.placeholder = mode === 'Note' ? 'Write note · Shift+Enter for new line' : 'Write log · Shift+Enter for new line';
+  inputEl.focus();
+}
+
 function updateTargetLabel(): void {
   if (targetNameEl) {
     const label = mode === 'Note' ? activeNoteName : 'Log';
     targetNameEl.textContent = label;
-    targetNameEl.title = `Target: ${label} (Tab to toggle)`;
+    targetNameEl.title = `Target: ${label} (Click or press Tab to switch)`;
   }
 }
 
@@ -69,8 +77,8 @@ async function doSubmit(): Promise<void> {
       inputEl.disabled = false;
       if (res.ok) {
         clearInput();
-        inputEl.classList.add('saved-flash');
-        setTimeout(() => inputEl.classList.remove('saved-flash'), 300);
+        document.body.classList.add('saved-flash');
+        setTimeout(() => document.body.classList.remove('saved-flash'), 300);
         inputEl.focus();
       } else {
         if (res.error === 'Create a Space first.') {
@@ -82,8 +90,8 @@ async function doSubmit(): Promise<void> {
       await window.senku.addLogEntry(text, activeWorkspaceId);
       inputEl.disabled = false;
       clearInput();
-      inputEl.classList.add('saved-flash');
-      setTimeout(() => inputEl.classList.remove('saved-flash'), 300);
+      document.body.classList.add('saved-flash');
+      setTimeout(() => document.body.classList.remove('saved-flash'), 300);
       inputEl.focus();
     }
   } catch (err: any) {
@@ -96,6 +104,11 @@ async function doSubmit(): Promise<void> {
   }
 }
 
+modeBadgeEl?.addEventListener('click', (e) => {
+  e.preventDefault();
+  toggleMode();
+});
+
 closeBtn?.addEventListener('click', () => {
   void window.senku.hideOverlay();
 });
@@ -103,8 +116,7 @@ closeBtn?.addEventListener('click', () => {
 inputEl.addEventListener('keydown', async (e) => {
   if (e.key === 'Tab') {
     e.preventDefault();
-    mode = mode === 'Note' ? 'Log' : 'Note';
-    updateTargetLabel();
+    toggleMode();
   } else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     await doSubmit();
@@ -119,8 +131,7 @@ document.addEventListener('keydown', (e) => {
     void window.senku.hideOverlay();
   } else if (e.key === 'Tab') {
     e.preventDefault();
-    mode = mode === 'Note' ? 'Log' : 'Note';
-    updateTargetLabel();
+    toggleMode();
   }
 });
 

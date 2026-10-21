@@ -13,6 +13,8 @@ const shortcuts = [
   { key: 'g', run: ({ render }: ShortcutContext) => { setView('AllLog'); render(); } },
   { key: 'n', run: ({ render }: ShortcutContext) => { setView('Notes'); render(); } },
   { key: 'o', run: () => { void window.senku.showOverlay(); } },
+  { key: 'p', run: ({ load, render }: ShortcutContext) => { void import('./palette').then(m => m.openPalette(load, render)); } },
+  { key: '?', run: () => { void window.senku.openUserGuide(); } },
   {
     key: 'r',
     run: ({ load }: ShortcutContext) => {

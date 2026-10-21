@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f5f2ea" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="stylesheet" href="/style.css" />
     <title>Senku Overlay</title>
   </head>
   <body class="overlay-mini-body">
     <div class="overlay-mini-bar">
-      <div class="overlay-mini-drag" title="Hold & drag to move · Tab to switch Note/Log">
+      <button type="button" class="overlay-mini-badge" id="overlay-mode-badge" title="Click to toggle Note / Log (or press Tab) · Drag anywhere to move">
         <span class="overlay-mini-icon">✎</span>
         <span class="overlay-mini-note" id="overlay-target-name">Notes</span>
-      </div>
+      </button>
       <textarea
         id="overlay-input"
         class="overlay-mini-input"
