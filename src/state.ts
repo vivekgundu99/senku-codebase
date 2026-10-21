@@ -65,6 +65,16 @@ export function setState(snapshot: AppSnapshot): void {
   currentPath = snapshot.currentPath;
 }
 
+export function setCurrentFolder(entries: FileEntry[], folderPath: string): void {
+  if (state) {
+    state.entries = entries;
+    state.currentPath = folderPath;
+  }
+  currentPath = folderPath;
+  fileFilter = '';
+  fileLimit = FILE_PAGE;
+}
+
 export function setView(view: string): void {
   if ((currentView === 'Log' && view === 'AllLog') || (currentView === 'AllLog' && view === 'Log')) {
     resetLogDates();

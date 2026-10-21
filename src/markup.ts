@@ -332,7 +332,10 @@ export function filePanelMarkup(): string {
         ${breadcrumb}
       </div>
       <div class="file-tools">
-        <input id="file-filter" type="search" placeholder="Search" value="${escapeHtml(fileFilter)}" autocomplete="off" spellcheck="false" />
+        <div class="file-search-wrap">
+          <input id="file-filter" type="text" placeholder="Search (Enter)…" value="${escapeHtml(fileFilter)}" autocomplete="off" spellcheck="false" />
+          <button type="button" id="file-search-btn" class="file-search-btn" title="Search">${uiIcon('search', 12)}</button>
+        </div>
         <span class="file-count" id="file-count">${fileCountLabel()}</span>
       </div>
       <div class="file-list">${fileListMarkup()}</div>
@@ -403,10 +406,6 @@ export function homePanelV3Markup(): string {
 
   return `
     <section class="home-panel-v3">
-      <div class="home-hero">
-        <h1 class="home-greeting">${greeting}</h1>
-      </div>
-
       <div class="home-decks-container">
         <!-- Top: Quick Launchpads -->
         <div class="home-recent-deck home-lp-deck">

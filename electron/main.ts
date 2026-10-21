@@ -96,6 +96,7 @@ const defaultSettings: Settings = {
 };
 
 const baseDir = () => app.getPath('userData');
+const masterLogFile = () => path.join(baseDir(), 'logs.md');
 const settingsFile = () => path.join(baseDir(), 'settings.json');
 const workspacesFile = () => path.join(baseDir(), 'workspaces.json');
 const trashFile = () => path.join(baseDir(), 'trash.json');
@@ -379,27 +380,19 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const workspace = spaceId ? getWorkspace(workspaces, spaceId) : null;
   const trashWorkspaces = await getTrashWorkspaces();
 
-  // Build Home data across all workspaces
-  const allRecentLogs: LogEntry[] = [];
-  const allPads: Launchpad[] = [];
+  // Build Home data across all workspaces from single master log
+  const masterLogPath = masterLogFile();
+  const allLogs = await listLog(masterLogPath);
+  const homeLog = allLogs.slice(0, 8);
 
+  const allPads: Launchpad[] = [];
   for (const ws of workspaces) {
-    const sLogFile = path.join(spaceDir(ws.id), 'log.md');
     const sPadsFile = path.join(spaceDir(ws.id), 'launchpads.json');
-    const [sLogs, sPads] = await Promise.all([
-      listLogRecent(sLogFile, 8),
-      readLaunchpads(sPadsFile),
-    ]);
-    for (const l of sLogs) {
-      allRecentLogs.push({ ...l, spaceId: ws.id, spaceName: ws.name });
-    }
+    const sPads = await readLaunchpads(sPadsFile);
     for (const p of sPads) {
       allPads.push({ ...p, spaceId: ws.id, spaceName: ws.name });
     }
   }
-
-  allRecentLogs.sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
-  const homeLog = allRecentLogs.slice(0, 8);
 
   const pinnedPads = allPads.filter((p) => p.pinned);
   pinnedPads.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -434,15 +427,10 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   let launchpads: Launchpad[] = [];
 
   if (spaceId) {
-    const spaceLogFile = path.join(spaceDir(spaceId), 'log.md');
     const spaceLaunchpadsFile = path.join(spaceDir(spaceId), 'launchpads.json');
+    const lPads = await readLaunchpads(spaceLaunchpadsFile);
 
-    const [lEntries, lPads] = await Promise.all([
-      listLog(spaceLogFile),
-      readLaunchpads(spaceLaunchpadsFile),
-    ]);
-
-    logEntries = lEntries.map((e) => ({ ...e, spaceId, spaceName: workspace?.name }));
+    logEntries = allLogs.filter((e) => e.spaceId === spaceId);
     launchpads = orderLaunchpads(lPads.map((p) => ({ ...p, spaceId, spaceName: workspace?.name })));
   }
 
@@ -1165,11 +1153,11 @@ handleLocked('path:unpin', async (_event, target: string) => {
 
 
 // ---------------------------------------------------------------------------
-// V3: Quiet Log Handlers
+// V3: Quiet Log Handlers (Single Master logs.md)
 // ---------------------------------------------------------------------------
 
 handleLocked('log:list-all', async () => {
-  return listGlobalLogs(path.join(baseDir(), 'global-log.md'));
+  return listLog(masterLogFile());
 });
 
 handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
@@ -1181,51 +1169,40 @@ handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
   if (!trimmed) return snapshot();
 
   const ws = workspaces.find((w) => w.id === targetSpaceId);
-  const spaceLogFile = path.join(spaceDir(targetSpaceId), 'log.md');
-  const spaceEntry = await addLog(spaceLogFile, trimmed);
-
-  // Redundant global log with its own independent global numbering
-  await addGlobalLog(path.join(baseDir(), 'global-log.md'), trimmed, targetSpaceId, spaceEntry.id, ws?.name || 'Space').catch(() => undefined);
+  await addLog(masterLogFile(), trimmed, targetSpaceId, ws?.name || 'Space');
 
   mainWindow?.webContents.send('snapshot:updated');
   return snapshot();
 });
 
-handleLocked('log:delete', async (_event, id: string, spaceId?: string) => {
-  const globalLogFile = path.join(baseDir(), 'global-log.md');
-  if (spaceId) {
-    const spaceLogFile = path.join(spaceDir(spaceId), 'log.md');
-    await deleteLog(spaceLogFile, id);
-    await deleteGlobalLogRef(globalLogFile, spaceId, id).catch(() => undefined);
-  } else {
-    // Check if deleting directly via global log or active space
-    await deleteFromGlobalAndSpace(globalLogFile, id, (sId) => path.join(spaceDir(sId), 'log.md')).catch(() => undefined);
-    const activeId = await activeSpaceId();
-    if (activeId) {
-      await deleteLog(path.join(spaceDir(activeId), 'log.md'), id).catch(() => undefined);
-      await deleteGlobalLogRef(globalLogFile, activeId, id).catch(() => undefined);
-    }
-  }
+handleLocked('log:delete', async (_event, id: string) => {
+  await deleteLog(masterLogFile(), id);
   return snapshot();
 });
 
-handleLocked('log:update', async (_event, id: string, text: string, spaceId?: string) => {
-  const workspaces = await getWorkspaces();
-  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
-  if (!targetSpaceId) return snapshot();
-  const spaceLogFile = path.join(spaceDir(targetSpaceId), 'log.md');
-  await updateLog(spaceLogFile, id, text);
+handleLocked('log:update', async (_event, id: string, text: string) => {
+  await updateLog(masterLogFile(), id, text);
   return snapshot();
 });
 
 handleLocked('log:restore', async (_event, entry: LogEntry) => {
-  const workspaces = await getWorkspaces();
-  const targetSpaceId =
-    entry?.spaceId && workspaces.some((w) => w.id === entry.spaceId) ? entry.spaceId : await activeSpaceId();
-  if (!targetSpaceId || !entry || !entry.id) return snapshot();
-  const spaceLogFile = path.join(spaceDir(targetSpaceId), 'log.md');
-  await restoreLog(spaceLogFile, entry);
+  await restoreLog(masterLogFile(), entry);
   return snapshot();
+});
+
+ipcMain.handle('folder:read', async (_event, targetPath: string) => {
+  const settings = await getSettings();
+  const workspaces = await getWorkspaces();
+  const workspace = getWorkspace(workspaces, settings.activeWorkspaceId);
+  if (!workspace || !workspace.masterFolder) return { entries: [], currentPath: '' };
+
+  const resolved = path.resolve(targetPath);
+  if (!isInside(workspace.masterFolder, resolved)) {
+    return { entries: [], currentPath: workspace.masterFolder };
+  }
+
+  const entries = await listFolder(workspace.masterFolder, resolved, workspace.pinnedPaths || []);
+  return { entries, currentPath: resolved };
 });
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,10 @@
-import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile } from '../electron/types';
+import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile, FileEntry } from '../electron/types';
 
 declare global {
   interface Window {
     senku: {
       getSnapshot(path?: string): Promise<AppSnapshot>;
+      readFolder(folderPath: string): Promise<{ entries: FileEntry[]; currentPath: string }>;
       chooseMasterFolder(): Promise<string | null>;
       getDesktopPath(): Promise<string>;
       saveSettings(settings: Settings): Promise<AppSnapshot>;

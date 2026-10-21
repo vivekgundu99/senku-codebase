@@ -24,8 +24,9 @@ import {
   setHomeLogDraft,
   logPageDraft,
   setLogPageDraft,
+  setCurrentFolder,
 } from './state';
-import { fileCountLabel, fileListMarkup, logListMarkup, uiIcon } from './markup';
+import { fileCountLabel, fileListMarkup, filePanelMarkup, logListMarkup, uiIcon } from './markup';
 import { isSamePath, parentOf } from './utils';
 import { registerShortcuts } from './shortcuts';
 import { toast } from './toast';
@@ -421,6 +422,21 @@ function bindFileActions(load: LoadFn): void {
     if (count) count.textContent = fileCountLabel();
   };
 
+  const navigateToFolder = async (folderPath?: string) => {
+    if (!folderPath) return;
+    try {
+      const res = await window.senku.readFolder(folderPath);
+      setCurrentFolder(res.entries, res.currentPath);
+      const rightCol = document.querySelector('.right-column');
+      if (rightCol) {
+        rightCol.innerHTML = filePanelMarkup();
+        bindFileActions(load);
+      }
+    } catch {
+      await load(folderPath);
+    }
+  };
+
   panel.addEventListener('click', async (event) => {
     const target = event.target as HTMLElement;
 
@@ -450,7 +466,7 @@ function bindFileActions(load: LoadFn): void {
     const open = target.closest<HTMLElement>('[data-open-path]');
     if (open) {
       const p = open.dataset.openPath!;
-      if (open.dataset.kind === 'folder') await load(p);
+      if (open.dataset.kind === 'folder') await navigateToFolder(p);
       else await window.senku.openPath(p);
       return;
     }
@@ -458,10 +474,10 @@ function bindFileActions(load: LoadFn): void {
     if (target.closest('#show-more-files')) { showMoreFiles(); refreshList(); return; }
     if (target.closest('#go-up')) {
       const root = state.workspace?.masterFolder;
-      if (root && !isSamePath(state.currentPath, root)) await load(parentOf(state.currentPath));
+      if (root && !isSamePath(state.currentPath, root)) await navigateToFolder(parentOf(state.currentPath));
       return;
     }
-    if (target.closest('#go-root')) { await load(state.workspace?.masterFolder); return; }
+    if (target.closest('#go-root')) { await navigateToFolder(state.workspace?.masterFolder); return; }
     if (target.closest('#open-folder')) { await window.senku.openPath(state.currentPath); return; }
     if (target.closest('#open-in-vscode')) {
       const res = await window.senku.openInVSCode(state.currentPath);
@@ -475,15 +491,32 @@ function bindFileActions(load: LoadFn): void {
     }
 
     const crumb = target.closest<HTMLElement>('[data-breadcrumb]');
-    if (crumb) await load(crumb.dataset.breadcrumb);
+    if (crumb) await navigateToFolder(crumb.dataset.breadcrumb);
   });
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  panel.querySelector<HTMLInputElement>('#file-filter')?.addEventListener('input', (event) => {
-    const value = (event.target as HTMLInputElement).value;
-    clearTimeout(timer);
-    timer = setTimeout(() => { setFileFilter(value); refreshList(); }, 120);
-  });
+  const runFileSearch = () => {
+    const input = panel.querySelector<HTMLInputElement>('#file-filter');
+    if (!input) return;
+    setFileFilter(input.value);
+    refreshList();
+  };
+
+  const fileInput = panel.querySelector<HTMLInputElement>('#file-filter');
+  if (fileInput) {
+    fileInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runFileSearch();
+      } else if (e.key === 'Escape') {
+        fileInput.value = '';
+        setFileFilter('');
+        refreshList();
+        fileInput.blur();
+      }
+    });
+  }
+
+  panel.querySelector('#file-search-btn')?.addEventListener('click', runFileSearch);
 }
 
 // ---------------------------------------------------------------------------

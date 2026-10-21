@@ -447,11 +447,11 @@ export function parseLogMarkdown(content: string): LogEntry[] {
       let refId: string | undefined;
       let spaceName: string | undefined;
 
-      const refMatch = rawText.match(/<!--ref:([^:]+):([^>]+)-->/);
+      const refMatch = rawText.match(/<!--ref:([^:>]+)(?::([^>]+))?-->/);
       if (refMatch) {
         spaceId = refMatch[1];
         refId = refMatch[2];
-        rawText = rawText.replace(refMatch[0], '');
+        rawText = rawText.replace(refMatch[0], '').trim();
       }
 
       const spaceMatch = rawText.match(/^\[([^\]]+)\]\s*/);
@@ -480,7 +480,7 @@ export function parseLogMarkdown(content: string): LogEntry[] {
   return entries.sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
 }
 
-export function serializeLogEntries(entries: LogEntry[], isGlobal = false): string {
+export function serializeLogEntries(entries: LogEntry[]): string {
   const sorted = [...entries].sort((a, b) => b.createdAt - a.createdAt || (b.seq || 0) - (a.seq || 0));
   const groups = new Map<string, LogEntry[]>();
 
@@ -500,8 +500,8 @@ export function serializeLogEntries(entries: LogEntry[], isGlobal = false): stri
       const d = new Date(e.createdAt);
       const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
       const seqStr = e.seq && e.seq > 0 ? `#${e.seq} ` : '';
-      const spaceTag = isGlobal && e.spaceName ? `[${e.spaceName}] ` : '';
-      const refTag = isGlobal && e.spaceId && e.refId ? `<!--ref:${e.spaceId}:${e.refId}-->` : '';
+      const refTag = e.spaceId ? `<!--ref:${e.spaceId}-->` : '';
+      const spaceTag = e.spaceName ? `[${e.spaceName}] ` : '';
 
       const rawLines = e.text.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string, idx: number) => idx === 0 || l.length > 0);
       const firstLine = rawLines[0] || '';
@@ -609,8 +609,7 @@ export async function ensureMigratedFromLegacyLogDir(logFilePath: string): Promi
     }
 
     const allMerged = Array.from(mergedMap.values());
-    const isGlobal = path.basename(logFilePath).startsWith('global');
-    await fs.writeFile(logFilePath, serializeLogEntries(allMerged, isGlobal), 'utf8');
+    await fs.writeFile(logFilePath, serializeLogEntries(allMerged), 'utf8');
     await fs.rm(legacyDir, { recursive: true, force: true }).catch(() => undefined);
   } catch {
     // Ignore if legacy directory doesn't exist
@@ -632,14 +631,19 @@ export async function listLogRecent(logFilePath: string, limit: number): Promise
   return all.slice(0, limit);
 }
 
-export async function addLog(logFilePath: string, text: string, now = new Date()): Promise<LogEntry> {
+export async function addLog(
+  logFilePath: string,
+  text: string,
+  spaceId?: string,
+  spaceName?: string,
+  now = new Date(),
+): Promise<LogEntry> {
   await fs.mkdir(path.dirname(logFilePath), { recursive: true });
   const entries = await listLog(logFilePath);
   const dateStr = formatLocalDate(now);
 
-  const todays = entries.filter((e) => e.id.startsWith(dateStr));
   let maxSeq = 0;
-  for (const e of todays) {
+  for (const e of entries) {
     if (e.seq && e.seq > maxSeq) maxSeq = e.seq;
   }
   const nextSeq = maxSeq + 1;
@@ -652,10 +656,12 @@ export async function addLog(logFilePath: string, text: string, now = new Date()
     seq: nextSeq,
     createdAt: now.getTime(),
     text: cleanText,
+    spaceId,
+    spaceName,
   };
 
   entries.unshift(newEntry);
-  await writeFileAtomic(logFilePath, serializeLogEntries(entries, false));
+  await writeFileAtomic(logFilePath, serializeLogEntries(entries));
   return newEntry;
 }
 
@@ -667,7 +673,7 @@ export async function updateLog(logFilePath: string, id: string, text: string): 
   const rawLines = text.split(/\r?\n/).map((l: string) => l.trim()).filter((l: string, idx: number) => idx === 0 || l.length > 0);
   entry.text = rawLines.join('\n');
 
-  await writeFileAtomic(logFilePath, serializeLogEntries(entries, false));
+  await writeFileAtomic(logFilePath, serializeLogEntries(entries));
 }
 
 export async function deleteLog(logFilePath: string, id: string): Promise<void> {
@@ -680,14 +686,14 @@ export async function deleteLog(logFilePath: string, id: string): Promise<void> 
     return;
   }
 
-  await writeFileAtomic(logFilePath, serializeLogEntries(filtered, false));
+  await writeFileAtomic(logFilePath, serializeLogEntries(filtered));
 }
 
 export async function restoreLog(logFilePath: string, entry: LogEntry): Promise<void> {
   const entries = await listLog(logFilePath);
   if (entries.some((e) => e.id === entry.id)) return;
   entries.push(entry);
-  await writeFileAtomic(logFilePath, serializeLogEntries(entries, false));
+  await writeFileAtomic(logFilePath, serializeLogEntries(entries));
 }
 
 export async function renumberLog(_spaceDir: string): Promise<number> {
@@ -727,7 +733,7 @@ export async function addGlobalLog(
   };
 
   entries.unshift(newEntry);
-  await writeFileAtomic(globalLogFile, serializeLogEntries(entries, true));
+  await writeFileAtomic(globalLogFile, serializeLogEntries(entries));
   return newEntry;
 }
 
@@ -745,7 +751,7 @@ export async function deleteGlobalLogRef(globalLogFile: string, spaceId: string,
     return;
   }
 
-  await writeFileAtomic(globalLogFile, serializeLogEntries(filtered, true));
+  await writeFileAtomic(globalLogFile, serializeLogEntries(filtered));
 }
 
 export async function deleteFromGlobalAndSpace(
@@ -758,7 +764,7 @@ export async function deleteFromGlobalAndSpace(
   if (!target) return {};
 
   const filtered = entries.filter((e) => e.id !== globalId);
-  await writeFileAtomic(globalLogFile, serializeLogEntries(filtered, true));
+  await writeFileAtomic(globalLogFile, serializeLogEntries(filtered));
 
   if (target.spaceId && target.refId) {
     const sLogFile = spaceLogFileFn(target.spaceId);

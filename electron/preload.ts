@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile } from './types';
+import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile, FileEntry } from './types';
 
 const api = {
   getSnapshot: (path?: string) =>
@@ -37,6 +37,9 @@ const api = {
     ipcRenderer.invoke('workspace:set-master-folder', id, folder) as Promise<AppSnapshot>,
 
   // --- File system ---
+  readFolder: (folderPath: string) =>
+    ipcRenderer.invoke('folder:read', folderPath) as Promise<{ entries: FileEntry[]; currentPath: string }>,
+
   openPath: (path: string) =>
     ipcRenderer.invoke('path:open', path) as Promise<{ ok: boolean; error?: string }>,
 

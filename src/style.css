@@ -715,10 +715,15 @@ textarea {
 .folder-path .up-button:disabled { opacity: .35; }
 .crumb-gap { color: var(--soft); }
 .file-tools { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+.file-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 #file-filter {
   width: 210px;
   height: 30px;
-  padding: 0 10px;
+  padding: 0 28px 0 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: transparent;
@@ -730,6 +735,26 @@ textarea {
 #file-filter:focus {
   border-color: var(--green);
   box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
+}
+.file-search-btn {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--soft);
+  cursor: pointer;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s ease;
+}
+.file-search-btn:hover {
+  color: var(--green);
+  background: var(--hover);
 }
 .file-count { color: var(--soft); font: 500 11px var(--mono); white-space: nowrap; }
 
