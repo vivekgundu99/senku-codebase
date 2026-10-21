@@ -931,7 +931,21 @@ handleLocked('settings:save', async (_event, settings: Settings) => {
   return snapshot();
 });
 
+function isDriveOrSystemRoot(targetPath: string): boolean {
+  const resolved = path.resolve(targetPath);
+  const parsed = path.parse(resolved);
+  if (resolved.toLowerCase() === parsed.root.toLowerCase()) return true;
+  const normalized = resolved.replace(/[\\/]+$/, '').toLowerCase();
+  if (/^[a-z]:$/i.test(normalized)) return true;
+  const sysRoots = ['c:\\windows', 'c:\\program files', 'c:\\program files (x86)', 'c:\\programdata', 'c:\\users'];
+  if (sysRoots.some((s) => normalized === s)) return true;
+  return false;
+}
+
 handleLocked('workspace:create', async (_event, name: string, masterFolder: string) => {
+  if (isDriveOrSystemRoot(masterFolder)) {
+    throw new Error('A whole drive or system folder cannot be used as a Space. Please choose a dedicated project folder.');
+  }
   const stats = await fs.stat(masterFolder).catch(() => null);
   if (!stats?.isDirectory()) throw new Error('Master folder does not exist.');
   if (!name.trim()) throw new Error('Space name is required.');
@@ -965,6 +979,9 @@ handleLocked('workspace:rename', async (_event, id: string, name: string) => {
 });
 
 handleLocked('workspace:set-master-folder', async (_event, id: string, folder: string) => {
+  if (isDriveOrSystemRoot(folder)) {
+    throw new Error('A whole drive or system folder cannot be used as a Space. Please choose a dedicated project folder.');
+  }
   const stats = await fs.stat(folder).catch(() => null);
   if (!stats?.isDirectory()) throw new Error('Main folder does not exist.');
   const workspaces = await getWorkspaces();

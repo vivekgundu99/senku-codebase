@@ -690,9 +690,8 @@ textarea {
 .folder-path .up-button:disabled { opacity: .35; }
 .crumb-gap { color: var(--soft); }
 .file-tools { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
-#file-filter,
-#log-search {
-  width: 150px;
+#file-filter {
+  width: 210px;
   height: 30px;
   padding: 0 10px;
   border: 1px solid var(--line);
@@ -701,12 +700,11 @@ textarea {
   color: var(--ink);
   font-size: 12.5px;
   outline: none;
-  transition: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-#file-filter:focus,
-#log-search:focus {
-  width: 240px;
+#file-filter:focus {
   border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
 }
 .file-count { color: var(--soft); font: 500 11px var(--mono); white-space: nowrap; }
 
@@ -2025,11 +2023,11 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .log-search-small {
-  width: 120px;
+  width: 165px;
   border: none;
   background: transparent;
-  padding: 0 6px;
-  font: 500 11.5px var(--sans);
+  padding: 0 8px;
+  font: 500 12px var(--sans);
   color: var(--ink);
   outline: none;
 }

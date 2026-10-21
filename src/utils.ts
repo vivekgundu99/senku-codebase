@@ -127,11 +127,11 @@ export function checkMainFolder(path: string): FolderCheck {
   if (blocked.some((b) => t === b || t.startsWith(b + '\\'))) {
     return { level: 'block', message: 'This is a Windows system folder. Please pick a folder that holds your own work, like "College" or "Projects".' };
   }
-  if (/^[a-z]:$/.test(t) || t === '/') {
-    return { level: 'warn', message: 'This is a whole drive. Senku works best with one folder per subject or project, so everything stays quick and easy to find.\n\nUse the whole drive anyway?' };
+  if (/^[a-z]:\\?$/.test(t) || t === '/' || /^[a-z]:$/.test(t)) {
+    return { level: 'block', message: 'A whole drive cannot be used as a Space. Please pick a specific project or subject folder.' };
   }
   if (/^[a-z]:\\users(\\[^\\]+)?$/.test(t)) {
-    return { level: 'warn', message: 'This is your whole user folder (Desktop, Downloads, AppData and more). A smaller folder like "College" works much better.\n\nUse it anyway?' };
+    return { level: 'block', message: 'Your whole User directory cannot be used as a Space. Please pick a specific folder (e.g. inside Documents or Desktop).' };
   }
   return { level: 'ok' };
 }
