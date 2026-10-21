@@ -180,9 +180,11 @@ export function visibleLogEntries(scope: 'space' | 'all' = 'space'): { items: Lo
   const numSearch = /^#?\d+$/.test(q) ? parseInt(q.replace('#', ''), 10) : null;
 
   const matched = all.filter((entry) => {
-    // 1. Text / number match
+    // 1. Text / number / space match
     if (q) {
-      const textMatch = entry.text.toLowerCase().includes(q);
+      const textMatch =
+        entry.text.toLowerCase().includes(q) ||
+        (Boolean(entry.spaceName) && entry.spaceName!.toLowerCase().includes(q));
       const numberMatch = numSearch !== null && entry.seq === numSearch;
       if (!textMatch && !numberMatch) return false;
     }

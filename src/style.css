@@ -714,7 +714,9 @@ textarea {
   justify-content: space-between;
   gap: 10px;
   min-height: 28px;
-  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ebe8de;
+  margin-bottom: 0;
   flex: 0 0 auto;
 }
 
@@ -865,13 +867,13 @@ textarea {
   justify-content: space-between;
   height: 28px;
   min-height: 28px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
   flex: 0 0 auto;
 }
 
 .panel-header-title {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 750;
   color: var(--ink);
   letter-spacing: -.01em;
@@ -973,7 +975,7 @@ textarea {
 .file-open:hover { opacity: .9; }
 
 .file-info-block { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
-.file-name { overflow: hidden; min-width: 0; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+.file-name { overflow: hidden; min-width: 0; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
 .file-meta { font: 500 10px var(--mono); color: var(--soft); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pinned-indicator { padding: 2px 6px; border-radius: 4px; background: var(--green-pale); color: var(--green); font: 700 9px var(--mono); letter-spacing: .05em; text-transform: uppercase; }
 
@@ -1794,13 +1796,20 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .log-row-space {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   flex: 0 0 auto;
   margin-left: auto;
   padding: 1px 6px;
   background: rgba(41, 54, 47, 0.05);
   border-radius: 4px;
+  cursor: pointer;
+  transition: all .12s ease;
+}
+
+.log-row-space:hover {
+  background: var(--green);
+  color: #fff;
 }
 
 .log-row-del-btn {

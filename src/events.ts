@@ -829,6 +829,17 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
       refreshList();
       return;
     }
+    const spaceBadge = target.closest<HTMLElement>('[data-space-filter]');
+    if (spaceBadge) {
+      const spaceName = spaceBadge.dataset.spaceFilter;
+      if (spaceName) {
+        setLogFilter(spaceName);
+        const searchInput = panel.querySelector<HTMLInputElement>('#log-search');
+        if (searchInput) searchInput.value = spaceName;
+        refreshList();
+      }
+      return;
+    }
     const delBtn = target.closest<HTMLElement>('[data-delete-log]');
     if (delBtn) {
       const id = delBtn.dataset.deleteLog;

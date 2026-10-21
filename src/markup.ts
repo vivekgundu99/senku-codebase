@@ -620,7 +620,7 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
               const cleanText = e.text.replace(/^\[[^\]]+\]\s*/, '');
               const seqLabel = e.seq && e.seq > 0 ? `#${e.seq}` : '';
               const spaceBadge = scope === 'all' && e.spaceName
-                ? `<span class="log-row-space">${escapeHtml(e.spaceName)}</span>`
+                ? `<span class="log-row-space" data-space-filter="${escapeHtml(e.spaceName)}" title="Filter by ${escapeHtml(e.spaceName)}">${escapeHtml(e.spaceName)}</span>`
                 : '';
               return `
                   <div class="log-row-compact${cleanText.includes('\n') ? ' multi' : ''}" data-id="${e.id}" data-space-id="${e.spaceId || ''}">
