@@ -79,120 +79,89 @@ function showFormError(overlay: HTMLElement, selector: string, message: string):
 // ---------------------------------------------------------------------------
 
 export function openProfileModal(render: () => void): void {
+  openAppSettingsModal(render);
+}
+
+export function openAppSettingsModal(render: () => void): void {
   if (!state) return;
 
-  const currentGreeting = (state.settings.greeting || '').trim();
-  const isCustom = currentGreeting && !/^Good (morning|afternoon|evening)/i.test(currentGreeting);
-  const displayGreeting = isCustom ? currentGreeting : '';
-
   const overlay = createOverlay(`
-    <form class="modal-card profile-modal-card">
+    <form class="modal-card settings-dialog-card">
       <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
 
-      <div class="settings-modal-header">
-        <div>
-          <span class="settings-kicker">PREFERENCES</span>
-          <h2>Settings</h2>
-        </div>
-      </div>
+      <span class="settings-kicker">SETTINGS</span>
+      <h2 class="dialog-title">Preferences</h2>
 
-      <div class="settings-form-body">
-        <div class="settings-form-group">
-          <label for="profile-user-name">Your Name</label>
-          <input
-            name="userName"
-            id="profile-user-name"
-            value="${escapeHtml(state.settings.userName || '')}"
-            placeholder="e.g. Vivek"
-            autocomplete="off"
-            spellcheck="false"
-          />
-        </div>
-
-        <div class="settings-form-group">
-          <label for="profile-greeting">Custom Motto or Tagline</label>
-          <input
-            name="greeting"
-            id="profile-greeting"
-            value="${escapeHtml(displayGreeting)}"
-            placeholder="e.g. One step at a time"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <small class="settings-field-hint">Leave empty to greet dynamically by time of day.</small>
-          <div class="settings-chips-line">
-            <button type="button" class="preset-chip" data-set-greeting="">Time of Day (Default)</button>
-            <button type="button" class="preset-chip" data-set-greeting="Deep focus">Deep focus</button>
-            <button type="button" class="preset-chip" data-set-greeting="Let's build">Let's build</button>
-            <button type="button" class="preset-chip" data-set-greeting="One step at a time">One step</button>
+      <div class="settings-dialog-body">
+        <div class="settings-section">
+          <span class="settings-group-label">SYSTEM</span>
+          <div class="settings-toggle-row">
+            <div class="toggle-text">
+              <strong>Launch on Windows startup</strong>
+              <small>Open Senku automatically when Windows boots</small>
+            </div>
+            <button type="button" id="app-startup-toggle" class="toggle ${state.settings.launchAtStartup ? 'on' : ''}" aria-label="Toggle launch at startup"><span></span></button>
           </div>
         </div>
 
-        <div class="settings-toggle-row">
-          <div class="toggle-text">
-            <strong>Launch on Windows startup</strong>
-            <small>Open automatically so your files and focus are ready when you log in.</small>
+        <div class="settings-section">
+          <span class="settings-group-label">TOOLS &amp; DATA</span>
+          <div class="settings-action-row">
+            <div class="toggle-text">
+              <strong>User Guide &amp; Shortcuts</strong>
+              <small>Full keyboard navigation and manual</small>
+            </div>
+            <button type="button" class="settings-action-btn" id="open-user-guide-btn">View Guide ↗</button>
           </div>
-          <button type="button" id="app-startup-toggle" class="toggle ${state.settings.launchAtStartup ? 'on' : ''}" aria-label="Toggle launch at startup"><span></span></button>
+          <div class="settings-action-row">
+            <div class="toggle-text">
+              <strong>Export All Notes</strong>
+              <small>Save compiled markdown to Desktop</small>
+            </div>
+            <button type="button" class="settings-action-btn" id="export-notes-btn">Export Notes</button>
+          </div>
         </div>
-
-        <button id="user-guide" class="settings-guide-btn" type="button">
-          <span>Senku User Guide &amp; Shortcuts</span>
-          <span>↗</span>
-        </button>
       </div>
 
-      <p class="form-error" id="profile-error"></p>
-
-      <div class="settings-modal-footer">
-        <button class="primary-button" type="submit">Save Changes</button>
-        <span class="settings-version-tag">Senku v${pkg.version} · Made by a Navodayan</span>
+      <div class="settings-dialog-footer">
+        <span class="settings-version-tag">Senku v${pkg.version} · Offline &amp; Local</span>
+        <button class="primary-button mini" type="submit">Done</button>
       </div>
     </form>`);
-
-  // Greeting presets
-  overlay.querySelectorAll<HTMLElement>('[data-set-greeting]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const input = overlay.querySelector<HTMLInputElement>('#profile-greeting');
-      if (input) {
-        input.value = btn.dataset.setGreeting || '';
-        input.focus();
-      }
-    });
-  });
 
   // Windows startup toggle
   const toggle = overlay.querySelector('#app-startup-toggle');
   toggle?.addEventListener('click', () => toggle?.classList.toggle('on'));
 
   // User guide
-  overlay.querySelector('#user-guide')?.addEventListener('click', async () => {
+  overlay.querySelector('#open-user-guide-btn')?.addEventListener('click', async () => {
     const result = await window.senku.openUserGuide();
     if (!result.ok) toast(result.error || 'User guide not found.');
+  });
+
+  // Export notes
+  overlay.querySelector('#export-notes-btn')?.addEventListener('click', async () => {
+    const res = await window.senku.exportAllNotes();
+    if (res.ok) {
+      toast(`Exported ${res.count ?? 0} notes to Desktop.`);
+    } else if (!res.empty) {
+      toast(res.error || 'Could not export notes.');
+    }
   });
 
   // Form submit
   overlay.querySelector('form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const data = new FormData(e.currentTarget as HTMLFormElement);
-    const name = String(data.get('userName') ?? '').trim();
-    const greeting = String(data.get('greeting') ?? '').trim();
     const launchAtStartup = overlay.querySelector('#app-startup-toggle')?.classList.contains('on') ?? state.settings.launchAtStartup;
 
     const snapshot = await window.senku.saveSettings({
       ...state.settings,
-      userName: name,
-      greeting,
       launchAtStartup,
     });
     setState(snapshot);
     overlay.remove();
     render();
   });
-}
-
-export function openAppSettingsModal(render: () => void): void {
-  openProfileModal(render);
 }
 
 // ---------------------------------------------------------------------------

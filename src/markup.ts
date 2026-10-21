@@ -37,6 +37,7 @@ const UI_ICONS: Record<string, string> = {
   folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
   search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
   dots: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+  tools: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
 };
 
 export const uiIcon = (name: string, size = 16): string =>
@@ -126,12 +127,16 @@ export function sidebarMarkup(): string {
 
 export function topbarMarkup(): string {
   const ws = state.workspace;
-  const isSpaceView = currentView === 'Overview' || currentView === 'Log' || currentView === 'Launchpads' || currentView === 'Notes';
   const dateFormatted = new Intl.DateTimeFormat(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   }).format(new Date());
+
+  let pageTitle = 'Home';
+  if (currentView === 'Launchpads') pageTitle = 'Launchpads';
+  else if (currentView === 'Log' || currentView === 'AllLog') pageTitle = 'Logs';
+  else if (currentView === 'Notes') pageTitle = 'Notes';
 
   const spacePill = ws
     ? `<button class="topbar-space-pill" id="topbar-space-pill" data-action="workspace-settings" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">
@@ -139,23 +144,18 @@ export function topbarMarkup(): string {
       </button>`
     : '';
 
-  const hasUserName = Boolean(state.settings?.userName?.trim());
-  const avatarContent = hasUserName
-    ? escapeHtml(state.settings.userName.trim().charAt(0).toUpperCase())
-    : uiIcon('gear', 14);
-
   return `
     <header class="topbar">
       <div class="topbar-left">
+        <span class="topbar-view-title">${pageTitle}</span>
+        <span class="topbar-dot-sep">·</span>
         <span class="date-line">${dateFormatted}</span>
       </div>
       <div class="top-actions">
         ${spacePill}
-        <button class="icon-button" id="topbar-quicknote" title="Quick note (O)">${uiIcon('pen', 14)}</button>
-        <button class="icon-button" id="refresh-button" title="Refresh">${uiIcon('refresh', 14)}</button>
-        <button class="avatar-button${hasUserName ? '' : ' icon-avatar'}" id="profile-avatar-button" title="Profile &amp; Settings" aria-label="Profile and Settings">
-          ${avatarContent}
-        </button>
+        <button class="icon-button" id="topbar-tools-btn" title="Tools" aria-label="Tools">${uiIcon('tools', 14)}</button>
+        <button class="icon-button" id="refresh-button" title="Refresh" aria-label="Refresh">${uiIcon('refresh', 14)}</button>
+        <button class="icon-button" id="settings-button" title="Settings" aria-label="Settings">${uiIcon('gear', 14)}</button>
       </div>
     </header>`;
 }
