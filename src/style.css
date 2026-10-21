@@ -3668,34 +3668,28 @@ body.overlay-mini-body.saved-flash {
 
 .overlay-mini-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   width: 100%;
   height: 100%;
-  padding: 5px 6px 5px 8px;
+  padding: 6px 8px 6px 10px;
   box-sizing: border-box;
   background: transparent;
-  gap: 6px;
+  gap: 8px;
   -webkit-app-region: drag;
 }
 
 .overlay-mini-badge {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 4px;
   flex-shrink: 0;
-  padding: 2px 6px;
-  margin-top: 1px;
-  border-radius: 5px;
-  border: 1px solid transparent;
-  background: var(--green-pale);
   cursor: pointer;
-  transition: all .12s ease;
+  transition: opacity .12s ease;
   -webkit-app-region: no-drag;
 }
 
 .overlay-mini-badge:hover {
-  background: #dbeef0;
-  border-color: var(--green);
+  opacity: 0.85;
 }
 
 .overlay-mini-icon {
@@ -3706,31 +3700,35 @@ body.overlay-mini-body.saved-flash {
 }
 
 .overlay-mini-note {
-  font: 700 10.5px var(--mono);
-  color: var(--green-deep, #3b5e43);
-  max-width: 95px;
+  font: 700 11px var(--mono);
+  color: var(--muted);
+  background: var(--green-pale);
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: 14px;
 }
 
 textarea.overlay-mini-input {
   flex: 1 1 0;
   min-width: 0;
-  height: 24px;
-  min-height: 24px;
+  height: 22px;
+  min-height: 22px;
   max-height: 140px;
-  padding: 2px 4px;
+  padding: 0 4px;
+  margin: 0;
   border: none !important;
   outline: none !important;
   background: transparent !important;
   box-shadow: none !important;
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   font-family: inherit;
-  line-height: 20px;
+  line-height: 22px;
   resize: none;
   overflow-y: hidden;
   -webkit-app-region: no-drag;
@@ -3738,14 +3736,14 @@ textarea.overlay-mini-input {
 
 textarea.overlay-mini-input::placeholder {
   color: var(--soft);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .overlay-mini-close {
-  width: 22px;
-  height: 22px;
-  margin-top: 2px;
-  border-radius: 5px;
+  width: 20px;
+  height: 20px;
+  align-self: center;
+  border-radius: 4px;
   border: none;
   background: transparent;
   color: var(--soft);

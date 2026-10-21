@@ -9,10 +9,10 @@
   </head>
   <body class="overlay-mini-body">
     <div class="overlay-mini-bar">
-      <button type="button" class="overlay-mini-badge" id="overlay-mode-badge" title="Click to toggle Note / Log (or press Tab) · Drag anywhere to move">
+      <div class="overlay-mini-badge" id="overlay-mode-badge" title="Click or press Tab to switch Note/Log · Drag to move" tabindex="-1">
         <span class="overlay-mini-icon">✎</span>
         <span class="overlay-mini-note" id="overlay-target-name">Notes</span>
-      </button>
+      </div>
       <textarea
         id="overlay-input"
         class="overlay-mini-input"
@@ -22,7 +22,7 @@
         maxlength="1000"
         autofocus
       ></textarea>
-      <button type="button" class="overlay-mini-close" id="overlay-close-btn" title="Close (Esc)">✕</button>
+      <button type="button" class="overlay-mini-close" id="overlay-close-btn" title="Close (Esc)" tabindex="-1">✕</button>
     </div>
     <script type="module" src="/overlay.ts"></script>
   </body>

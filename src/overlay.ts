@@ -1,6 +1,6 @@
 const inputEl = document.querySelector<HTMLTextAreaElement>('#overlay-input')!;
 const targetNameEl = document.querySelector<HTMLElement>('#overlay-target-name')!;
-const modeBadgeEl = document.querySelector<HTMLButtonElement>('#overlay-mode-badge');
+const modeBadgeEl = document.querySelector<HTMLElement>('#overlay-mode-badge');
 const closeBtn = document.querySelector<HTMLButtonElement>('#overlay-close-btn')!;
 
 let mode: 'Note' | 'Log' = 'Note';
@@ -113,25 +113,27 @@ closeBtn?.addEventListener('click', () => {
   void window.senku.hideOverlay();
 });
 
+// Capture Tab at top level so Chromium never attempts default focus traversal
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    toggleMode();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    void window.senku.hideOverlay();
+  }
+}, true);
+
 inputEl.addEventListener('keydown', async (e) => {
   if (e.key === 'Tab') {
     e.preventDefault();
+    e.stopPropagation();
     toggleMode();
   } else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     await doSubmit();
-  } else if (e.key === 'Escape') {
-    e.preventDefault();
-    await window.senku.hideOverlay();
-  }
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    void window.senku.hideOverlay();
-  } else if (e.key === 'Tab') {
-    e.preventDefault();
-    toggleMode();
   }
 });
 

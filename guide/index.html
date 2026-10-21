@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f5f2ea" />
-  <title>Senku V3 — Official Guide &amp; Master Shortcuts</title>
+  <title>Senku V3 — Reference Manual &amp; Shortcuts</title>
   <style>
     :root {
       --ink: #29362f;
@@ -22,25 +22,18 @@
       --line-subtle: #eae8df;
       --kbd-bg: #edece4;
       --kbd-border: #cbcaa5;
-      --amber: #b86214;
-      --amber-bg: #fdf5ea;
-      --blue: #2563eb;
-      --blue-bg: #eff6ff;
-      --purple: #9333ea;
-      --purple-bg: #faf5ff;
       --shadow-sm: 0 2px 8px rgba(41, 54, 47, 0.04);
-      --shadow-md: 0 10px 30px rgba(41, 54, 47, 0.08);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
-      background: radial-gradient(circle at 85% 0%, var(--green-light) 0%, transparent 32%), var(--bg);
+      background: var(--bg);
       color: var(--ink);
       font-family: var(--sans);
-      font-size: 16px;
-      line-height: 1.65;
+      font-size: 15px;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -48,10 +41,10 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      padding: 14px max(24px, calc((100% - 1040px)/2));
+      padding: 12px max(24px, calc((100% - 960px)/2));
       border-bottom: 1px solid var(--line);
-      background: rgba(251, 251, 248, 0.94);
-      backdrop-filter: blur(14px);
+      background: rgba(245, 242, 234, 0.95);
+      backdrop-filter: blur(12px);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -59,310 +52,182 @@
     .header-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 20px;
+      gap: 8px;
+      font-size: 18px;
       font-weight: 800;
-      letter-spacing: -0.04em;
+      letter-spacing: -0.03em;
       color: var(--ink);
       text-decoration: none;
     }
     .header-logo .badge {
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 3px 9px;
-      border-radius: 999px;
-      background: var(--green-light);
-      color: var(--green-deep);
-    }
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .header-link {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--ink-soft);
-      text-decoration: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      transition: all 0.15s ease;
-    }
-    .header-link:hover {
-      color: var(--ink);
-      background: var(--line-subtle);
-    }
-    .header-btn {
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-      background: var(--green-deep);
-      text-decoration: none;
-      padding: 7px 15px;
-      border-radius: 6px;
-      transition: background 0.15s ease;
-    }
-    .header-btn:hover {
-      background: var(--green);
-    }
-
-    main {
-      width: min(1040px, calc(100% - 48px));
-      margin: 48px auto 100px;
-    }
-
-    .hero-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--green-deep);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 14px;
-    }
-    .hero-eyebrow span {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--green);
-    }
-    h1 {
-      max-width: 860px;
-      font-size: clamp(36px, 5.5vw, 64px);
-      line-height: 1.06;
-      letter-spacing: -0.05em;
-      font-weight: 800;
-      color: var(--ink);
-      margin-bottom: 20px;
-    }
-    h1 em {
-      font-style: normal;
-      color: var(--green);
-    }
-    .hero-lead {
-      max-width: 740px;
-      color: var(--ink-soft);
-      font-size: clamp(17px, 2vw, 20px);
-      line-height: 1.55;
-      margin-bottom: 28px;
-    }
-
-    nav.toc {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 28px 0 52px;
-      padding: 14px;
-      background: var(--card-bg);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      box-shadow: var(--shadow-sm);
-    }
-    nav.toc a {
-      padding: 6px 13px;
-      border-radius: 6px;
-      color: var(--ink-soft);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 700;
-      background: var(--paper);
-      border: 1px solid var(--line-subtle);
-      transition: all 0.15s ease;
-    }
-    nav.toc a:hover {
-      color: var(--green-deep);
-      border-color: var(--green);
-      background: var(--green-light);
-    }
-
-    section {
-      padding: 44px 0;
-      border-top: 1px solid var(--line);
-      scroll-margin-top: 80px;
-    }
-    .section-tag {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 6px;
-    }
-    h2 {
-      font-size: clamp(24px, 3.2vw, 34px);
-      letter-spacing: -0.04em;
-      font-weight: 800;
-      color: var(--ink);
-      margin-bottom: 16px;
-    }
-    h3 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--ink);
-      margin: 28px 0 10px;
-    }
-    p {
-      color: var(--ink-soft);
-      font-size: 15.5px;
-      margin-bottom: 16px;
-      line-height: 1.7;
-    }
-    p strong {
-      color: var(--ink);
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-      gap: 16px;
-      margin: 22px 0 16px;
-    }
-    .feature-card {
-      background: var(--card-bg);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-    }
-    .feature-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--green);
-    }
-    .feature-badge {
-      display: inline-block;
-      font: 700 10px var(--mono);
+      font: 700 10.5px var(--mono);
       text-transform: uppercase;
       padding: 2px 7px;
       border-radius: 4px;
-      margin-bottom: 12px;
       background: var(--green-light);
       color: var(--green-deep);
     }
-    .feature-card h4 {
-      font-size: 16px;
-      font-weight: 700;
+    .header-links {
+      display: flex;
+      gap: 6px;
+    }
+    .header-links a {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      text-decoration: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+    .header-links a:hover {
+      background: var(--line-subtle);
+      color: var(--ink);
+    }
+
+    main {
+      width: min(960px, calc(100% - 40px));
+      margin: 36px auto 80px;
+    }
+
+    .doc-title-row {
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
       color: var(--ink);
       margin-bottom: 6px;
     }
-    .feature-card p {
-      font-size: 14px;
-      color: var(--ink-soft);
-      line-height: 1.55;
-      margin: 0;
+    .doc-subtitle {
+      color: var(--muted);
+      font-size: 15px;
     }
 
-    .callout {
-      margin: 22px 0;
-      padding: 18px 20px;
-      border-radius: 10px;
-      border-left: 4px solid var(--green);
-      background: var(--green-light);
-      color: var(--ink);
-      font-size: 14.5px;
-      line-height: 1.6;
-    }
-    .callout-amber {
-      border-left-color: var(--amber);
-      background: var(--amber-bg);
-    }
-    .callout-blue {
-      border-left-color: var(--blue);
-      background: var(--blue-bg);
-    }
-    .callout-title {
-      font-weight: 700;
-      margin-bottom: 4px;
+    nav.toc-nav {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 20px 0 36px;
+      padding: 10px 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    nav.toc-nav a {
+      font: 600 12px var(--mono);
+      color: var(--ink-soft);
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    nav.toc-nav a:hover {
+      background: var(--green-light);
+      color: var(--green-deep);
+    }
+
+    section {
+      padding: 32px 0 20px;
+      border-top: 1px solid var(--line);
+      scroll-margin-top: 60px;
+    }
+    h2 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 12px;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 20px 0 8px;
+    }
+    p {
+      color: var(--ink-soft);
+      margin-bottom: 12px;
+    }
+    ul {
+      margin: 8px 0 16px 20px;
+      color: var(--ink-soft);
+    }
+    li {
+      margin-bottom: 6px;
     }
 
     /* Shortcuts Table */
-    .shortcuts-wrapper {
-      margin: 20px 0 28px;
+    .table-card {
+      margin: 14px 0 20px;
       border: 1px solid var(--line);
-      border-radius: 10px;
+      border-radius: 8px;
       overflow: hidden;
-      background: var(--card-bg);
+      background: var(--surface);
       box-shadow: var(--shadow-sm);
     }
-    table.shortcuts-table {
+    table {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
     }
-    table.shortcuts-table th {
-      background: #f7f6f0;
-      padding: 11px 16px;
-      font-size: 11.5px;
-      font-weight: 800;
+    th {
+      background: #f7f6f1;
+      padding: 9px 14px;
+      font: 700 11px var(--mono);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       color: var(--muted);
       border-bottom: 1px solid var(--line);
     }
-    table.shortcuts-table td {
-      padding: 12px 16px;
-      font-size: 14px;
+    td {
+      padding: 10px 14px;
+      font-size: 13.5px;
       border-bottom: 1px solid var(--line-subtle);
       color: var(--ink-soft);
     }
-    table.shortcuts-table tr:last-child td {
+    tr:last-child td {
       border-bottom: none;
-    }
-    table.shortcuts-table tr:hover td {
-      background: rgba(95, 128, 95, 0.04);
     }
     kbd {
       display: inline-block;
-      padding: 2px 7px;
-      font-family: var(--mono);
-      font-size: 11.5px;
-      font-weight: 700;
+      padding: 2px 6px;
+      font: 700 11px var(--mono);
       color: var(--ink);
       background: var(--kbd-bg);
       border: 1px solid var(--kbd-border);
       border-radius: 4px;
-      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
       margin: 0 2px;
     }
 
-    .tag-badge {
-      display: inline-block;
-      font: 700 11px var(--mono);
-      padding: 2px 7px;
-      border-radius: 4px;
-      background: var(--line-subtle);
+    .info-card {
+      padding: 12px 14px;
+      border-left: 3px solid var(--green);
+      background: var(--card-bg);
+      border-radius: 0 6px 6px 0;
+      border-top: 1px solid var(--line-subtle);
+      border-right: 1px solid var(--line-subtle);
+      border-bottom: 1px solid var(--line-subtle);
+      margin: 14px 0;
+      font-size: 13.5px;
       color: var(--ink);
     }
-    .tag-badge.senku {
-      background: #dbeafe;
-      color: #1e40af;
+
+    code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: var(--line-subtle);
+      padding: 2px 5px;
+      border-radius: 3px;
+      color: var(--ink);
     }
 
     footer {
-      padding: 44px 20px;
+      padding: 30px 0;
       border-top: 1px solid var(--line);
       color: var(--muted);
+      font-size: 13px;
       text-align: center;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    footer strong {
-      color: var(--ink);
-    }
-
-    @media (max-width: 640px) {
-      .header-actions { display: none; }
-      nav.toc { gap: 6px; }
-      h1 { font-size: 32px; }
     }
   </style>
 </head>
@@ -370,383 +235,257 @@
   <header>
     <a href="#" class="header-logo">
       <span>senku</span>
-      <span class="badge" data-version-badge>v3.0.0</span>
+      <span class="badge">v3.0 Reference</span>
     </a>
-    <div class="header-actions">
-      <a href="#spaces" class="header-link">Spaces</a>
-      <a href="#logs" class="header-link">Quiet Log</a>
-      <a href="#notes" class="header-link">Notes</a>
-      <a href="#launchpads" class="header-link">Launchpads</a>
-      <a href="#overlay" class="header-link">Overlay</a>
-      <a href="#palette" class="header-link">Cmd Palette</a>
-      <a href="#shortcuts" class="header-btn">Shortcuts</a>
+    <div class="header-links">
+      <a href="#shortcuts">Shortcuts</a>
+      <a href="#spaces">Spaces</a>
+      <a href="#logs">Quiet Log</a>
+      <a href="#notes">Notes</a>
+      <a href="#launchpads">Launchpads</a>
+      <a href="#overlay">Overlay</a>
+      <a href="#palette">Palette</a>
     </div>
   </header>
 
   <main>
-    <div class="hero-eyebrow">
-      <span></span> Pure Focus · Local-First · Instant Start
+    <div class="doc-title-row">
+      <h1>Senku V3 Reference Manual</h1>
+      <p class="doc-subtitle">Official technical documentation and keyboard shortcuts reference for Senku 3.0.</p>
     </div>
-    <h1>The Distraction-Free Cockpit<br>for <em>Builders &amp; Thinkers</em></h1>
-    <p class="hero-lead">
-      Senku eliminates the noise of modern productivity tools. No multi-tier databases, no complex task hierarchies, and zero cloud lock-in. Just instant start, append-only logs, pure markdown notes, and 1-click resource launchpads.
-    </p>
 
-    <nav class="toc">
-      <a href="#spaces">1. Spaces</a>
-      <a href="#logs">2. Quiet Log &amp; #senku</a>
-      <a href="#notes">3. Notes &amp; Folders</a>
-      <a href="#launchpads">4. Launchpads</a>
-      <a href="#overlay">5. Floating Pill Overlay</a>
-      <a href="#palette">6. Command Palette</a>
-      <a href="#shortcuts">7. Master Shortcuts</a>
-      <a href="#storage">8. Storage &amp; Portability</a>
+    <nav class="toc-nav">
+      <a href="#shortcuts">1. Master Shortcuts</a>
+      <a href="#spaces">2. Spaces</a>
+      <a href="#logs">3. Quiet Log &amp; #senku</a>
+      <a href="#notes">4. Notes &amp; Bundles</a>
+      <a href="#launchpads">5. Launchpads</a>
+      <a href="#overlay">6. Floating Overlay</a>
+      <a href="#palette">7. Command Palette</a>
+      <a href="#storage">8. Storage Architecture</a>
     </nav>
 
-    <!-- 1. SPACES -->
-    <section id="spaces">
-      <div class="section-tag">Foundation</div>
-      <h2>Spaces: Local Workspaces That Bind to Your Folders</h2>
-      <p>
-        In Senku, a <strong>Space</strong> represents a project, subject, or focus area (e.g., <em>Computer Networks</em>, <em>Compiler Design</em>, <em>SaaS App</em>). Each Space links directly to a master folder on your local file system.
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-badge">True Local Files</span>
-          <h4>Master Folder Binding</h4>
-          <p>Browse and open your project files and subfolders directly inside Senku without leaving your keyboard flow.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Instant Availability</span>
-          <h4>Smart Path Verification</h4>
-          <p>Senku verifies whether linked paths and files exist, highlighting missing or relocated files gracefully.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Total Independence</span>
-          <h4>Switch Spaces in 1 Keystroke</h4>
-          <p>Switch between spaces instantly via the Command Palette (<kbd>Ctrl+K</kbd> / <kbd>P</kbd>) or the workspace switcher.</p>
-        </div>
-      </div>
-      <div class="callout callout-blue">
-        <div class="callout-title">💡 Pro Tip</div>
-        When inside a subfolder in the File panel, press <kbd>R</kbd> to immediately navigate back up to the parent or root directory.
-      </div>
-    </section>
-
-    <!-- 2. QUIET LOG & #senku -->
-    <section id="logs">
-      <div class="section-tag">Memory</div>
-      <h2>Quiet Log: Append-Only Stream of Consciousness</h2>
-      <p>
-        The <strong>Quiet Log</strong> is your digital scratchpad. It is intentionally <em>append-only and immutable</em>—you cannot edit past logs because logs capture the honest reality of what happened, when it happened.
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-badge">Space Logs</span>
-          <h4>Contextual Log Feed</h4>
-          <p>Logs captured while a Space is active are automatically tagged to that Space, keeping your project notes coherent.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">#senku Logs</span>
-          <h4>Independent Global Logs</h4>
-          <p>Quick thoughts captured outside any space wear the clean <span class="tag-badge senku">#senku</span> badge. One click filters all independent logs.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Shift + Enter</span>
-          <h4>Multiline Capture</h4>
-          <p>Press <kbd>Shift+Enter</kbd> to type formatted code snippets, lists, or multi-line paragraphs. Press <kbd>Enter</kbd> to save.</p>
-        </div>
-      </div>
-      <h3>Filtering &amp; Exporting Logs</h3>
-      <p>
-        Click any space badge (or the <span class="tag-badge senku">#senku</span> badge) in the log feed to instantly expand the search bar and filter by that exact tag. Press <kbd>Esc</kbd> to clear the filter instantly. Export your logs anytime to clean, date-grouped Markdown via the export button or Command Palette.
-      </p>
-    </section>
-
-    <!-- 3. NOTES & FOLDERS -->
-    <section id="notes">
-      <div class="section-tag">Writing</div>
-      <h2>Notes &amp; Bundle Folders: Distraction-Free Markdown</h2>
-      <p>
-        Senku's Notes editor is built for deep work. It supports full Markdown syntax, code blocks, checklists, and auto-saves instantly as you type.
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-badge">Instant Auto-Save</span>
-          <h4>Never Lose a Word</h4>
-          <p>Every keystroke is saved directly to your local notes database. No save dialogs, no spinners, no lost drafts.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Organization</span>
-          <h4>Bundle Folders</h4>
-          <p>Group notes into collapsible bundle folders (e.g., <em>Units</em>, <em>Lectures</em>, <em>Specs</em>) with drag-and-drop ease.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Clean Hierarchy</span>
-          <h4>Structured Global Export</h4>
-          <p>Exporting all notes generates a clean 4-level Markdown book: <code># All Space Notes</code> → <code>## Space</code> → <code>### Folder</code> → <code>#### Page</code>.</p>
-        </div>
-      </div>
-      <div class="callout">
-        <div class="callout-title">📁 Import &amp; Export Sovereignty</div>
-        You can drag and drop <code>.md</code> and <code>.txt</code> files directly into the notes sidebar, or use the Command Palette to import and export entire note bundles at will.
-      </div>
-    </section>
-
-    <!-- 4. LAUNCHPADS -->
-    <section id="launchpads">
-      <div class="section-tag">Action</div>
-      <h2>Launchpads: 1-Click Multi-Resource Launchers</h2>
-      <p>
-        Stop hunting through browser bookmarks, terminal windows, and nested folders every time you start work. A <strong>Launchpad</strong> bundles your URLs, local files, scripts, and folders into a single launch deck.
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-badge">All at Once</span>
-          <h4>1-Click Launch All</h4>
-          <p>Click <strong>Launch</strong> to simultaneously open all bundled resources in your default browser and native desktop applications.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Quick Access</span>
-          <h4>Pin to Home</h4>
-          <p>Star your most critical Launchpads to display them right at the top of your Home dashboard for instant morning access.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Single Resource Launch</span>
-          <h4>Interactive Path Chips</h4>
-          <p>Click any individual resource chip on the Launchpad card to open just that specific file, folder, or website.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5. FLOATING PILL OVERLAY -->
-    <section id="overlay">
-      <div class="section-tag">Capture</div>
-      <h2>Floating Quick Note: The Sleek 38px Seamless Pill</h2>
-      <p>
-        Never interrupt your train of thought. Press <kbd>Ctrl+Shift+Space</kbd> from anywhere in Windows (or <kbd>O</kbd> inside Senku) to summon the floating pill overlay.
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-badge">Tiny &amp; Sleek</span>
-          <h4>Seamless Unified Pill</h4>
-          <p>Only 38px high with zero border clutter. Sits effortlessly above all your applications without obscuring your screen.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Gold Standard</span>
-          <h4>Downward Auto-Expand</h4>
-          <p>Type as much as you want with <kbd>Shift+Enter</kbd>—the pill expands downwards naturally and resets to a slim pill upon saving.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Instant Switch</span>
-          <h4>Toggle Note vs Log</h4>
-          <p>Click the badge or press <kbd>Tab</kbd> to toggle instantly between appending to your active Note or posting to Quiet Log.</p>
-        </div>
-      </div>
-      <div class="callout callout-amber">
-        <div class="callout-title">⚡ Keyboard Ninja Tip</div>
-        In the overlay: <kbd>Enter</kbd> saves &amp; flashes green, <kbd>Tab</kbd> switches Note/Log mode, and <kbd>Esc</kbd> hides the pill.
-      </div>
-    </section>
-
-    <!-- 6. COMMAND PALETTE -->
-    <section id="palette">
-      <div class="section-tag">Navigation</div>
-      <h2>Command Palette: Complete Keyboard Powerhouse</h2>
-      <p>
-        Press <kbd>Ctrl+K</kbd>, <kbd>Ctrl+P</kbd>, or single-key <kbd>P</kbd> from anywhere in the app to open the fuzzy-search Command Palette.
-      </p>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <span class="feature-badge">Speed</span>
-          <h4>Jump to Any View</h4>
-          <p>Switch between Home, Overview, Quiet Log, All Logs, Launchpads, and Notes with instant fuzzy search.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Deep Links</span>
-          <h4>Spaces &amp; Notes</h4>
-          <p>Type the name of any space, launchpad, note, or local file to jump directly to it without clicking around.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge">Instant Capture</span>
-          <h4>Direct Quick Logging</h4>
-          <p>Type any text and hit <kbd>Enter</kbd> to log directly, or prefix with <code>n &lt;text&gt;</code> to append straight into your active note.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 7. MASTER SHORTCUTS -->
+    <!-- SECTION 1: SHORTCUTS -->
     <section id="shortcuts">
-      <div class="section-tag">Reference</div>
-      <h2>Master Shortcuts Cheatsheet</h2>
-      <p>
-        Senku is designed to be operated 100% from your keyboard. When you are not typing inside an input field or editor, single-key navigation is active.
-      </p>
+      <h2>1. Master Keyboard Shortcuts</h2>
+      <p>Single-key shortcuts are active whenever focus is outside of an input, textarea, or content-editable field.</p>
 
-      <h3>1. Single-Key View Navigation (When not typing)</h3>
-      <div class="shortcuts-wrapper">
-        <table class="shortcuts-table">
+      <h3>View Navigation (Single Key)</h3>
+      <div class="table-card">
+        <table>
           <thead>
             <tr>
-              <th style="width: 130px;">Key</th>
-              <th style="width: 220px;">Action</th>
+              <th style="width: 120px;">Key</th>
+              <th style="width: 200px;">View / Action</th>
               <th>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><kbd>H</kbd></td>
-              <td>Home Dashboard</td>
-              <td>Jump to Home overview with pinned launchpads and recent logs.</td>
+              <td>Home</td>
+              <td>Dashboard with quick launchpads and recent logs.</td>
             </tr>
             <tr>
               <td><kbd>S</kbd></td>
-              <td>Space Overview</td>
-              <td>View active space dashboard with file tree and quick actions.</td>
+              <td>Overview</td>
+              <td>Active space overview with file explorer.</td>
             </tr>
             <tr>
               <td><kbd>L</kbd></td>
               <td>Launchpads</td>
-              <td>Full-screen launchpads view to manage and launch resource decks.</td>
-            </tr>
-            <tr>
-              <td><kbd>G</kbd></td>
-              <td>All Logs (#senku)</td>
-              <td>Browse global log stream across all spaces and independent logs.</td>
+              <td>Launchpads panel paired with the file explorer.</td>
             </tr>
             <tr>
               <td><kbd>N</kbd></td>
-              <td>Notes Editor</td>
-              <td>Open distraction-free markdown note editor and bundle folders.</td>
+              <td>Notes</td>
+              <td>Distraction-free markdown notes manager and editor.</td>
+            </tr>
+            <tr>
+              <td><kbd>G</kbd></td>
+              <td>All Logs</td>
+              <td>Global log feed with all space logs and independent #senku logs.</td>
             </tr>
             <tr>
               <td><kbd>P</kbd></td>
               <td>Command Palette</td>
-              <td>Open fuzzy-search command palette to run any action or jump anywhere.</td>
+              <td>Open fuzzy-search command palette to run commands or switch items.</td>
             </tr>
             <tr>
               <td><kbd>O</kbd></td>
-              <td>Quick Note Overlay</td>
-              <td>Open floating 38px mini pill overlay for instant note capture.</td>
+              <td>Overlay</td>
+              <td>Open the 38px floating quick note overlay.</td>
             </tr>
             <tr>
               <td><kbd>R</kbd></td>
-              <td>Parent Directory</td>
-              <td>Navigate one folder up in the local file explorer panel.</td>
+              <td>Parent Folder</td>
+              <td>Navigate up one folder in the files panel.</td>
             </tr>
             <tr>
               <td><kbd>/</kbd></td>
-              <td>Instant Search</td>
-              <td>Expands search bar and focuses filter input in active view.</td>
+              <td>Search / Filter</td>
+              <td>Expands search bar and focuses input in active view.</td>
             </tr>
             <tr>
               <td><kbd>?</kbd></td>
               <td>User Guide</td>
-              <td>Open this official guide and master cheatsheet window.</td>
+              <td>Opens this reference manual.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <h3>2. Global Hotkeys (Works Everywhere)</h3>
-      <div class="shortcuts-wrapper">
-        <table class="shortcuts-table">
+      <h3>Global Hotkeys</h3>
+      <div class="table-card">
+        <table>
           <thead>
             <tr>
               <th style="width: 220px;">Shortcut</th>
-              <th style="width: 200px;">Scope</th>
-              <th>Action</th>
+              <th style="width: 180px;">Scope</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><kbd>Ctrl</kbd> + <kbd>K</kbd> / <kbd>P</kbd></td>
               <td>Global in App</td>
-              <td>Open Command Palette from any screen or modal.</td>
+              <td>Open the Command Palette from any screen or modal.</td>
             </tr>
             <tr>
               <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd></td>
               <td>System-Wide (OS)</td>
-              <td>Toggle floating Quick Note pill above all desktop applications.</td>
+              <td>Global hotkey to summon the floating quick note pill.</td>
             </tr>
             <tr>
               <td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td>
               <td>Global in App</td>
-              <td>Jump directly to log input textarea from anywhere.</td>
+              <td>Focus log capture textarea or navigate to Log Station.</td>
             </tr>
             <tr>
               <td><kbd>Esc</kbd></td>
-              <td>Search / Dialogs</td>
-              <td>Clears non-empty search input first; otherwise closes modal or blurs.</td>
+              <td>Search / Modals</td>
+              <td>Clears active search filter first; otherwise closes modal or blurs.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <h3>3. Floating Overlay Hotkeys</h3>
-      <div class="shortcuts-wrapper">
-        <table class="shortcuts-table">
+      <h3>Floating Overlay Controls</h3>
+      <div class="table-card">
+        <table>
           <thead>
             <tr>
-              <th style="width: 180px;">Shortcut</th>
+              <th style="width: 180px;">Key</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><kbd>Enter</kbd></td>
-              <td>Submit note or log immediately (pill flashes green upon save).</td>
+              <td>Save note or log (pill flashes green on successful save).</td>
             </tr>
             <tr>
               <td><kbd>Shift</kbd> + <kbd>Enter</kbd></td>
-              <td>Insert a new line. Pill expands downward automatically.</td>
+              <td>Insert newline. Window auto-expands downward up to 180px.</td>
             </tr>
             <tr>
               <td><kbd>Tab</kbd></td>
-              <td>Toggle mode between active <strong>Note</strong> and <strong>Quiet Log</strong>.</td>
+              <td>Toggle target mode between <strong>Note</strong> and <strong>Log</strong>.</td>
             </tr>
             <tr>
               <td><kbd>Esc</kbd></td>
-              <td>Hide the floating pill overlay.</td>
+              <td>Close/hide the overlay window.</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <!-- 8. STORAGE & PORTABILITY -->
+    <!-- SECTION 2: SPACES -->
+    <section id="spaces">
+      <h2>2. Spaces (Workspaces)</h2>
+      <p>A Space represents a project or domain bound to a physical directory on your local filesystem.</p>
+      <ul>
+        <li><strong>Master Folder Binding:</strong> Point a Space to any local directory. The file tree panel allows browsing, opening files, and opening folders in Terminal or VS Code.</li>
+        <li><strong>Path Availability Checking:</strong> Senku verifies local paths in launchpads and files, marking missing or relocated paths gracefully.</li>
+        <li><strong>Parent Directory Navigation:</strong> Press <kbd>R</kbd> in file view to move up to the parent directory until reaching the master folder root.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 3: QUIET LOG -->
+    <section id="logs">
+      <h2>3. Quiet Log &amp; #senku</h2>
+      <p>The Quiet Log is an immutable, append-only stream for thoughts, snippets, and execution logs.</p>
+      <ul>
+        <li><strong>Immutability:</strong> Logs cannot be edited once saved. This preserves authentic chronological history. Soft-delete is available.</li>
+        <li><strong>Space Logs vs #senku:</strong> Logs added while a Space is active inherit the Space tag. Independent logs without an active Space wear the <code>#senku</code> badge.</li>
+        <li><strong>One-Click Filtering:</strong> Click any space tag or the <code>#senku</code> badge in the feed to instantly filter. Press <kbd>Esc</kbd> to clear.</li>
+        <li><strong>Multiline Capture:</strong> Press <kbd>Shift+Enter</kbd> in the capture box for code or multi-line paragraphs.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 4: NOTES -->
+    <section id="notes">
+      <h2>4. Notes &amp; Bundle Folders</h2>
+      <p>Distraction-free local Markdown notes manager.</p>
+      <ul>
+        <li><strong>Bundle Folders:</strong> Group notes into collapsible bundles (e.g. <em>Units</em>, <em>Lectures</em>).</li>
+        <li><strong>Auto-Save:</strong> Keystrokes are saved immediately to local storage.</li>
+        <li><strong>Hierarchical Export:</strong> Exporting all notes outputs a structured 4-level Markdown file: <code># All Space Notes</code> &rarr; <code>## Space</code> &rarr; <code>### Bundle</code> &rarr; <code>#### Note</code>.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 5: LAUNCHPADS -->
+    <section id="launchpads">
+      <h2>5. Launchpads</h2>
+      <p>Multi-resource launch decks pairing files, folders, and web URLs.</p>
+      <ul>
+        <li><strong>1-Click Launch:</strong> Opens all bundled resources simultaneously in your default browser and native OS applications.</li>
+        <li><strong>Half-Split View:</strong> The Launchpads panel sits on the left with the Space's file tree on the right for quick resource drag/drop or reference.</li>
+        <li><strong>Pin to Home:</strong> Star launchpads to display them directly on the Home dashboard.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 6: OVERLAY -->
+    <section id="overlay">
+      <h2>6. Floating Quick Note Overlay</h2>
+      <p>Compact 420px &times; 38px seamless pill window designed for zero-distraction capture.</p>
+      <ul>
+        <li><strong>Seamless Baseline Alignment:</strong> Mode badge and input text share identical baseline alignment.</li>
+        <li><strong>Global Hotkey:</strong> <kbd>Ctrl+Shift+Space</kbd> invokes the overlay over any application.</li>
+        <li><strong>Mode Toggle:</strong> Press <kbd>Tab</kbd> or click the badge to switch between appending to the active Note or saving to Quiet Log.</li>
+        <li><strong>Auto-Expansion:</strong> Expands downward dynamically as you type multi-line notes.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 7: COMMAND PALETTE -->
+    <section id="palette">
+      <h2>7. Command Palette</h2>
+      <p>Fuzzy-search command center invoked with <kbd>Ctrl+K</kbd>, <kbd>Ctrl+P</kbd>, or single-key <kbd>P</kbd>.</p>
+      <ul>
+        <li><strong>View Switching:</strong> Instant jump to Home (<kbd>H</kbd>), Overview (<kbd>S</kbd>), Launchpads (<kbd>L</kbd>), Notes (<kbd>N</kbd>), Quiet Log, or All Logs (<kbd>G</kbd>).</li>
+        <li><strong>Direct Space Switching:</strong> Type a space name to switch to it immediately.</li>
+        <li><strong>1-Click Launch:</strong> Select any launchpad to execute it.</li>
+        <li><strong>Direct Logging:</strong> Type text and press <kbd>Enter</kbd> to log instantly, or prefix with <code>n &lt;text&gt;</code> to append to active note.</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 8: STORAGE -->
     <section id="storage">
-      <div class="section-tag">Data Sovereignty</div>
-      <h2>Storage &amp; Portability: Zero Lock-In</h2>
-      <p>
-        Your notes, logs, and configurations are stored as clean JSON and standard Markdown files inside your user profile directory:
-      </p>
-      <div class="callout">
-        <code>%APPDATA%\senku\</code> (Windows) &nbsp;|&nbsp; <code>~/.config/senku/</code> (Linux/macOS)
+      <h2>8. Storage Architecture</h2>
+      <div class="info-card">
+        Local directory: <code>%APPDATA%\senku\</code> (Windows) &bull; <code>~/.config/senku/</code> (Linux/macOS)
       </div>
-      <p>
-        Because Senku does not use proprietary binary formats or closed cloud databases, your data remains readable, editable, and version-controllable with Git or any text editor for decades to come.
-      </p>
+      <ul>
+        <li><code>storage.json</code>: Spaces, launchpads, bundles, and settings.</li>
+        <li><code>notes/*.md</code>: Markdown files saved in human-readable plain text.</li>
+        <li><code>logs.md</code>: Append-only plain text log entries.</li>
+      </ul>
     </section>
   </main>
 
   <footer>
-    <p>
-      <strong>Senku V3</strong> &bull; Built for builders who actually build.
-    </p>
+    <p>Senku V3 &bull; Reference Manual</p>
   </footer>
-
-  <script>
-    // Dynamically update version badge from query parameters if provided
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const v = params.get('version');
-      if (v) {
-        document.querySelectorAll('[data-version-badge]').forEach((el) => {
-          el.textContent = 'v' + v.replace(/^v/, '');
-        });
-      }
-    } catch (_) {}
-  </script>
 </body>
 </html>
