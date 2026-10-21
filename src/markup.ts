@@ -412,7 +412,10 @@ export function homePanelV3Markup(): string {
         <div class="home-recent-deck home-lp-deck">
           <div class="home-deck-header">
             <span class="home-section-label">QUICK LAUNCHPADS</span>
-            <button class="home-deck-link" data-view="Launchpads">All</button>
+            <div class="home-deck-actions">
+              <button type="button" class="home-deck-add-btn" id="home-add-launchpad" title="New Launchpad" aria-label="New Launchpad">${uiIcon('plus', 11)}</button>
+              <button class="home-deck-link" data-view="Launchpads">All</button>
+            </div>
           </div>
           <div class="home-launchpads-wrap">${quickLaunchHtml}</div>
         </div>

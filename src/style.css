@@ -2365,10 +2365,9 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 .home-decks-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  flex: 1 1 0;
+  gap: 12px;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .home-recent-deck {
@@ -2387,8 +2386,8 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
 }
 
 .home-log-station {
-  flex: 1 1 0;
-  min-height: 180px;
+  flex: 0 0 auto;
+  max-height: 480px;
 }
 
 .home-capture-card {
@@ -2571,6 +2570,32 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   color: var(--soft);
   letter-spacing: .08em;
 }
+.home-deck-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.home-deck-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--soft);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+.home-deck-add-btn:hover {
+  background: var(--hover);
+  color: var(--green);
+}
+.home-deck-add-btn svg {
+  display: block;
+}
 .home-deck-link {
   background: none;
   border: none;
@@ -2586,8 +2611,7 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1 1 0;
-  min-height: 0;
+  max-height: 380px;
   overflow-y: auto;
 }
 .home-recent-log-item {

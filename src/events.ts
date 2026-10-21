@@ -562,6 +562,11 @@ function bindHomeActions(load: LoadFn, render: RenderFn): void {
 
   btn?.addEventListener('click', () => void submit());
 
+  document.querySelector('#home-add-launchpad')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openLaunchpadFormModal(load);
+  });
+
   document.querySelectorAll<HTMLElement>('[data-launch-home-id]').forEach((launchBtn) => {
     launchBtn.addEventListener('click', async () => {
       const id = launchBtn.dataset.launchHomeId!;
