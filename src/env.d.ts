@@ -53,6 +53,8 @@ declare global {
       openBundleInVSCode(bundleName: string): Promise<{ ok: boolean; error?: string }>;
       importNotes(): Promise<{ snapshot: AppSnapshot; count: number; firstNoteId?: string } | null>;
       exportAllNotes(): Promise<{ ok: boolean; count?: number; empty?: boolean; error?: string }>;
+      exportBundle(bundleName: string): Promise<{ ok: boolean; count?: number; error?: string }>;
+      exportLogs(content: string, defaultName?: string): Promise<{ ok: boolean; error?: string }>;
       // Floating Overlay
       showOverlay(): Promise<{ ok: boolean }>;
       hideOverlay(): Promise<{ ok: boolean }>;

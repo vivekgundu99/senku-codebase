@@ -129,6 +129,10 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
           ${uiIcon('code', 13)}
           <span>Open in VS Code</span>
         </button>
+        <button class="bundle-menu-item" id="bundle-menu-export">
+          ${uiIcon('folder', 13)}
+          <span>Export Folder (.md)</span>
+        </button>
         <button class="bundle-menu-item danger" id="bundle-menu-delete">
           ${uiIcon('x', 13)}
           <span>Delete Folder</span>
@@ -166,6 +170,16 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
         closePopover();
         const res = await window.senku.openBundleInVSCode(bundle);
         if (!res.ok) toast(res.error ?? 'Could not open folder in VS Code.');
+      });
+
+      popover.querySelector('#bundle-menu-export')?.addEventListener('click', async () => {
+        closePopover();
+        const res = await window.senku.exportBundle(bundle);
+        if (res.ok) {
+          toast(`Exported "${bundle}" (${res.count ?? 0} notes) to Desktop.`);
+        } else if (res.error && res.error !== 'Cancelled.') {
+          toast(`Export failed: ${res.error}`);
+        }
       });
 
       popover.querySelector('#bundle-menu-delete')?.addEventListener('click', async () => {
@@ -261,31 +275,80 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     }
   });
 
-  // Export
-  panel.querySelector('#notes-export-btn')?.addEventListener('click', async (e) => {
-    const id = (e.currentTarget as HTMLElement).dataset.noteId!;
-    const res = await window.senku.exportNote(id);
-    if (!res.ok && res.error && res.error !== 'Cancelled.') toast(`Export failed: ${res.error}`);
-  });
+  // Note options menu (Export Note & Delete Note)
+  panel.querySelector('#notes-options-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const btn = e.currentTarget as HTMLElement;
+    const id = btn.dataset.noteId;
+    if (!id) return;
+    const note = state.notes?.find((n) => n.id === id);
+    if (!note) return;
 
-  // Delete note
-  panel.querySelector('#notes-delete-btn')?.addEventListener('click', async (e) => {
-    const id = (e.currentTarget as HTMLElement).dataset.noteId!;
-    const noteToDelete = state.notes?.find((n) => n.id === id);
-    if (!noteToDelete) return;
-    const snap = await window.senku.deleteNote(id);
-    const remaining = snap.notes ?? [];
-    setActiveNoteId(remaining[0]?.id ?? null);
-    setState(snap);
-    render();
-    toast('Deleted', {
-      actionLabel: 'Undo',
-      onAction: async () => {
-        const restoredSnap = await window.senku.restoreNote(noteToDelete);
-        setActiveNoteId(noteToDelete.id);
-        setState(restoredSnap);
-        render();
-      },
+    document.querySelectorAll('.bundle-menu-popover, .notes-options-popover').forEach((p) => p.remove());
+
+    const popover = document.createElement('div');
+    popover.className = 'bundle-menu-popover notes-options-popover';
+    popover.innerHTML = `
+      <button class="bundle-menu-item" id="note-menu-export">
+        ${uiIcon('folder', 13)}
+        <span>Export Note (.md)</span>
+      </button>
+      <button class="bundle-menu-item danger" id="note-menu-delete">
+        ${uiIcon('x', 13)}
+        <span>Delete Note</span>
+      </button>
+    `;
+
+    const rect = btn.getBoundingClientRect();
+    popover.style.top = `${rect.bottom + 4}px`;
+    popover.style.right = `${Math.max(10, window.innerWidth - rect.right)}px`;
+
+    document.body.appendChild(popover);
+
+    const closePopover = () => {
+      popover.remove();
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onDocKey);
+    };
+
+    const onDocClick = (evt: MouseEvent) => {
+      if (!popover.contains(evt.target as Node) && evt.target !== btn) {
+        closePopover();
+      }
+    };
+
+    const onDocKey = (evt: KeyboardEvent) => {
+      if (evt.key === 'Escape') closePopover();
+    };
+
+    setTimeout(() => {
+      document.addEventListener('click', onDocClick);
+      document.addEventListener('keydown', onDocKey);
+    }, 0);
+
+    popover.querySelector('#note-menu-export')?.addEventListener('click', async () => {
+      closePopover();
+      const res = await window.senku.exportNote(id);
+      if (!res.ok && res.error && res.error !== 'Cancelled.') toast(`Export failed: ${res.error}`);
+    });
+
+    popover.querySelector('#note-menu-delete')?.addEventListener('click', async () => {
+      closePopover();
+      const snap = await window.senku.deleteNote(id);
+      const remaining = snap.notes ?? [];
+      setActiveNoteId(remaining[0]?.id ?? null);
+      setState(snap);
+      render();
+      toast('Deleted', {
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const restoredSnap = await window.senku.restoreNote(note);
+          setActiveNoteId(note.id);
+          setState(restoredSnap);
+          render();
+        },
+      });
     });
   });
 }
@@ -706,32 +769,102 @@ function bindLogPanel(load: LoadFn, render: RenderFn): void {
       textarea.style.height = '22px';
       textarea.style.overflowY = 'hidden';
     }
-    const spaceId = state.workspace?.id;
-    await window.senku.addLogEntry(text, spaceId);
-    await load(state.currentPath);
+    const targetSpaceId = scope === 'all' ? 'global' : state.workspace?.id;
+    await window.senku.addLogEntry(text, targetSpaceId);
+    if (scope === 'all') {
+      const all = await window.senku.listAllLogs();
+      setAllLog(all);
+    } else {
+      await load(state.currentPath);
+    }
     render();
     requestAnimationFrame(() => {
       document.querySelector<HTMLTextAreaElement>('#log-compose-textarea')?.focus();
     });
   };
 
-  // Search on Enter or button click
+  // Expandable Search & input handling
+  const logSearchWrap = panel.querySelector<HTMLElement>('#log-search-expandable');
   const searchInput = panel.querySelector<HTMLInputElement>('#log-search');
+  const searchTrigger = panel.querySelector<HTMLElement>('#log-search-trigger');
+  const searchClear = panel.querySelector<HTMLElement>('#log-search-clear');
+
   const triggerSearch = () => {
     const val = searchInput ? searchInput.value : '';
     setLogFilter(val);
     refreshList();
   };
 
+  searchTrigger?.addEventListener('click', () => {
+    logSearchWrap?.classList.add('open');
+    searchInput?.focus();
+    searchInput?.select();
+  });
+
+  searchClear?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    setLogFilter('');
+    refreshList();
+    logSearchWrap?.classList.remove('open');
+  });
+
   searchInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       triggerSearch();
+    } else if (e.key === 'Escape') {
+      if (searchInput) searchInput.value = '';
+      setLogFilter('');
+      refreshList();
+      logSearchWrap?.classList.remove('open');
+      searchInput?.blur();
     }
   });
 
-  panel.querySelector('#log-search-btn')?.addEventListener('click', () => {
-    triggerSearch();
+  // Export filtered logs to markdown
+  panel.querySelector('#log-export-btn')?.addEventListener('click', async () => {
+    const { items } = visibleLogEntries(scope);
+    if (items.length === 0) {
+      toast('No logs to export.');
+      return;
+    }
+    const lines: string[] = [];
+    const title = scope === 'all' ? 'Senku Global Logs' : `${state.workspace?.name || 'Senku'} Logs`;
+    lines.push(`# ${title}\n`);
+    if (logFromDate || logToDate || logFilter) {
+      const filters: string[] = [];
+      if (logFromDate) filters.push(`From: ${logFromDate}`);
+      if (logToDate) filters.push(`To: ${logToDate}`);
+      if (logFilter) filters.push(`Search: "${logFilter}"`);
+      lines.push(`> Filters: ${filters.join(' · ')}\n`);
+    }
+
+    const groups = new Map<string, typeof items>();
+    for (const item of items) {
+      const d = new Date(item.createdAt);
+      const dateStr = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' });
+      if (!groups.has(dateStr)) groups.set(dateStr, []);
+      groups.get(dateStr)!.push(item);
+    }
+
+    for (const [dateStr, dayItems] of groups.entries()) {
+      lines.push(`## ${dateStr}`);
+      for (const item of dayItems) {
+        const d = new Date(item.createdAt);
+        const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const spaceTag = item.spaceName ? `[${item.spaceName}] ` : (scope === 'all' ? '[Global Log] ' : '');
+        lines.push(`- **${timeStr}** ${spaceTag}${item.text}`);
+      }
+      lines.push('');
+    }
+
+    const defaultName = scope === 'all' ? 'senku-global-logs.md' : `${(state.workspace?.name || 'senku').toLowerCase().replace(/\s+/g, '-')}-logs.md`;
+    const res = await window.senku.exportLogs(lines.join('\n'), defaultName);
+    if (res.ok) {
+      toast(`Exported ${items.length} log entries to Desktop.`);
+    } else if (res.error && res.error !== 'Cancelled.') {
+      toast(`Export failed: ${res.error}`);
+    }
   });
 
   // Date range filter

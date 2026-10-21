@@ -2353,45 +2353,71 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   border-color: var(--muted);
 }
 
-.log-search-wrap {
-  display: flex;
+.log-mini-btn.export-btn {
+  display: inline-flex;
   align-items: center;
-  height: 26px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--surface);
-  padding-right: 4px;
-  transition: border-color .15s, box-shadow .15s;
+  gap: 5px;
+  padding: 0 9px;
+  color: var(--muted);
 }
 
-.log-search-wrap:focus-within {
-  border-color: var(--green);
-  box-shadow: 0 0 0 2px rgba(95, 128, 95, .15);
-}
-
-.log-search-small {
-  width: 165px;
-  border: none;
-  background: transparent;
-  padding: 0 8px;
-  font: 500 12px var(--sans);
+.log-mini-btn.export-btn:hover {
   color: var(--ink);
-  outline: none;
+  background: var(--hover);
 }
 
-.log-search-btn {
-  background: transparent;
-  border: none;
-  padding: 2px 4px;
-  color: var(--soft);
-  cursor: pointer;
+.log-search-expandable {
+  position: relative;
   display: flex;
   align-items: center;
+}
+
+.log-search-expandable .log-search-input-wrap {
+  display: none;
+  align-items: center;
+  position: relative;
+}
+
+.log-search-expandable.open .search-trigger-btn {
+  display: none;
+}
+
+.log-search-expandable.open .log-search-input-wrap {
+  display: flex;
+}
+
+.log-search-expandable #log-search {
+  width: 150px;
+  height: 26px;
+  padding: 0 22px 0 8px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 11.5px var(--sans);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(30, 90, 58, 0.1);
+  transition: all .15s ease;
+}
+
+.log-search-clear {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--soft);
+  font-size: 10px;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
   line-height: 1;
 }
 
-.log-search-btn:hover {
+.log-search-clear:hover {
   color: var(--ink);
+  background: var(--hover);
 }
 
 /* Log Single-Line Capture Card (auto-grows on Shift+Enter, Enter saves) */
@@ -3323,6 +3349,32 @@ small.hint { display: block; margin-top: -9px; margin-bottom: 14px; font-size: 1
   font-weight: 600;
   color: var(--ink-soft);
   white-space: nowrap;
+}
+
+.notes-title-header-input {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  min-width: 60px;
+  max-width: 300px;
+  outline: none;
+  transition: all .12s ease;
+}
+
+.notes-title-header-input:hover {
+  background: var(--hover);
+  border-color: var(--line);
+}
+
+.notes-title-header-input:focus {
+  background: var(--surface);
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(30, 90, 58, 0.1);
 }
 
 .notes-editor-actions {

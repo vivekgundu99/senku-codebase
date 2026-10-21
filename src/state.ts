@@ -39,6 +39,18 @@ export function toggleBundleCollapsed(bundle: string): void {
   }
 }
 
+export function packInactiveBundles(): void {
+  if (!state.bundles || state.bundles.length === 0) return;
+  const activeNote = state.notes?.find((n) => n.id === activeNoteId);
+  const activeBundle = activeNote?.bundle;
+  collapsedBundles.clear();
+  for (const b of state.bundles) {
+    if (b !== activeBundle) {
+      collapsedBundles.add(b);
+    }
+  }
+}
+
 export function setState(snapshot: AppSnapshot): void {
   const previousWorkspaceId = state?.workspace?.id;
   const newWorkspaceId = snapshot?.workspace?.id;
@@ -63,6 +75,7 @@ export function setState(snapshot: AppSnapshot): void {
 
   state = snapshot;
   currentPath = snapshot.currentPath;
+  packInactiveBundles();
 }
 
 export function setCurrentFolder(entries: FileEntry[], folderPath: string): void {
@@ -78,6 +91,9 @@ export function setCurrentFolder(entries: FileEntry[], folderPath: string): void
 export function setView(view: string): void {
   if ((currentView === 'Log' && view === 'AllLog') || (currentView === 'AllLog' && view === 'Log')) {
     resetLogDates();
+  }
+  if (view === 'Notes') {
+    packInactiveBundles();
   }
   currentView = view;
 }
@@ -97,6 +113,7 @@ export function setQuickLogText(value: string): void {
 
 export function setActiveNoteId(id: string | null): void {
   activeNoteId = id;
+  packInactiveBundles();
 }
 
 // ---------------------------------------------------------------------------

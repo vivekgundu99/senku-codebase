@@ -321,24 +321,96 @@ export async function restoreNote(notesDir: string, note: NoteFile): Promise<Not
 // ---------------------------------------------------------------------------
 
 export function buildBookMarkdown(
-  spaceName: string,
+  title: string,
+  notes: Array<{ name?: string; title?: string; content: string; bundle?: string; spaceName?: string }>,
+  defaultSpaceName?: string
+): string {
+  const blocks: string[] = [`<!-- senku-book: ${title} -->\n# ${title}`];
+
+  // Group by spaceName (if any, fallback to defaultSpaceName or 'General')
+  const spaceMap = new Map<string, typeof notes>();
+  for (const n of notes) {
+    const sp = n.spaceName || defaultSpaceName || 'General';
+    if (!spaceMap.has(sp)) spaceMap.set(sp, []);
+    spaceMap.get(sp)!.push(n);
+  }
+
+  for (const [spaceName, spNotes] of spaceMap.entries()) {
+    blocks.push(`<!-- space: ${spaceName} -->\n## ${spaceName}`);
+
+    const bundleMap = new Map<string, typeof notes>();
+    const loose: typeof notes = [];
+
+    for (const n of spNotes) {
+      if (n.bundle) {
+        if (!bundleMap.has(n.bundle)) bundleMap.set(n.bundle, []);
+        bundleMap.get(n.bundle)!.push(n);
+      } else {
+        loose.push(n);
+      }
+    }
+
+    for (const [bundleName, bNotes] of bundleMap.entries()) {
+      blocks.push(`<!-- folder: ${bundleName} -->\n### ${bundleName}`);
+      const sorted = [...bNotes].sort((a, b) => {
+        const nameA = a.title ?? a.name ?? '';
+        const nameB = b.title ?? b.name ?? '';
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+      for (const note of sorted) {
+        const noteTitle = (note.title ?? note.name ?? 'Untitled').trim();
+        const content = (note.content ?? '').replace(/^\n+|\n+$/g, '');
+        if (content.length > 0) {
+          blocks.push(`<!-- page: ${noteTitle} -->\n#### ${noteTitle}\n\n${content}`);
+        } else {
+          blocks.push(`<!-- page: ${noteTitle} -->\n#### ${noteTitle}`);
+        }
+      }
+    }
+
+    if (loose.length > 0) {
+      if (bundleMap.size > 0) {
+        blocks.push(`<!-- folder: Loose Notes -->\n### Loose Notes`);
+      }
+      const sorted = [...loose].sort((a, b) => {
+        const nameA = a.title ?? a.name ?? '';
+        const nameB = b.title ?? b.name ?? '';
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+      for (const note of sorted) {
+        const noteTitle = (note.title ?? note.name ?? 'Untitled').trim();
+        const content = (note.content ?? '').replace(/^\n+|\n+$/g, '');
+        const headerLevel = bundleMap.size > 0 ? '####' : '###';
+        if (content.length > 0) {
+          blocks.push(`<!-- page: ${noteTitle} -->\n${headerLevel} ${noteTitle}\n\n${content}`);
+        } else {
+          blocks.push(`<!-- page: ${noteTitle} -->\n${headerLevel} ${noteTitle}`);
+        }
+      }
+    }
+  }
+
+  return blocks.join('\n\n') + '\n';
+}
+
+export function buildFolderMarkdown(
+  folderName: string,
   notes: Array<{ name?: string; title?: string; content: string }>
 ): string {
+  const blocks: string[] = [`<!-- senku-folder: ${folderName} -->\n# ${folderName}`];
   const sorted = [...notes].sort((a, b) => {
     const nameA = a.title ?? a.name ?? '';
     const nameB = b.title ?? b.name ?? '';
     return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
   });
 
-  const blocks: string[] = [`<!-- senku-book: ${spaceName} -->`];
-
   for (const note of sorted) {
-    const title = (note.title ?? note.name ?? 'Untitled').trim();
+    const noteTitle = (note.title ?? note.name ?? 'Untitled').trim();
     const content = (note.content ?? '').replace(/^\n+|\n+$/g, '');
     if (content.length > 0) {
-      blocks.push(`<!-- page: ${title} -->\n# ${title}\n\n${content}`);
+      blocks.push(`<!-- page: ${noteTitle} -->\n## ${noteTitle}\n\n${content}`);
     } else {
-      blocks.push(`<!-- page: ${title} -->\n# ${title}`);
+      blocks.push(`<!-- page: ${noteTitle} -->\n## ${noteTitle}`);
     }
   }
 

@@ -60,6 +60,7 @@ import {
   writeSpaceMeta,
   migrateLegacy,
   buildBookMarkdown,
+  buildFolderMarkdown,
   splitBookMarkdown,
   importTitleFromFile,
 } from './storage';
@@ -430,7 +431,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     const spaceLaunchpadsFile = path.join(spaceDir(spaceId), 'launchpads.json');
     const lPads = await readLaunchpads(spaceLaunchpadsFile);
 
-    logEntries = allLogs.filter((e) => e.spaceId === spaceId);
+    logEntries = allLogs.filter((e) => e.spaceId === spaceId || (workspace?.name && e.spaceName === workspace.name));
     launchpads = orderLaunchpads(lPads.map((p) => ({ ...p, spaceId, spaceName: workspace?.name })));
   }
 
@@ -1161,12 +1162,22 @@ handleLocked('log:list-all', async () => {
 });
 
 handleLocked('log:add', async (_event, text: string, spaceId?: string) => {
-  const workspaces = await getWorkspaces();
-  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
-  if (!targetSpaceId) throw new Error('Create a Space first.');
-
   const trimmed = (text || '').trim();
   if (!trimmed) return snapshot();
+
+  if (spaceId === 'global') {
+    await addLog(masterLogFile(), trimmed, 'global', 'Global Log');
+    mainWindow?.webContents.send('snapshot:updated');
+    return snapshot();
+  }
+
+  const workspaces = await getWorkspaces();
+  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
+  if (!targetSpaceId) {
+    await addLog(masterLogFile(), trimmed, 'global', 'Global Log');
+    mainWindow?.webContents.send('snapshot:updated');
+    return snapshot();
+  }
 
   const ws = workspaces.find((w) => w.id === targetSpaceId);
   await addLog(masterLogFile(), trimmed, targetSpaceId, ws?.name || 'Space');
@@ -1550,14 +1561,51 @@ ipcMain.handle('notes:export-all', async () => {
 
   const result = await dialog.showSaveDialog({
     title: 'Export All Notes',
-    defaultPath: path.join(app.getPath('desktop'), 'Senku Notes.md'),
+    defaultPath: path.join(app.getPath('desktop'), 'Senku All Space Notes.md'),
     filters: [{ name: 'Markdown Files', extensions: ['md'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
 
-  const bookContent = buildBookMarkdown('Senku Notes', notes);
+  const settings = await getSettings();
+  const workspaces = await getWorkspaces();
+  const currentWs = workspaces.find((w) => w.id === settings.activeWorkspaceId);
+  const spaceName = currentWs?.name;
+
+  const bookContent = buildBookMarkdown('Senku All Space Notes', notes, spaceName);
   await fs.writeFile(result.filePath, bookContent, 'utf8');
   return { ok: true, count: notes.length };
+});
+
+ipcMain.handle('notes:export-bundle', async (_event, bundleName: string) => {
+  const nDir = globalNotesDir();
+  const allNotes = await listNotes(nDir);
+  const bundleNotes = allNotes.filter((n) => n.bundle === bundleName);
+  if (bundleNotes.length === 0) {
+    return { ok: false, error: 'Folder is empty.' };
+  }
+
+  const result = await dialog.showSaveDialog({
+    title: `Export ${bundleName}`,
+    defaultPath: path.join(app.getPath('desktop'), `${sanitizeFileName(bundleName)}.md`),
+    filters: [{ name: 'Markdown Files', extensions: ['md'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
+
+  const content = buildFolderMarkdown(bundleName, bundleNotes);
+  await fs.writeFile(result.filePath, content, 'utf8');
+  return { ok: true, count: bundleNotes.length };
+});
+
+ipcMain.handle('log:export', async (_event, content: string, defaultName?: string) => {
+  const result = await dialog.showSaveDialog({
+    title: 'Export Logs',
+    defaultPath: path.join(app.getPath('desktop'), defaultName || `senku-logs-${Date.now()}.md`),
+    filters: [{ name: 'Markdown Files', extensions: ['md'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
+
+  await fs.writeFile(result.filePath, content, 'utf8');
+  return { ok: true };
 });
 
 handleLocked('notes:import', async () => {

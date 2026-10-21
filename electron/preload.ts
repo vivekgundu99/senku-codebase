@@ -146,6 +146,12 @@ const api = {
   exportAllNotes: () =>
     ipcRenderer.invoke('notes:export-all') as Promise<{ ok: boolean; count?: number; empty?: boolean; error?: string }>,
 
+  exportBundle: (bundleName: string) =>
+    ipcRenderer.invoke('notes:export-bundle', bundleName) as Promise<{ ok: boolean; count?: number; error?: string }>,
+
+  exportLogs: (content: string, defaultName?: string) =>
+    ipcRenderer.invoke('log:export', content, defaultName) as Promise<{ ok: boolean; error?: string }>,
+
   // --- Floating Quick Note Overlay ---
   showOverlay: () =>
     ipcRenderer.invoke('overlay:show') as Promise<{ ok: boolean }>,

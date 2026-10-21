@@ -99,7 +99,7 @@ export function sidebarMarkup(): string {
           <span class="nav-label">Launchpads</span>
           <span class="nav-key">L</span>
         </button>
-        <button class="nav-item ${currentView === 'Log' || currentView === 'AllLog' ? 'selected' : ''}" data-view="Log" title="Logs (G)">
+        <button class="nav-item ${currentView === 'Log' || currentView === 'AllLog' ? 'selected' : ''}" data-view="AllLog" title="Logs (G)">
           <span class="nav-icon">${uiIcon('list', 15)}</span>
           <span class="nav-label">Logs</span>
           <span class="nav-key">G</span>
@@ -642,8 +642,9 @@ export function logListMarkup(scope: 'space' | 'all' = 'space'): string {
   return groupsHtml + (more > 0 ? `<button class="show-more" id="show-more-logs">Show ${Math.min(more, 40)} more · ${more} remaining</button>` : '');
 }
 
-export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
-  if (scope === 'space' && !state.workspace) {
+export function logPanelMarkup(scope: 'space' | 'all' = 'all'): string {
+  const ws = state.workspace;
+  if (scope === 'space' && !ws) {
     return `
     <section class="log-panel">
       <p style="margin-top: 24px; color: var(--text-muted, #767676);">Create a Space to begin.</p>
@@ -653,30 +654,33 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
 
   const { matched, total } = visibleLogEntries(scope);
   const countLabel = logFilter.trim() || logFromDate || logToDate ? `${matched} of ${total}` : '';
+  const spaceLabel = ws ? ws.name : 'Current Space';
 
-  const composeBoxHtml = scope === 'space'
-    ? `
-      <div class="log-capture-card">
-        <span class="log-capture-icon">${uiIcon('pen', 14)}</span>
-        <textarea
-          id="log-compose-textarea"
-          class="log-capture-input"
-          placeholder="Log what you did… (Enter to save · Shift+Enter for new line)"
-          spellcheck="false"
-          rows="1"
-        >${escapeHtml(logPageDraft)}</textarea>
-      </div>`
-    : '';
+  const placeholderText = scope === 'all'
+    ? 'Log a global thought… (Enter to save · Shift+Enter for new line)'
+    : `Log to ${escapeHtml(spaceLabel)}… (Enter to save · Shift+Enter for new line)`;
+
+  const composeBoxHtml = `
+    <div class="log-capture-card">
+      <span class="log-capture-icon">${uiIcon('pen', 14)}</span>
+      <textarea
+        id="log-compose-textarea"
+        class="log-capture-input"
+        placeholder="${placeholderText}"
+        spellcheck="false"
+        rows="1"
+      >${escapeHtml(logPageDraft)}</textarea>
+    </div>`;
 
   return `
     <section class="log-panel" data-scope="${scope}">
       <div class="log-top-bar">
         <div class="log-scope-nav">
-          <button class="log-scope-btn ${scope === 'space' ? 'active' : ''}" data-log-scope="space" title="Space Logs">
-            <span>Local</span>
-          </button>
           <button class="log-scope-btn ${scope === 'all' ? 'active' : ''}" data-log-scope="all" title="View Full Global Logs">
             <span>Global</span>
+          </button>
+          <button class="log-scope-btn ${scope === 'space' ? 'active' : ''}" data-log-scope="space" title="${escapeHtml(spaceLabel)} Logs">
+            <span>${escapeHtml(spaceLabel)}</span>
           </button>
         </div>
         <div class="log-tools-right">
@@ -687,17 +691,25 @@ export function logPanelMarkup(scope: 'space' | 'all' = 'space'): string {
             <input type="date" id="log-to-date" value="${escapeHtml(logToDate)}" class="log-date-picker" title="To date" />
             <button type="button" id="reset-log-dates" class="log-mini-btn" title="Reset to last 7 days">7d</button>
           </div>
-          <div class="log-search-wrap">
-            <input
-              id="log-search"
-              class="log-search-small"
-              type="text"
-              placeholder="Search (Enter)…"
-              value="${escapeHtml(logFilter)}"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <button type="button" id="log-search-btn" class="log-search-btn" title="Search">${uiIcon('search', 12)}</button>
+          <button type="button" id="log-export-btn" class="log-mini-btn export-btn" title="Export filtered logs to markdown">
+            ${uiIcon('folder', 12)} <span>Export</span>
+          </button>
+          <div class="log-search-expandable ${logFilter ? 'open' : ''}" id="log-search-expandable">
+            <button type="button" class="log-mini-btn search-trigger-btn" id="log-search-trigger" title="Search logs (/)">
+              ${uiIcon('search', 12)}
+            </button>
+            <div class="log-search-input-wrap">
+              <input
+                id="log-search"
+                class="log-search-small"
+                type="text"
+                placeholder="Search… (Enter)"
+                value="${escapeHtml(logFilter)}"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="button" id="log-search-clear" class="log-search-clear" title="Clear (Esc)">✕</button>
+            </div>
           </div>
           <span class="log-count-badge">${countLabel}</span>
         </div>
@@ -877,6 +889,18 @@ export function notesPanelMarkup(): string {
       <div class="notes-title-wrap">
         <span class="notes-breadcrumb-root">Notes</span>
         ${active.bundle ? `<span class="notes-crumb-sep">/</span><span class="notes-bundle-tag">${escapeHtml(active.bundle)}</span>` : ''}
+        <span class="notes-crumb-sep">/</span>
+        <input
+          id="notes-title-input"
+          class="notes-title-header-input"
+          data-note-id="${escapeHtml(active.id)}"
+          value="${escapeHtml(active.name)}"
+          placeholder="Untitled Note"
+          maxlength="100"
+          spellcheck="false"
+          autocomplete="off"
+          title="Click to rename"
+        />
       </div>
       <div class="notes-editor-actions">
         <span class="note-save-status" id="note-save-status"></span>
@@ -884,26 +908,12 @@ export function notesPanelMarkup(): string {
           ${uiIcon('code', 13)}
           <span>Code</span>
         </button>
-        <button class="notes-action-btn" id="notes-export-btn" data-note-id="${escapeHtml(active.id)}" title="Export as markdown">
-          Export
-        </button>
-        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${escapeHtml(active.id)}" title="Delete note">
-          ${uiIcon('x', 13)}
+        <button class="notes-action-btn" id="notes-options-btn" data-note-id="${escapeHtml(active.id)}" title="Note options">
+          ${uiIcon('dots', 13)}
         </button>
       </div>
     </div>
     <div class="notes-document-canvas">
-      <input
-        id="notes-title-input"
-        class="notes-title-input"
-        data-note-id="${escapeHtml(active.id)}"
-        value="${escapeHtml(active.name)}"
-        placeholder="Untitled Note"
-        maxlength="100"
-        spellcheck="false"
-        autocomplete="off"
-        title="Click to rename"
-      />
       <textarea
         id="notes-editor"
         class="notes-editor-textarea"
