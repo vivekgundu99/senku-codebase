@@ -24,8 +24,11 @@ export function setLogPageDraft(text: string): void {
   logPageDraft = text;
 }
 
-// Active note for Notes panel
 export let activeNoteId: string | null = null;
+export let noteFilter = '';
+export function setNoteFilter(text: string): void {
+  noteFilter = text;
+}
 export const collapsedBundles = new Set<string>();
 
 export function toggleBundleCollapsed(bundle: string): void {
@@ -42,6 +45,7 @@ export function setState(snapshot: AppSnapshot): void {
 
   if (previousWorkspaceId !== newWorkspaceId) {
     activeNoteId = snapshot.activeNoteId ?? (snapshot.notes && snapshot.notes[0]?.id) ?? null;
+    noteFilter = '';
     logFilter = '';
     logDay = '';
     logLimit = LOG_PAGE;

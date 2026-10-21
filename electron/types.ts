@@ -70,6 +70,7 @@ export interface NoteFile {
   content: string;
   createdAt: number;
   updatedAt: number;
+  filePath?: string;
 }
 
 export interface TrashWorkspace {

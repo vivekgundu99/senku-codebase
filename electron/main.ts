@@ -1503,6 +1503,22 @@ ipcMain.handle('notes:export', async (_event, id: string) => {
   return { ok: true };
 });
 
+ipcMain.handle('notes:open-vscode', async (_event, id: string) => {
+  const nDir = globalNotesDir();
+  const notes = await listNotes(nDir);
+  const note = notes.find((n) => n.id === id);
+  if (!note || !note.filePath) return { ok: false, error: 'Note file not found.' };
+
+  try {
+    const cp = await import('node:child_process');
+    cp.spawn('code', [note.filePath], { shell: true, detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  } catch {
+    const err = await shell.openPath(note.filePath);
+    return { ok: !err, error: err || undefined };
+  }
+});
+
 ipcMain.handle('notes:export-all', async () => {
   const nDir = globalNotesDir();
   const notes = await listNotes(nDir);

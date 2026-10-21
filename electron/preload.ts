@@ -131,6 +131,9 @@ const api = {
   exportNote: (id: string) =>
     ipcRenderer.invoke('notes:export', id) as Promise<{ ok: boolean; error?: string }>,
 
+  openNoteInVSCode: (id: string) =>
+    ipcRenderer.invoke('notes:open-vscode', id) as Promise<{ ok: boolean; error?: string }>,
+
   importNotes: () =>
     ipcRenderer.invoke('notes:import') as Promise<{ snapshot: AppSnapshot; count: number; firstNoteId?: string } | null>,
 

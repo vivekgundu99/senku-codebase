@@ -139,6 +139,7 @@ export async function listNotes(notesDir: string): Promise<NoteFile[]> {
             content,
             createdAt: stat.birthtimeMs,
             updatedAt: stat.mtimeMs,
+            filePath,
           });
         } catch {
           // Skip unreadable files
@@ -162,6 +163,7 @@ export async function listNotes(notesDir: string): Promise<NoteFile[]> {
                   content,
                   createdAt: stat.birthtimeMs,
                   updatedAt: stat.mtimeMs,
+                  filePath,
                 });
               } catch {
                 // Skip unreadable files

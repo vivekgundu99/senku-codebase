@@ -11,6 +11,7 @@ import {
   visibleLogEntries,
   setActiveNoteId,
   activeNoteId,
+  setNoteFilter,
   setLogDay,
   logDay,
   allLog,
@@ -63,8 +64,25 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
   const panel = document.querySelector<HTMLElement>('.notes-panel');
   if (!panel) return;
 
-  // Create note button
-  panel.querySelector('#create-note-btn')?.addEventListener('click', () => openCreateNoteModal(load, render));
+  // Create note buttons
+  const openNewNote = () => openCreateNoteModal(load, render);
+  panel.querySelector('#create-note-btn')?.addEventListener('click', openNewNote);
+  panel.querySelector('#create-note-empty-btn')?.addEventListener('click', openNewNote);
+  panel.querySelector('#create-note-placeholder-btn')?.addEventListener('click', openNewNote);
+
+  // Search notes input
+  const searchInput = panel.querySelector<HTMLInputElement>('#notes-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      setNoteFilter(searchInput.value);
+      render();
+      const nextInput = document.querySelector<HTMLInputElement>('#notes-search-input');
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+      }
+    });
+  }
 
   // Create bundle button
   panel.querySelector('#create-bundle-btn')?.addEventListener('click', () => openCreateBundleModal(load, render));
@@ -171,28 +189,20 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     });
   }
 
-  // Quick append input
-  const appendInput = panel.querySelector<HTMLInputElement>('#notes-append-input');
-  if (appendInput) {
-    appendInput.addEventListener('keydown', async (e) => {
-      if (e.key !== 'Enter') return;
-      const snippet = appendInput.value.trim();
-      if (!snippet) return;
-      const noteId = appendInput.dataset.noteId!;
-      appendInput.value = '';
-      const snap = await window.senku.appendToNote(noteId, snippet);
-      setState(snap);
-      render();
-      // Auto-scroll editor to bottom so user sees appended text
-      requestAnimationFrame(() => {
-        const updatedEditor = document.querySelector<HTMLTextAreaElement>('#notes-editor');
-        if (updatedEditor) {
-          updatedEditor.scrollTop = updatedEditor.scrollHeight;
-        }
-        document.querySelector<HTMLInputElement>('#notes-append-input')?.focus();
-      });
-    });
-  }
+  // Open in VS Code
+  panel.querySelector('#notes-vscode-btn')?.addEventListener('click', async (e) => {
+    const id = (e.currentTarget as HTMLElement).dataset.noteId!;
+    if (textarea && noteSaveTimer) {
+      clearTimeout(noteSaveTimer);
+      noteSaveTimer = undefined;
+      await window.senku.updateNote(id, textarea.value);
+      if (statusEl) { statusEl.textContent = 'saved'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000); }
+    }
+    const res = await window.senku.openNoteInVSCode(id);
+    if (!res.ok) {
+      toast(res.error ?? 'Could not open in VS Code.');
+    }
+  });
 
   // Export
   panel.querySelector('#notes-export-btn')?.addEventListener('click', async (e) => {

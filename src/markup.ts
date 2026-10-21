@@ -10,6 +10,7 @@ import {
   visibleLogEntries,
   getCachedPathAvailability,
   activeNoteId,
+  noteFilter,
   collapsedBundles,
   homeLogDraft,
   logPageDraft,
@@ -32,6 +33,8 @@ const UI_ICONS: Record<string, string> = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   star: '<path d="M12 4l2.4 5 5.4.7-4 3.8 1 5.4-4.8-2.6-4.8 2.6 1-5.4-4-3.8 5.4-.7z"/>',
   alert: '<path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>',
+  code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+  folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
 };
 
 export const uiIcon = (name: string, size = 16): string =>
@@ -695,15 +698,24 @@ export function launchpadsPanelMarkup(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Notes panel — full note manager
+// Notes panel — distraction-free markdown note manager
 // ---------------------------------------------------------------------------
 
 export function notesPanelMarkup(): string {
-  const notes: NoteFile[] = state.notes ?? [];
+  const allNotes: NoteFile[] = state.notes ?? [];
   const bundles: string[] = state.bundles ?? [];
-  const active = notes.find((n) => n.id === activeNoteId) ?? notes[0] ?? null;
+  const q = noteFilter.trim().toLowerCase();
 
-  // Group notes into bundles and loose notes
+  // Filter notes if search query is active
+  const notes = q
+    ? allNotes.filter(
+        (n) => n.name.toLowerCase().includes(q) || (n.bundle && n.bundle.toLowerCase().includes(q)),
+      )
+    : allNotes;
+
+  const active = allNotes.find((n) => n.id === activeNoteId) ?? (allNotes.length > 0 ? allNotes[0] : null);
+
+  // Group into bundles and loose notes
   const bundledMap = new Map<string, NoteFile[]>();
   for (const b of bundles) {
     bundledMap.set(b, []);
@@ -723,18 +735,26 @@ export function notesPanelMarkup(): string {
   // Render bundles
   let bundlesHtml = '';
   for (const [bundleName, bNotes] of bundledMap.entries()) {
-    const isCollapsed = collapsedBundles.has(bundleName);
-    const notesInside = bNotes.map((n) => `
-      <button class="notes-list-item in-bundle ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}">
-        <span class="notes-item-name">${escapeHtml(n.name)}</span>
-        <span class="notes-item-meta">${formatRelativeTime(n.updatedAt)}</span>
-      </button>`).join('');
+    if (q && bNotes.length === 0 && !bundleName.toLowerCase().includes(q)) {
+      continue;
+    }
+    const isCollapsed = collapsedBundles.has(bundleName) && !q;
+    const notesInside = bNotes
+      .map(
+        (n) => `
+      <button class="notes-list-item in-bundle ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}" title="${escapeHtml(n.name)}">
+        <span class="notes-item-title">${escapeHtml(n.name)}</span>
+        <span class="notes-item-date">${formatRelativeTime(n.updatedAt)}</span>
+      </button>`,
+      )
+      .join('');
 
     bundlesHtml += `
       <div class="bundle-group ${isCollapsed ? 'collapsed' : ''}" data-bundle="${escapeHtml(bundleName)}">
         <div class="bundle-header">
-          <button class="bundle-toggle" data-toggle-bundle="${escapeHtml(bundleName)}" title="Expand / collapse folder">
+          <button class="bundle-toggle" data-toggle-bundle="${escapeHtml(bundleName)}" title="Toggle folder">
             <span class="bundle-chevron">${isCollapsed ? '›' : '▾'}</span>
+            <span class="bundle-icon">${uiIcon('folder', 13)}</span>
             <span class="bundle-name">${escapeHtml(bundleName)}</span>
             <span class="bundle-count">${bNotes.length}</span>
           </button>
@@ -747,49 +767,85 @@ export function notesPanelMarkup(): string {
       </div>`;
   }
 
-  const looseNotesHtml = looseNotes.map((n) => `
-    <button class="notes-list-item ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}">
-      <span class="notes-item-name">${escapeHtml(n.name)}</span>
-      <span class="notes-item-meta">${formatRelativeTime(n.updatedAt)}</span>
-    </button>`).join('');
+  const looseNotesHtml = looseNotes
+    .map(
+      (n) => `
+    <button class="notes-list-item ${active?.id === n.id ? 'active' : ''}" data-open-note="${escapeHtml(n.id)}" title="${escapeHtml(n.name)}">
+      <span class="notes-item-title">${escapeHtml(n.name)}</span>
+      <span class="notes-item-date">${formatRelativeTime(n.updatedAt)}</span>
+    </button>`,
+    )
+    .join('');
 
-  const hasContent = bundles.length > 0 || notes.length > 0;
-  const notesList = hasContent
-    ? `${bundlesHtml}${looseNotes.length > 0 && bundles.length > 0 ? '<div class="notes-section-divider">LOOSE NOTES</div>' : ''}${looseNotesHtml}`
-    : `<div class="notes-empty-list"><p>No notes yet.</p><small>Create a note or folder to start.</small></div>`;
+  let notesListHtml = '';
+  if (allNotes.length === 0 && bundles.length === 0) {
+    notesListHtml = `
+      <div class="notes-empty-list">
+        <div class="notes-empty-badge">${uiIcon('note', 20)}</div>
+        <p>No notes yet</p>
+        <small>Create your first note or folder.</small>
+        <button class="primary-button mini" id="create-note-empty-btn">+ Create a Note</button>
+      </div>`;
+  } else if (q && notes.length === 0) {
+    notesListHtml = `
+      <div class="notes-search-empty">
+        <p>No matching notes</p>
+        <small>Try another search term.</small>
+      </div>`;
+  } else {
+    notesListHtml = `
+      ${bundlesHtml}
+      ${looseNotes.length > 0 && bundles.length > 0 ? '<div class="notes-section-divider">LOOSE NOTES</div>' : ''}
+      ${looseNotesHtml}`;
+  }
 
-  const editorArea = active ? `
+  const editorArea = active
+    ? `
     <div class="notes-editor-head">
       <div class="notes-title-wrap">
         ${active.bundle ? `<span class="notes-bundle-tag" title="Folder: ${escapeHtml(active.bundle)}">${escapeHtml(active.bundle)} /</span>` : ''}
-        <input
-          id="notes-title-input"
-          class="notes-editor-title-input"
-          data-note-id="${escapeHtml(active.id)}"
-          value="${escapeHtml(active.name)}"
-          placeholder="Note title..."
-          maxlength="100"
-          spellcheck="false"
-          title="Click to rename note"
-        />
+        <span class="notes-editor-meta-info">Updated ${formatRelativeTime(active.updatedAt)}</span>
       </div>
       <div class="notes-editor-actions">
         <span class="note-save-status" id="note-save-status"></span>
-        <button class="notes-action-btn" id="notes-export-btn" data-note-id="${escapeHtml(active.id)}" title="Export as .txt">↓ Export</button>
-        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${escapeHtml(active.id)}" title="Delete note">${uiIcon('x', 12)}</button>
+        <button class="notes-action-btn vscode-btn" id="notes-vscode-btn" data-note-id="${escapeHtml(active.id)}" title="Open in VS Code">
+          ${uiIcon('code', 13)}
+          <span>Code</span>
+        </button>
+        <button class="notes-action-btn" id="notes-export-btn" data-note-id="${escapeHtml(active.id)}" title="Export as markdown">
+          Export
+        </button>
+        <button class="notes-action-btn danger" id="notes-delete-btn" data-note-id="${escapeHtml(active.id)}" title="Delete note">
+          ${uiIcon('x', 13)}
+        </button>
       </div>
     </div>
-    <textarea
-      id="notes-editor"
-      class="notes-textarea"
-      data-note-id="${escapeHtml(active.id)}"
-      placeholder="Start writing..."
-      spellcheck="false"
-    >${escapeHtml(active.content)}</textarea>
-    ` : `
+    <div class="notes-document-canvas">
+      <input
+        id="notes-title-input"
+        class="notes-title-input"
+        data-note-id="${escapeHtml(active.id)}"
+        value="${escapeHtml(active.name)}"
+        placeholder="Untitled Note"
+        maxlength="100"
+        spellcheck="false"
+        autocomplete="off"
+        title="Click to rename"
+      />
+      <textarea
+        id="notes-editor"
+        class="notes-editor-textarea"
+        data-note-id="${escapeHtml(active.id)}"
+        placeholder="Start writing markdown..."
+        spellcheck="false"
+      >${escapeHtml(active.content)}</textarea>
+    </div>`
+    : `
     <div class="notes-editor-placeholder">
-      <span>✎</span>
-      <p>${notes.length ? 'Select a note to edit it.' : 'Create your first note.'}</p>
+      <div class="notes-placeholder-icon">${uiIcon('note', 32)}</div>
+      <h3>${allNotes.length ? 'Select a note to read or edit' : 'No note selected'}</h3>
+      <p>${allNotes.length ? 'Choose a note from the left sidebar to start editing.' : 'Capture thoughts, code snippets, and ideas in distraction-free markdown.'}</p>
+      <button class="primary-button" id="create-note-placeholder-btn">+ New Note</button>
     </div>`;
 
   return `
@@ -798,11 +854,21 @@ export function notesPanelMarkup(): string {
         <div class="notes-sidebar-head">
           <span class="section-kicker">NOTES</span>
           <div class="notes-sidebar-actions">
-            <button class="ghost-button mini" id="create-bundle-btn" title="Create a folder/bundle">+ Folder</button>
-            <button class="add-button small" id="create-note-btn" title="New note">+</button>
+            <button class="ghost-button mini" id="create-bundle-btn" title="Create a folder">+ Folder</button>
+            <button class="primary-button mini" id="create-note-btn" title="Create a new note">+ Note</button>
           </div>
         </div>
-        <div class="notes-list">${notesList}</div>
+        <div class="notes-search-wrap">
+          <input
+            id="notes-search-input"
+            type="search"
+            placeholder="Search notes..."
+            value="${escapeHtml(noteFilter)}"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="notes-list">${notesListHtml}</div>
       </div>
       <div class="notes-main">
         ${editorArea}
