@@ -14,6 +14,7 @@ import {
 import type { IpcMainInvokeEvent } from 'electron';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as cp from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type {
   AppSnapshot,
@@ -1336,11 +1337,37 @@ ipcMain.handle('path:exists-many', async (_event, paths: string[]) => {
 // V3: Quick Actions (VS Code / Terminal)
 // ---------------------------------------------------------------------------
 
+function launchVSCode(targetFolder: string, targetFile?: string): { ok: boolean; error?: string } {
+  try {
+    const args = targetFile ? [targetFolder, targetFile] : [targetFolder];
+    const child = cp.spawn('code', args, { shell: true, detached: true, stdio: 'ignore' });
+    child.on('error', () => {
+      if (targetFile) shell.openPath(targetFile);
+      else shell.openPath(targetFolder);
+    });
+    child.unref();
+    return { ok: true };
+  } catch (err) {
+    if (targetFile) shell.openPath(targetFile);
+    else shell.openPath(targetFolder);
+    return { ok: true };
+  }
+}
+
 ipcMain.handle('code:open', async (_event, targetPath: string) => {
   try {
-    const cp = await import('node:child_process');
-    cp.spawn('code', [targetPath], { shell: true, detached: true, stdio: 'ignore' }).unref();
-    return { ok: true };
+    let folder = targetPath;
+    let file: string | undefined;
+    try {
+      const stat = await fs.stat(targetPath);
+      if (!stat.isDirectory()) {
+        folder = path.dirname(targetPath);
+        file = targetPath;
+      }
+    } catch {
+      // fallback
+    }
+    return launchVSCode(folder, file);
   } catch (err) {
     return { ok: false, error: String(err) };
   }
@@ -1509,27 +1536,18 @@ ipcMain.handle('notes:open-vscode', async (_event, id: string) => {
   const note = notes.find((n) => n.id === id);
   if (!note || !note.filePath) return { ok: false, error: 'Note file not found.' };
 
-  try {
-    const cp = await import('node:child_process');
-    cp.spawn('code', [note.filePath], { shell: true, detached: true, stdio: 'ignore' }).unref();
-    return { ok: true };
-  } catch {
-    const err = await shell.openPath(note.filePath);
-    return { ok: !err, error: err || undefined };
-  }
+  const folder = note.bundle ? path.join(nDir, note.bundle) : nDir;
+  return launchVSCode(folder, note.filePath);
 });
 
 ipcMain.handle('notes:open-bundle-vscode', async (_event, bundleName: string) => {
   const nDir = globalNotesDir();
-  const folderPath = path.join(nDir, bundleName);
+  const folderPath = bundleName ? path.join(nDir, bundleName) : nDir;
   try {
     await fs.mkdir(folderPath, { recursive: true });
-    const cp = await import('node:child_process');
-    cp.spawn('code', [folderPath], { shell: true, detached: true, stdio: 'ignore' }).unref();
-    return { ok: true };
-  } catch {
-    const err = await shell.openPath(folderPath);
-    return { ok: !err, error: err || undefined };
+    return launchVSCode(folderPath);
+  } catch (err) {
+    return { ok: false, error: String(err) };
   }
 });
 
