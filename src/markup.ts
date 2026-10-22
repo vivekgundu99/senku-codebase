@@ -15,8 +15,12 @@ import {
   collapsedBundles,
   homeLogDraft,
   logPageDraft,
+  activeNotePageIndex,
+  isNoteAllPagesView,
+  isNotePreviewMode,
 } from './state';
-import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting } from './utils';
+import { escapeHtml, folderName, isSamePath, pathCrumbs, renderGreeting, parseNotePages } from './utils';
+import { marked } from 'marked';
 
 // ---------------------------------------------------------------------------
 // UI stroke icons: uniform geometric stroke icons across the application
@@ -43,6 +47,8 @@ const UI_ICONS: Record<string, string> = {
   arrowUp: '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>',
   chevronRight: '<polyline points="9 18 15 12 9 6"/>',
   copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
 };
 
 export const uiIcon = (name: string, size = 16): string =>
@@ -232,8 +238,7 @@ export function fileEntryMarkup(entry: FileEntry): string {
     : `data-file-action="pin" title="Pin to top"`;
 
   const sizeLabel = entry.kind === 'file' ? formatFileSize(entry.size) : '';
-  const timeLabel = entry.modifiedAt ? formatRelativeTime(new Date(entry.modifiedAt).getTime()) : '';
-  const metaParts = [sizeLabel, timeLabel].filter(Boolean).join(' · ');
+  const metaParts = sizeLabel;
 
   return `
     <div class="file-row ${entry.pinned ? 'pinned' : ''}" data-path="${escapeHtml(entry.path)}" data-kind="${entry.kind}">
@@ -243,10 +248,8 @@ export function fileEntryMarkup(entry: FileEntry): string {
           <span class="file-name">${escapeHtml(entry.name)}</span>
           ${metaParts ? `<span class="file-meta">${escapeHtml(metaParts)}</span>` : ''}
         </div>
-        ${entry.pinned ? '<span class="pinned-indicator">pinned</span>' : ''}
       </button>
       <span class="file-actions">
-        <button data-file-action="code" data-path="${escapeHtml(entry.path)}" class="quick-code-btn" title="Open in VS Code">${uiIcon('code', 11)} <span>Code</span></button>
         <button data-path="${escapeHtml(entry.path)}" ${pinAction}
           class="pin-button ${entry.pinned ? 'active' : ''}" aria-label="${entry.pinned ? 'Unpin' : 'Pin'}">${uiIcon('star', 12)}</button>
         <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" class="quick-copy-btn" title="Copy path">${uiIcon('copy', 11)} <span>Copy</span></button>
@@ -420,7 +423,7 @@ export function homePanelV3Markup(): string {
     ? launchpads.slice(0, 5).map(homeLaunchpadRowMarkup).join('')
     : `<div class="home-lp-empty">
          <p>No launchpads yet.</p>
-         <button class="secondary-button mini" data-view="Launchpads">+ Create a Launchpad</button>
+         <button class="secondary-button mini" data-view="Launchpads">Create</button>
        </div>`;
 
   return `
@@ -890,6 +893,11 @@ export function notesPanelMarkup(): string {
       ${looseNotesHtml}`;
   }
 
+  const pages = active ? parseNotePages(active.content) : [''];
+  const currentPageIndex = Math.min(Math.max(0, activeNotePageIndex), Math.max(0, pages.length - 1));
+  const currentContent = isNoteAllPagesView ? (active?.content ?? '') : (pages[currentPageIndex] ?? '');
+  const previewHtml = isNotePreviewMode ? (marked.parse(currentContent, { gfm: true, breaks: true }) as string) : '';
+
   const editorArea = active
     ? `
     <div class="notes-editor-head">
@@ -911,6 +919,10 @@ export function notesPanelMarkup(): string {
       </div>
       <div class="notes-editor-actions">
         <span class="note-save-status" id="note-save-status"></span>
+        <button class="notes-action-btn ${isNotePreviewMode ? 'active' : ''}" id="notes-preview-toggle-btn" title="${isNotePreviewMode ? 'Edit Note' : 'Preview Markdown'}">
+          ${uiIcon(isNotePreviewMode ? 'pen' : 'eye', 13)}
+          <span>${isNotePreviewMode ? 'Edit' : 'Preview'}</span>
+        </button>
         <button class="notes-action-btn vscode-btn" id="notes-vscode-btn" data-note-id="${escapeHtml(active.id)}" title="Open in VS Code">
           ${uiIcon('code', 13)}
           <span>Code</span>
@@ -921,13 +933,40 @@ export function notesPanelMarkup(): string {
       </div>
     </div>
     <div class="notes-document-canvas">
-      <textarea
-        id="notes-editor"
-        class="notes-editor-textarea"
-        data-note-id="${escapeHtml(active.id)}"
-        placeholder="Start writing markdown..."
-        spellcheck="false"
-      >${escapeHtml(active.content)}</textarea>
+      ${isNotePreviewMode
+        ? `<div class="notes-markdown-preview" id="notes-markdown-preview">${previewHtml || '<p class="notes-preview-empty">Empty note page. Click Edit to start writing.</p>'}</div>`
+        : `<textarea
+            id="notes-editor"
+            class="notes-editor-textarea"
+            data-note-id="${escapeHtml(active.id)}"
+            placeholder="${isNoteAllPagesView ? 'Start writing (all pages)...' : `Start writing on Page ${currentPageIndex + 1}...`}"
+            spellcheck="false"
+          >${escapeHtml(currentContent)}</textarea>`
+      }
+    </div>
+    <div class="notes-pages-bar">
+      <div class="notes-pages-nav">
+        <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
+        <div class="notes-pages-list">
+          ${pages.map((_, i) => `
+            <button type="button" class="notes-page-circle ${!isNoteAllPagesView && i === currentPageIndex ? 'active' : ''}" data-page-index="${i}" title="Page ${i + 1}">
+              ${i + 1}
+            </button>
+          `).join('')}
+        </div>
+        <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page" ${currentPageIndex >= pages.length - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
+        <button type="button" class="notes-page-add-btn" id="notes-page-add" title="Add clean page">+ Page</button>
+      </div>
+      <div class="notes-pages-actions">
+        ${pages.length > 1 && !isNoteAllPagesView ? `
+          <button type="button" class="notes-page-delete-btn" id="notes-page-delete" title="Delete current page">
+            ${uiIcon('trash', 12)}
+          </button>
+        ` : ''}
+        <button type="button" class="notes-pages-mode-btn ${isNoteAllPagesView ? 'active' : ''}" id="notes-toggle-all-view" title="${isNoteAllPagesView ? 'Switch to single page view' : 'View full note (all pages)'}">
+          ${isNoteAllPagesView ? 'Page view' : 'All'}
+        </button>
+      </div>
     </div>`
     : `
     <div class="notes-editor-placeholder">
@@ -941,22 +980,26 @@ export function notesPanelMarkup(): string {
     <section class="notes-panel">
       <div class="notes-sidebar">
         <div class="notes-sidebar-head">
-          <span class="notes-sidebar-title">Notes</span>
+          <div class="notes-search-expandable ${noteFilter ? 'open' : ''}" id="notes-search-expandable">
+            <button type="button" class="notes-head-btn" id="notes-search-trigger" title="Search notes" aria-label="Search notes">
+              ${uiIcon('search', 13)}
+            </button>
+            <div class="notes-search-input-wrap">
+              <input
+                id="notes-search-input"
+                type="search"
+                placeholder="Search notes..."
+                value="${escapeHtml(noteFilter)}"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="button" id="notes-search-clear" class="notes-search-clear" title="Clear">✕</button>
+            </div>
+          </div>
           <div class="notes-sidebar-actions">
             <button class="notes-head-btn" id="create-bundle-btn" title="New folder" aria-label="New folder">${uiIcon('folder', 14)}</button>
             <button class="notes-head-btn primary" id="create-note-btn" title="New note" aria-label="New note">${uiIcon('plus', 14)}</button>
           </div>
-        </div>
-        <div class="notes-search-wrap">
-          <span class="notes-search-icon">${uiIcon('search', 12)}</span>
-          <input
-            id="notes-search-input"
-            type="search"
-            placeholder="Search notes..."
-            value="${escapeHtml(noteFilter)}"
-            autocomplete="off"
-            spellcheck="false"
-          />
         </div>
         <div class="notes-list">${notesListHtml}</div>
       </div>

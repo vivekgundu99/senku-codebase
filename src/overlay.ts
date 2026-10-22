@@ -1,6 +1,5 @@
 const inputEl = document.querySelector<HTMLTextAreaElement>('#overlay-input')!;
 const targetNameEl = document.querySelector<HTMLElement>('#overlay-target-name')!;
-const modeBadgeEl = document.querySelector<HTMLElement>('#overlay-mode-badge');
 const closeBtn = document.querySelector<HTMLButtonElement>('#overlay-close-btn')!;
 
 let mode: 'Note' | 'Log' = 'Note';
@@ -104,7 +103,7 @@ async function doSubmit(): Promise<void> {
   }
 }
 
-modeBadgeEl?.addEventListener('click', (e) => {
+targetNameEl?.addEventListener('click', (e) => {
   e.preventDefault();
   toggleMode();
 });

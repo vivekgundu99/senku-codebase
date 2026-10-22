@@ -928,6 +928,22 @@ ipcMain.handle('folder:choose', async () => {
   return result.canceled ? null : result.filePaths[0];
 });
 
+ipcMain.handle('files:choose', async (_event, defaultDir?: string) => {
+  let defaultPath = app.getPath('desktop');
+  if (defaultDir && typeof defaultDir === 'string') {
+    try {
+      const stat = await fs.stat(defaultDir);
+      defaultPath = stat.isDirectory() ? defaultDir : path.dirname(defaultDir);
+    } catch {}
+  }
+  const result = await dialog.showOpenDialog({
+    title: 'Select Files for Launchpad',
+    defaultPath,
+    properties: ['openFile', 'multiSelections'],
+  });
+  return result.canceled ? [] : result.filePaths;
+});
+
 ipcMain.handle('folder:desktop-path', () => app.getPath('desktop'));
 
 handleLocked('app:get-snapshot', (_event, requestedPath?: string) =>

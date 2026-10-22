@@ -8,6 +8,9 @@ const api = {
   chooseMasterFolder: () =>
     ipcRenderer.invoke('folder:choose') as Promise<string | null>,
 
+  chooseFiles: (defaultDir?: string) =>
+    ipcRenderer.invoke('files:choose', defaultDir) as Promise<string[]>,
+
   getDesktopPath: () =>
     ipcRenderer.invoke('folder:desktop-path') as Promise<string>,
 

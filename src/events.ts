@@ -25,9 +25,15 @@ import {
   logPageDraft,
   setLogPageDraft,
   setCurrentFolder,
+  activeNotePageIndex,
+  setActiveNotePageIndex,
+  isNoteAllPagesView,
+  setIsNoteAllPagesView,
+  isNotePreviewMode,
+  setIsNotePreviewMode,
 } from './state';
 import { fileCountLabel, fileListMarkup, filePanelMarkup, logListMarkup, uiIcon } from './markup';
-import { isSamePath, parentOf } from './utils';
+import { isSamePath, parentOf, parseNotePages, joinNotePages } from './utils';
 import { registerShortcuts } from './shortcuts';
 import { toast } from './toast';
 import { openPalette } from './palette';
@@ -74,8 +80,26 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
   panel.querySelector('#create-note-empty-btn')?.addEventListener('click', openNewNote);
   panel.querySelector('#create-note-placeholder-btn')?.addEventListener('click', openNewNote);
 
-  // Search notes input
+  // Search notes expandable
+  const searchExpandable = panel.querySelector<HTMLElement>('#notes-search-expandable');
+  const searchTrigger = panel.querySelector<HTMLElement>('#notes-search-trigger');
+  const searchClear = panel.querySelector<HTMLElement>('#notes-search-clear');
   const searchInput = panel.querySelector<HTMLInputElement>('#notes-search-input');
+
+  searchTrigger?.addEventListener('click', () => {
+    searchExpandable?.classList.add('open');
+    searchInput?.focus();
+    searchInput?.select();
+  });
+
+  searchClear?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
+    setNoteFilter('');
+    render();
+    const nextExp = document.querySelector<HTMLElement>('#notes-search-expandable');
+    nextExp?.classList.remove('open');
+  });
+
   if (searchInput) {
     searchInput.addEventListener('input', () => {
       setNoteFilter(searchInput.value);
@@ -84,6 +108,16 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
       if (nextInput) {
         nextInput.focus();
         nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+      }
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        searchInput.value = '';
+        setNoteFilter('');
+        render();
+        const nextExp = document.querySelector<HTMLElement>('#notes-search-expandable');
+        nextExp?.classList.remove('open');
       }
     });
   }
@@ -207,6 +241,47 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
   const textarea = panel.querySelector<HTMLTextAreaElement>('#notes-editor');
   const statusEl = panel.querySelector<HTMLElement>('#note-save-status');
 
+  // Helper to resolve full note content considering multi-page mode
+  const getFullNoteContent = (val: string): string => {
+    if (!textarea) return val;
+    const noteId = textarea.dataset.noteId;
+    const note = state.notes?.find((n) => n.id === noteId);
+    if (!note) return val;
+
+    if (isNoteAllPagesView) {
+      note.content = val;
+      return val;
+    }
+
+    const curPages = parseNotePages(note.content);
+    while (curPages.length <= activeNotePageIndex) curPages.push('');
+    curPages[activeNotePageIndex] = val;
+    const full = joinNotePages(curPages);
+    note.content = full;
+    return full;
+  };
+
+  const flushNoteSave = async (): Promise<void> => {
+    if (noteSaveTimer) {
+      clearTimeout(noteSaveTimer);
+      noteSaveTimer = undefined;
+    }
+    if (textarea) {
+      const noteId = textarea.dataset.noteId;
+      if (noteId) {
+        const full = getFullNoteContent(textarea.value);
+        try {
+          const snap = await window.senku.updateNote(noteId, full);
+          setState(snap);
+          if (statusEl) {
+            statusEl.textContent = 'saved';
+            setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 1500);
+          }
+        } catch {}
+      }
+    }
+  };
+
   if (titleInput) {
     const saveTitle = async () => {
       const noteId = titleInput.dataset.noteId!;
@@ -214,17 +289,7 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
       if (!newName) return;
       const note = state.notes?.find((n) => n.id === noteId);
       if (note && note.name !== newName) {
-        if (noteSaveTimer) {
-          clearTimeout(noteSaveTimer);
-          noteSaveTimer = undefined;
-        }
-        if (textarea) {
-          try {
-            await window.senku.updateNote(noteId, textarea.value);
-          } catch {
-            // 'Note not found.' swallowed silently
-          }
-        }
+        await flushNoteSave();
         const { snapshot: snap, id: newId } = await window.senku.renameNote(noteId, newName);
         setActiveNoteId(newId);
         setState(snap);
@@ -240,35 +305,167 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     titleInput.addEventListener('blur', () => void saveTitle());
   }
 
-  // Editor autosave
+  // Preview / Edit toggle
+  panel.querySelector('#notes-preview-toggle-btn')?.addEventListener('click', async () => {
+    await flushNoteSave();
+    setIsNotePreviewMode(!isNotePreviewMode);
+    render();
+  });
+
+  // Intercept links in preview mode
+  panel.querySelectorAll<HTMLAnchorElement>('#notes-markdown-preview a').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const href = a.getAttribute('href');
+      if (href) void window.senku.openPath(href);
+    });
+  });
+
+  // Interactive task checkboxes in markdown preview mode
+  const previewEl = panel.querySelector<HTMLElement>('#notes-markdown-preview');
+  if (previewEl) {
+    const checkboxes = previewEl.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    checkboxes.forEach((cb, index) => {
+      cb.removeAttribute('disabled');
+      cb.addEventListener('change', async () => {
+        const note = state.notes?.find((n) => n.id === activeNoteId);
+        if (!note) return;
+        const pages = parseNotePages(note.content);
+        const curIdx = Math.min(Math.max(0, activeNotePageIndex), Math.max(0, pages.length - 1));
+        const targetText = isNoteAllPagesView ? note.content : (pages[curIdx] ?? '');
+
+        let occurrence = 0;
+        const taskRegex = /^(\s*[-*+]\s+\[)([ xX])(\]\s+.*)$/gm;
+        const updatedText = targetText.replace(taskRegex, (match, prefix, _check, suffix) => {
+          if (occurrence === index) {
+            occurrence++;
+            return `${prefix}${cb.checked ? 'x' : ' '}${suffix}`;
+          }
+          occurrence++;
+          return match;
+        });
+
+        if (isNoteAllPagesView) {
+          note.content = updatedText;
+        } else {
+          pages[curIdx] = updatedText;
+          note.content = joinNotePages(pages);
+        }
+
+        const snap = await window.senku.updateNote(note.id, note.content);
+        setState(snap);
+      });
+    });
+  }
+
+  // Editor autosave (relaxed 4s debounce + save immediately on blur)
   if (textarea) {
     textarea.addEventListener('input', () => {
       const noteId = textarea.dataset.noteId!;
-      const content = textarea.value;
+      const full = getFullNoteContent(textarea.value);
       if (statusEl) { statusEl.textContent = 'saving…'; }
       clearTimeout(noteSaveTimer);
       noteSaveTimer = setTimeout(async () => {
         noteSaveTimer = undefined;
         try {
-          const snap = await window.senku.updateNote(noteId, content);
+          const snap = await window.senku.updateNote(noteId, full);
           setState(snap);
-          if (statusEl && textarea.value === content) { statusEl.textContent = 'saved'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000); }
+          if (statusEl && textarea && (isNoteAllPagesView ? textarea.value === full : true)) {
+            statusEl.textContent = 'saved';
+            setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
+          }
         } catch {
           // 'Note not found.' swallowed silently
         }
-      }, 1200);
+      }, 4000);
+    });
+
+    textarea.addEventListener('blur', () => {
+      void flushNoteSave();
     });
   }
+
+  // Page Navigation
+  panel.querySelector('#notes-page-prev')?.addEventListener('click', async () => {
+    await flushNoteSave();
+    if (activeNotePageIndex > 0) {
+      setActiveNotePageIndex(activeNotePageIndex - 1);
+      setIsNoteAllPagesView(false);
+      render();
+    }
+  });
+
+  panel.querySelector('#notes-page-next')?.addEventListener('click', async () => {
+    await flushNoteSave();
+    const note = state.notes?.find((n) => n.id === activeNoteId);
+    const curPages = parseNotePages(note?.content || '');
+    if (activeNotePageIndex < curPages.length - 1) {
+      setActiveNotePageIndex(activeNotePageIndex + 1);
+      setIsNoteAllPagesView(false);
+      render();
+    }
+  });
+
+  panel.querySelectorAll<HTMLElement>('.notes-page-circle[data-page-index]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await flushNoteSave();
+      const idx = parseInt(btn.dataset.pageIndex ?? '0', 10);
+      setActiveNotePageIndex(idx);
+      setIsNoteAllPagesView(false);
+      render();
+    });
+  });
+
+  panel.querySelector('#notes-page-add')?.addEventListener('click', async () => {
+    await flushNoteSave();
+    const note = state.notes?.find((n) => n.id === activeNoteId);
+    if (note) {
+      const curPages = parseNotePages(note.content);
+      curPages.push('');
+      const full = joinNotePages(curPages);
+      note.content = full;
+      const snap = await window.senku.updateNote(note.id, full);
+      setState(snap);
+      setActiveNotePageIndex(curPages.length - 1);
+      setIsNoteAllPagesView(false);
+      setIsNotePreviewMode(false);
+      render();
+      document.querySelector<HTMLTextAreaElement>('#notes-editor')?.focus();
+    }
+  });
+
+  panel.querySelector('#notes-page-delete')?.addEventListener('click', async () => {
+    const note = state.notes?.find((n) => n.id === activeNoteId);
+    if (note) {
+      const curPages = parseNotePages(note.content);
+      if (curPages.length > 1) {
+        const pageText = curPages[activeNotePageIndex]?.trim();
+        if (pageText && !confirm(`Delete Page ${activeNotePageIndex + 1}?`)) return;
+        if (noteSaveTimer) {
+          clearTimeout(noteSaveTimer);
+          noteSaveTimer = undefined;
+        }
+        curPages.splice(activeNotePageIndex, 1);
+        const full = joinNotePages(curPages);
+        note.content = full;
+        const snap = await window.senku.updateNote(note.id, full);
+        setState(snap);
+        setActiveNotePageIndex(Math.max(0, activeNotePageIndex - 1));
+        render();
+      }
+    }
+  });
+
+  panel.querySelector('#notes-toggle-all-view')?.addEventListener('click', async () => {
+    await flushNoteSave();
+    setIsNoteAllPagesView(!isNoteAllPagesView);
+    render();
+  });
 
   // Open in VS Code
   panel.querySelector('#notes-vscode-btn')?.addEventListener('click', async (e) => {
     const id = (e.currentTarget as HTMLElement).dataset.noteId!;
-    if (textarea && noteSaveTimer) {
-      clearTimeout(noteSaveTimer);
-      noteSaveTimer = undefined;
-      await window.senku.updateNote(id, textarea.value);
-      if (statusEl) { statusEl.textContent = 'saved'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000); }
-    }
+    await flushNoteSave();
     const res = await window.senku.openNoteInVSCode(id);
     if (!res.ok) {
       toast(res.error ?? 'Could not open in VS Code.');

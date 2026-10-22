@@ -315,7 +315,6 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
         <div class="dialog-field-header">
           <label for="lp-paths-input">Paths & URLs (one per line)</label>
           <div class="lp-quick-actions">
-            ${currentPath ? '<button type="button" id="lp-add-current" class="lp-pill-btn">+ Current Folder</button>' : ''}
             <button type="button" id="lp-browse" class="lp-pill-btn">+ Browse</button>
           </div>
         </div>
@@ -337,17 +336,12 @@ export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, e
 
   const textarea = overlay.querySelector<HTMLTextAreaElement>('#lp-paths-input')!;
 
-  overlay.querySelector('#lp-add-current')?.addEventListener('click', () => {
-    if (!currentPath) return;
-    const current = textarea.value.trim();
-    textarea.value = current ? `${current}\n${currentPath}` : currentPath;
-  });
-
   overlay.querySelector('#lp-browse')?.addEventListener('click', async () => {
-    const folder = await window.senku.chooseMasterFolder();
-    if (folder) {
+    const filePaths = await window.senku.chooseFiles(currentPath);
+    if (filePaths && filePaths.length > 0) {
+      const added = filePaths.join('\n');
       const current = textarea.value.trim();
-      textarea.value = current ? `${current}\n${folder}` : folder;
+      textarea.value = current ? `${current}\n${added}` : added;
     }
   });
 
@@ -495,15 +489,14 @@ export function openCreateNoteModal(load: (path?: string) => Promise<void>, rend
   const overlay = createOverlay(`
     <form class="modal-card note-dialog-card">
       <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
-      <span class="settings-kicker">NEW NOTE</span>
       <h2 class="dialog-title">New Note</h2>
       <div class="dialog-field">
-        <label for="new-note-name-input">Note Name</label>
+        <label for="new-note-name-input">Name</label>
         <input name="name" id="new-note-name-input" required placeholder="e.g. Algorithms" autocomplete="off" autofocus />
       </div>
       ${bundleOptions}
       <p class="form-error" id="note-create-error"></p>
-      <button class="primary-button mini" type="submit">Create Note</button>
+      <button class="primary-button mini" type="submit">Create</button>
     </form>`);
 
   requestAnimationFrame(() => {

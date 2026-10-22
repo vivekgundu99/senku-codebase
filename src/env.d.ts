@@ -6,6 +6,7 @@ declare global {
       getSnapshot(path?: string): Promise<AppSnapshot>;
       readFolder(folderPath: string): Promise<{ entries: FileEntry[]; currentPath: string }>;
       chooseMasterFolder(): Promise<string | null>;
+      chooseFiles(defaultDir?: string): Promise<string[]>;
       getDesktopPath(): Promise<string>;
       saveSettings(settings: Settings): Promise<AppSnapshot>;
       createWorkspace(name: string, masterFolder: string): Promise<AppSnapshot>;

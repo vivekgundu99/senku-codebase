@@ -25,6 +25,22 @@ export function setLogPageDraft(text: string): void {
 }
 
 export let activeNoteId: string | null = null;
+export let activeNotePageIndex = 0;
+export let isNoteAllPagesView = false;
+export let isNotePreviewMode = false;
+
+export function setActiveNotePageIndex(idx: number): void {
+  activeNotePageIndex = Math.max(0, idx);
+}
+
+export function setIsNoteAllPagesView(val: boolean): void {
+  isNoteAllPagesView = val;
+}
+
+export function setIsNotePreviewMode(val: boolean): void {
+  isNotePreviewMode = val;
+}
+
 export let noteFilter = '';
 export function setNoteFilter(text: string): void {
   noteFilter = text;
@@ -112,6 +128,11 @@ export function setQuickLogText(value: string): void {
 }
 
 export function setActiveNoteId(id: string | null): void {
+  if (activeNoteId !== id) {
+    activeNotePageIndex = 0;
+    isNoteAllPagesView = false;
+    isNotePreviewMode = false;
+  }
   activeNoteId = id;
   packInactiveBundles();
 }
