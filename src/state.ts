@@ -41,6 +41,12 @@ export function setIsNotePreviewMode(val: boolean): void {
   isNotePreviewMode = val;
 }
 
+export let isNotesSidebarCollapsed = localStorage.getItem('senku:notesSidebarCollapsed') === 'true';
+export function toggleNotesSidebarCollapsed(): void {
+  isNotesSidebarCollapsed = !isNotesSidebarCollapsed;
+  localStorage.setItem('senku:notesSidebarCollapsed', String(isNotesSidebarCollapsed));
+}
+
 export let noteFilter = '';
 export function setNoteFilter(text: string): void {
   noteFilter = text;

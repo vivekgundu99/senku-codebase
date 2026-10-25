@@ -250,8 +250,8 @@
 
   <main>
     <div class="doc-title-row">
-      <h1>Senku V3 Reference Manual</h1>
-      <p class="doc-subtitle">Official technical documentation and keyboard shortcuts reference for Senku 3.0.</p>
+      <h1>Senku V3.1 Reference Manual</h1>
+      <p class="doc-subtitle">Official technical documentation, workflow guide, and keyboard shortcuts reference for Senku 3.1.</p>
     </div>
 
     <nav class="toc-nav">
@@ -335,7 +335,7 @@
         </table>
       </div>
 
-      <h3>Global Hotkeys</h3>
+      <h3>Global &amp; Notes Hotkeys</h3>
       <div class="table-card">
         <table>
           <thead>
@@ -360,6 +360,21 @@
               <td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td>
               <td>Global in App</td>
               <td>Focus log capture textarea or navigate to Log Station.</td>
+            </tr>
+            <tr>
+              <td><kbd>Ctrl</kbd> + <kbd>\</kbd></td>
+              <td>Notes View</td>
+              <td>Collapse or expand notes folder view for full-width reading &amp; writing.</td>
+            </tr>
+            <tr>
+              <td><kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd></td>
+              <td>Notes Editor</td>
+              <td>Instant page swapping while typing inside the note editor.</td>
+            </tr>
+            <tr>
+              <td><kbd>←</kbd> / <kbd>→</kbd></td>
+              <td>Notes Preview</td>
+              <td>Swap note pages directly while reading in Markdown Preview mode.</td>
             </tr>
             <tr>
               <td><kbd>Esc</kbd></td>
@@ -426,12 +441,13 @@
 
     <!-- SECTION 4: NOTES -->
     <section id="notes">
-      <h2>4. Notes &amp; Bundle Folders</h2>
-      <p>Distraction-free local Markdown notes manager.</p>
+      <h2>4. Notes &amp; Bundles</h2>
+      <p>Distraction-free local Markdown notes manager and editor.</p>
       <ul>
-        <li><strong>Bundle Folders:</strong> Group notes into collapsible bundles (e.g. <em>Units</em>, <em>Lectures</em>).</li>
-        <li><strong>Auto-Save:</strong> Keystrokes are saved immediately to local storage.</li>
-        <li><strong>Hierarchical Export:</strong> Exporting all notes outputs a structured 4-level Markdown file: <code># All Space Notes</code> &rarr; <code>## Space</code> &rarr; <code>### Bundle</code> &rarr; <code>#### Note</code>.</li>
+        <li><strong>Multi-Page Delimiter:</strong> Split notes into slide-like pages using <code>&lt;!-- page --&gt;</code> comment breaks. AI can directly format notes with this delimiter.</li>
+        <li><strong>Page Navigation:</strong> Press <kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd> in editor or <kbd>←</kbd> / <kbd>→</kbd> in preview to swap pages instantly.</li>
+        <li><strong>Collapsible Folder View:</strong> Click the sidebar icon or press <kbd>Ctrl</kbd> + <kbd>\</kbd> to hide the folder list for full-width canvas room.</li>
+        <li><strong>Bundle Folders &amp; Export:</strong> Organize notes into bundles and export directly to your <code>Downloads</code> folder.</li>
       </ul>
     </section>
 

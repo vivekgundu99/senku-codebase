@@ -7,6 +7,7 @@ import {
   activeNotePageIndex,
   isNoteAllPagesView,
   isNotePreviewMode,
+  isNotesSidebarCollapsed,
 } from '../state';
 import { escapeHtml, parseNotePages } from '../utils';
 import { uiIcon } from './icons';
@@ -115,6 +116,9 @@ export function notesPanelMarkup(): string {
     ? `
     <div class="notes-editor-head">
       <div class="notes-title-wrap">
+        <button type="button" class="notes-head-btn notes-sidebar-toggle-btn ${isNotesSidebarCollapsed ? 'active' : ''}" id="notes-sidebar-toggle-btn" title="${isNotesSidebarCollapsed ? 'Show folders and notes' : 'Hide folders and notes'}">
+          ${uiIcon('sidebar', 13)}
+        </button>
         <span class="notes-breadcrumb-root">Notes</span>
         ${active.bundle ? `<span class="notes-crumb-sep">/</span><span class="notes-bundle-tag">${escapeHtml(active.bundle)}</span>` : ''}
         <span class="notes-crumb-sep">/</span>
@@ -159,7 +163,7 @@ export function notesPanelMarkup(): string {
     </div>
     <div class="notes-pages-bar">
       <div class="notes-pages-nav">
-        <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
+        <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page (Alt+←)" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
         <div class="notes-pages-list">
           ${pages.map((_, i) => `
             <button type="button" class="notes-page-circle ${!isNoteAllPagesView && i === currentPageIndex ? 'active' : ''}" data-page-index="${i}" title="Page ${i + 1}">
@@ -167,7 +171,7 @@ export function notesPanelMarkup(): string {
             </button>
           `).join('')}
         </div>
-        <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page" ${currentPageIndex >= pages.length - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
+        <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page (Alt+→)" ${currentPageIndex >= pages.length - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
         <button type="button" class="notes-page-add-btn" id="notes-page-add" title="Add clean page">+ Page</button>
       </div>
       <div class="notes-pages-actions">
@@ -183,6 +187,9 @@ export function notesPanelMarkup(): string {
     </div>`
     : `
     <div class="notes-editor-placeholder">
+      <button type="button" class="notes-head-btn notes-sidebar-toggle-btn ${isNotesSidebarCollapsed ? 'active' : ''}" id="notes-sidebar-toggle-btn" title="${isNotesSidebarCollapsed ? 'Show folders and notes' : 'Hide folders and notes'}" style="position: absolute; top: 12px; left: 16px;">
+        ${uiIcon('sidebar', 13)}
+      </button>
       <div class="notes-placeholder-icon">${uiIcon('note', 34)}</div>
       <h3>${allNotes.length ? 'Select a note' : 'Distraction-free notes'}</h3>
       <p>${allNotes.length ? 'Choose a note from the list on the left to read or edit.' : 'Your notes are stored locally as pure Markdown. Write distraction-free or open in VS Code anytime.'}</p>
@@ -191,7 +198,7 @@ export function notesPanelMarkup(): string {
 
   return `
     <section class="notes-panel">
-      <div class="notes-sidebar">
+      <div class="notes-sidebar ${isNotesSidebarCollapsed ? 'collapsed' : ''}">
         <div class="notes-sidebar-head">
           <div class="notes-search-expandable ${noteFilter ? 'open' : ''}" id="notes-search-expandable">
             <button type="button" class="notes-head-btn" id="notes-search-trigger" title="Search notes" aria-label="Search notes">

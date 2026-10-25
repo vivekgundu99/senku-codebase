@@ -184,7 +184,7 @@ export function bindLogPanel(load: LoadFn, render: RenderFn): void {
     const defaultName = scope === 'all' ? 'senku-all-logs.md' : `${(state.workspace?.name || 'senku').toLowerCase().replace(/\s+/g, '-')}-logs.md`;
     const res = await window.senku.exportLogs(lines.join('\n'), defaultName);
     if (res.ok) {
-      toast(`Exported ${items.length} log entries to Desktop.`);
+      toast(`Exported ${items.length} log entries to Downloads.`);
     } else if (res.error && res.error !== 'Cancelled.') {
       toast(`Export failed: ${res.error}`);
     }

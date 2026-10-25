@@ -19,6 +19,22 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
     }
   }, { capture: true });
 
+  // Global Zoom: Ctrl+=, Ctrl++, Ctrl+-, Ctrl+0
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === '=' || e.key === '+' || e.code === 'NumpadAdd') {
+        e.preventDefault();
+        window.senku.zoomIn();
+      } else if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
+        e.preventDefault();
+        window.senku.zoomOut();
+      } else if (e.key === '0' || e.code === 'Numpad0') {
+        e.preventDefault();
+        window.senku.resetZoom();
+      }
+    }
+  });
+
   // Global Ctrl+Enter focuses quick capture or navigates to Log
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'Enter') {

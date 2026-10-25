@@ -21,6 +21,9 @@ declare global {
       copyPath(path: string): Promise<boolean>;
       pinPath(path: string): Promise<AppSnapshot>;
       unpinPath(path: string): Promise<AppSnapshot>;
+      zoomIn(): void;
+      zoomOut(): void;
+      resetZoom(): void;
       // V3: Log
       addLogEntry(text: string, spaceId?: string): Promise<AppSnapshot>;
       deleteLogEntry(id: string, spaceId?: string): Promise<AppSnapshot>;

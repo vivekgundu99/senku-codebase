@@ -76,4 +76,26 @@
 * **Core Truth:**
   Great software is defined by what you choose to **remove**, not what you pack in. Every version of Senku is a disciplined reduction of friction toward these Three Diamonds.
 
+---
+
+### 8. The Sentinel Philosophy: Senku Replaces Nothing (It's Just a Tool)
+* **Date Documented:** October 25, 2026
+* **The Core Truth:**
+  - Senku does not replace your IDE, your browser, your terminal, or your professional tools. It never pretends to.
+  - Senku is simply a starting block—a tool built to eliminate the psychological friction of starting work and context-switching.
+* **The Work Cycle (How Senku Actually Lives):**
+  - **The Launch (30 seconds):** The user opens Senku to overcome inertia. They see their Space, launch their resources in 1 click, check what they did earlier in Logs, and jump straight into their real tools (VS Code, Figma, terminal, browser).
+  - **The Native Hand-Off:** Once work begins, native apps take complete charge. Senku steps back, sits quietly, and stays ambient in the background.
+  - **The Quick Assist:** While working, if a fleeting thought strikes, the user summons the Quick Note overlay. If a milestone is finished, they log a line. When confused, overwhelmed, or switching tasks, they summon Senku back to clear their head.
+* **Why the Markdown Parser is Ultra-Basic ("Showing the Path"):**
+  - Senku's built-in markdown preview is intentionally simple. It exists to show beginners and minimalists: *"Look, your thoughts are stored in pure, human-readable plain text that you own forever."*
+  - For heavy editing, publishing, or serious writing, users click `Code` and use dedicated editors. Senku introduces the path; it never builds a walled garden.
+* **Why Exports Default to Downloads (Zero Complex Machinery):**
+  - Senku is not a document publishing platform. Users don't need complex multi-tiered archive managers or batch zip engines.
+  - A simple 1-click "Export Note" or "Export Folder" saving directly to the user's `Downloads` folder solves 100% of real-world export needs with zero friction.
+* **Why the Sidebar Stays Fixed (Cockpit Stability):**
+  - Gimmicks like collapsing sidebars (`Ctrl+B`) only make sense in code editors where someone stares at continuous lines of code for hours.
+  - In Senku, the sidebar is the permanent, comforting anchor of the cockpit. It remains stable, predictable, and solid.
+
+
 

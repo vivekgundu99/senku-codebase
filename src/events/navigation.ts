@@ -25,7 +25,6 @@ export function bindSidebarButtons(load: LoadFn, _render: RenderFn): void {
 
 export function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
   document.querySelector('#refresh-button')?.addEventListener('click', () => void load(state.currentPath));
-  document.querySelector('#settings-button')?.addEventListener('click', () => openProfileModal(render));
 
   // Tools dropdown menu
   document.querySelector('#topbar-tools-btn')?.addEventListener('click', (e) => {

@@ -1,7 +1,19 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile, FileEntry } from './types';
 
 const api = {
+  zoomIn: () => {
+    const current = webFrame.getZoomFactor();
+    webFrame.setZoomFactor(Math.min(current + 0.1, 2.5));
+  },
+  zoomOut: () => {
+    const current = webFrame.getZoomFactor();
+    webFrame.setZoomFactor(Math.max(current - 0.1, 0.5));
+  },
+  resetZoom: () => {
+    webFrame.setZoomFactor(1);
+  },
+
   getSnapshot: (path?: string) =>
     ipcRenderer.invoke('app:get-snapshot', path) as Promise<AppSnapshot>,
 

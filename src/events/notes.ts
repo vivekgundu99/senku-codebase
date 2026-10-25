@@ -11,8 +11,10 @@ import {
   isNotePreviewMode,
   setIsNotePreviewMode,
   toggleBundleCollapsed,
+  toggleNotesSidebarCollapsed,
 } from '../state';
 import { parseNotePages, joinNotePages } from '../utils';
+import { uiIcon } from '../markup';
 import { toast } from '../toast';
 import { openCreateNoteModal, openCreateBundleModal } from '../modals';
 import type { LoadFn, RenderFn } from './types';
@@ -76,50 +78,61 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
   }
 
   // Create bundle button
-  panel.querySelector('#create-bundle-btn')?.addEventListener('click', () => {
-    openCreateBundleModal(load, render);
-  });
+  panel.querySelector('#create-bundle-btn')?.addEventListener('click', () => openCreateBundleModal(load, render));
 
-  // Bundle toggle expand/collapse
-  panel.querySelectorAll<HTMLElement>('.notes-bundle-row').forEach((row) => {
-    row.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.notes-bundle-menu-btn')) return;
-      const bundle = row.dataset.bundle;
-      if (!bundle) return;
-      toggleBundleCollapsed(bundle);
-      render();
-    });
-  });
-
-  // Bundle menu button
-  panel.querySelectorAll<HTMLElement>('.notes-bundle-menu-btn').forEach((btn) => {
+  // Toggle bundle expand/collapse
+  panel.querySelectorAll<HTMLElement>('[data-toggle-bundle]').forEach((btn) =>
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const bundleName = btn.dataset.bundle;
-      if (!bundleName) return;
+      const bundle = btn.dataset.toggleBundle;
+      if (bundle) {
+        toggleBundleCollapsed(bundle);
+        render();
+      }
+    }),
+  );
 
-      document.querySelectorAll('.context-popover').forEach((p) => p.remove());
+  // Add note into a specific bundle
+  panel.querySelectorAll<HTMLElement>('[data-add-to-bundle]').forEach((btn) =>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bundle = btn.dataset.addToBundle;
+      openCreateNoteModal(load, render, bundle);
+    }),
+  );
+
+  // Folder options menu (Open in VS Code, Delete folder)
+  panel.querySelectorAll<HTMLElement>('[data-bundle-menu]').forEach((btn) =>
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const bundle = btn.dataset.bundleMenu;
+      if (!bundle) return;
+
+      document.querySelectorAll('.bundle-menu-popover').forEach((p) => p.remove());
 
       const popover = document.createElement('div');
-      popover.className = 'context-popover bundle-popover';
+      popover.className = 'bundle-menu-popover';
       popover.innerHTML = `
-        <button class="context-popover-item" id="bundle-menu-vscode">
+        <button class="bundle-menu-item" id="bundle-menu-vscode">
+          ${uiIcon('code', 13)}
           <span>Open in VS Code</span>
         </button>
-        <button class="context-popover-item" id="bundle-menu-export">
-          <span>Export as Markdown</span>
+        <button class="bundle-menu-item" id="bundle-menu-export">
+          ${uiIcon('folder', 13)}
+          <span>Export Folder (.md)</span>
         </button>
-        <button class="context-popover-item danger" id="bundle-menu-delete">
+        <button class="bundle-menu-item danger" id="bundle-menu-delete">
+          ${uiIcon('x', 13)}
           <span>Delete Folder</span>
         </button>
       `;
 
-      document.body.appendChild(popover);
-
       const rect = btn.getBoundingClientRect();
       popover.style.top = `${rect.bottom + 4}px`;
-      popover.style.left = `${Math.max(8, rect.left - 120)}px`;
+      popover.style.left = `${Math.max(10, rect.right - 145)}px`;
+
+      document.body.appendChild(popover);
 
       const closePopover = () => {
         popover.remove();
@@ -144,77 +157,66 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
 
       popover.querySelector('#bundle-menu-vscode')?.addEventListener('click', async () => {
         closePopover();
-        const res = await window.senku.openBundleInVSCode(bundleName);
-        if (!res.ok) {
-          toast(res.error ?? 'Could not open folder in VS Code.');
-        }
+        const res = await window.senku.openBundleInVSCode(bundle);
+        if (!res.ok) toast(res.error ?? 'Could not open folder in VS Code.');
       });
 
       popover.querySelector('#bundle-menu-export')?.addEventListener('click', async () => {
         closePopover();
-        const res = await window.senku.exportBundle(bundleName);
-        if (!res.ok && res.error && res.error !== 'Cancelled.') {
+        const res = await window.senku.exportBundle(bundle);
+        if (res.ok) {
+          toast(`Exported "${bundle}" (${res.count ?? 0} notes) to Downloads.`);
+        } else if (res.error && res.error !== 'Cancelled.') {
           toast(`Export failed: ${res.error}`);
         }
       });
 
       popover.querySelector('#bundle-menu-delete')?.addEventListener('click', async () => {
         closePopover();
-        const count = state.notes?.filter((n) => n.bundle === bundleName).length ?? 0;
-        const msg = count > 0
-          ? `Delete "${bundleName}" and all ${count} note(s) inside?`
-          : `Delete folder "${bundleName}"?`;
-        if (!confirm(msg)) return;
-
-        const snap = await window.senku.deleteBundle(bundleName);
+        if (!confirm(`Delete folder "${bundle}" and all notes inside it?`)) return;
+        const snap = await window.senku.deleteBundle(bundle);
         setState(snap);
         render();
-        toast(`Deleted folder "${bundleName}"`);
       });
-    });
-  });
+    }),
+  );
 
-  // Select note
-  panel.querySelectorAll<HTMLElement>('.notes-item').forEach((item) => {
-    item.addEventListener('click', async (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.notes-item-menu-btn')) return;
-      const id = item.dataset.noteId;
-      if (!id || id === activeNoteId) return;
-
-      if (noteSaveTimer && textarea) {
-        clearTimeout(noteSaveTimer);
-        noteSaveTimer = undefined;
-        try {
-          const curNoteId = textarea.dataset.noteId;
-          if (curNoteId) {
-            const snap = await window.senku.updateNote(curNoteId, getFullNoteContent(textarea.value));
-            setState(snap);
-          }
-        } catch {}
-      }
-
+  // Open a note from the list
+  panel.querySelectorAll<HTMLElement>('[data-open-note]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.openNote!;
       setActiveNoteId(id);
+      void window.senku.setActiveNote(id);
       render();
-    });
-  });
+    }),
+  );
 
-  // Title rename
+  // Note title rename
   const titleInput = panel.querySelector<HTMLInputElement>('#notes-title-input');
   const textarea = panel.querySelector<HTMLTextAreaElement>('#notes-editor');
   const statusEl = panel.querySelector<HTMLElement>('#note-save-status');
 
-  const getFullNoteContent = (currentPaneText: string): string => {
-    if (isNoteAllPagesView) return currentPaneText;
-    const note = state.notes?.find((n) => n.id === activeNoteId);
-    if (!note) return currentPaneText;
-    const pages = parseNotePages(note.content);
-    const curIdx = Math.min(Math.max(0, activeNotePageIndex), Math.max(0, pages.length - 1));
-    pages[curIdx] = currentPaneText;
-    return joinNotePages(pages);
+  // Helper to resolve full note content considering multi-page mode
+  const getFullNoteContent = (val: string): string => {
+    if (!textarea) return val;
+    const noteId = textarea.dataset.noteId;
+    const note = state.notes?.find((n) => n.id === noteId);
+    if (!note) return val;
+
+    if (isNoteAllPagesView) {
+      note.content = val;
+      return val;
+    }
+
+    const curPages = parseNotePages(note.content);
+    while (curPages.length <= activeNotePageIndex) curPages.push('');
+    curPages[activeNotePageIndex] = val;
+    const full = joinNotePages(curPages);
+    note.content = full;
+    return full;
   };
 
-  const flushNoteSave = async () => {
+  const flushNoteSave = async (): Promise<void> => {
     if (noteSaveTimer) {
       clearTimeout(noteSaveTimer);
       noteSaveTimer = undefined;
@@ -249,9 +251,9 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
         render();
       }
     };
-
     titleInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
+        e.preventDefault();
         titleInput.blur();
       }
     });
@@ -336,19 +338,29 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     textarea.addEventListener('blur', () => {
       void flushNoteSave();
     });
+
+    textarea.addEventListener('keydown', (e) => {
+      if ((e.altKey && e.key === 'ArrowLeft') || e.key === 'PageUp') {
+        e.preventDefault();
+        void goToPrevPage();
+      } else if ((e.altKey && e.key === 'ArrowRight') || e.key === 'PageDown') {
+        e.preventDefault();
+        void goToNextPage();
+      }
+    });
   }
 
-  // Page Navigation
-  panel.querySelector('#notes-page-prev')?.addEventListener('click', async () => {
+  // Page Navigation functions
+  const goToPrevPage = async () => {
     await flushNoteSave();
     if (activeNotePageIndex > 0) {
       setActiveNotePageIndex(activeNotePageIndex - 1);
       setIsNoteAllPagesView(false);
       render();
     }
-  });
+  };
 
-  panel.querySelector('#notes-page-next')?.addEventListener('click', async () => {
+  const goToNextPage = async () => {
     await flushNoteSave();
     const note = state.notes?.find((n) => n.id === activeNoteId);
     const curPages = parseNotePages(note?.content || '');
@@ -357,6 +369,50 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
       setIsNoteAllPagesView(false);
       render();
     }
+  };
+
+  // Keyboard navigation for page swapping & sidebar toggle across notes panel (anywhere on screen)
+  const onNotesKeydown = (e: KeyboardEvent) => {
+    if (!document.contains(panel)) {
+      document.removeEventListener('keydown', onNotesKeydown);
+      return;
+    }
+    if (document.querySelector('.modal-backdrop, .palette-backdrop')) return;
+
+    if ((e.ctrlKey || e.metaKey) && (e.key === '\\' || e.key === 'b')) {
+      e.preventDefault();
+      toggleNotesSidebarCollapsed();
+      render();
+      return;
+    }
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      void goToPrevPage();
+    } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+      e.preventDefault();
+      void goToNextPage();
+    }
+  };
+  document.addEventListener('keydown', onNotesKeydown);
+
+  // Sidebar toggle button
+  panel.querySelectorAll('#notes-sidebar-toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleNotesSidebarCollapsed();
+      render();
+    });
+  });
+
+  // Page Navigation
+  panel.querySelector('#notes-page-prev')?.addEventListener('click', () => {
+    void goToPrevPage();
+  });
+
+  panel.querySelector('#notes-page-next')?.addEventListener('click', () => {
+    void goToNextPage();
   });
 
   panel.querySelectorAll<HTMLElement>('.notes-page-circle[data-page-index]').forEach((btn) => {
@@ -367,6 +423,11 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
       setIsNoteAllPagesView(false);
       render();
     });
+  });
+
+  // Auto-scroll active page circle into view when navigating pages
+  requestAnimationFrame(() => {
+    panel.querySelector('.notes-page-circle.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   });
 
   panel.querySelector('#notes-page-add')?.addEventListener('click', async () => {
@@ -425,76 +486,83 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     }
   });
 
-  // Note menu popover
-  panel.querySelectorAll<HTMLElement>('.notes-item-menu-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.noteId!;
-      const note = state.notes?.find((n) => n.id === id);
-      if (!note) return;
+  // Note options menu (Export Note & Delete Note)
+  panel.querySelector('#notes-options-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const btn = e.currentTarget as HTMLElement;
+    const id = btn.dataset.noteId;
+    if (!id) return;
+    const note = state.notes?.find((n) => n.id === id);
+    if (!note) return;
 
-      document.querySelectorAll('.context-popover').forEach((p) => p.remove());
+    document.querySelectorAll('.bundle-menu-popover, .notes-options-popover').forEach((p) => p.remove());
 
-      const popover = document.createElement('div');
-      popover.className = 'context-popover';
-      popover.innerHTML = `
-        <button class="context-popover-item" id="note-menu-export">
-          <span>Export as Markdown</span>
-        </button>
-        <button class="context-popover-item danger" id="note-menu-delete">
-          <span>Delete Note</span>
-        </button>
-      `;
+    const popover = document.createElement('div');
+    popover.className = 'bundle-menu-popover notes-options-popover';
+    popover.innerHTML = `
+      <button class="bundle-menu-item" id="note-menu-export">
+        ${uiIcon('folder', 13)}
+        <span>Export Note (.md)</span>
+      </button>
+      <button class="bundle-menu-item danger" id="note-menu-delete">
+        ${uiIcon('x', 13)}
+        <span>Delete Note</span>
+      </button>
+    `;
 
-      document.body.appendChild(popover);
+    const rect = btn.getBoundingClientRect();
+    popover.style.top = `${rect.bottom + 4}px`;
+    popover.style.right = `${Math.max(10, window.innerWidth - rect.right)}px`;
 
-      const rect = btn.getBoundingClientRect();
-      popover.style.top = `${rect.bottom + 4}px`;
-      popover.style.left = `${Math.max(8, rect.left - 130)}px`;
+    document.body.appendChild(popover);
 
-      const closePopover = () => {
-        popover.remove();
-        document.removeEventListener('click', onDocClick);
-        document.removeEventListener('keydown', onDocKey);
-      };
+    const closePopover = () => {
+      popover.remove();
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onDocKey);
+    };
 
-      const onDocClick = (evt: MouseEvent) => {
-        if (!popover.contains(evt.target as Node) && evt.target !== btn) {
-          closePopover();
-        }
-      };
-
-      const onDocKey = (evt: KeyboardEvent) => {
-        if (evt.key === 'Escape') closePopover();
-      };
-
-      setTimeout(() => {
-        document.addEventListener('click', onDocClick);
-        document.addEventListener('keydown', onDocKey);
-      }, 0);
-
-      popover.querySelector('#note-menu-export')?.addEventListener('click', async () => {
+    const onDocClick = (evt: MouseEvent) => {
+      if (!popover.contains(evt.target as Node) && evt.target !== btn) {
         closePopover();
-        const res = await window.senku.exportNote(id);
-        if (!res.ok && res.error && res.error !== 'Cancelled.') toast(`Export failed: ${res.error}`);
-      });
+      }
+    };
 
-      popover.querySelector('#note-menu-delete')?.addEventListener('click', async () => {
-        closePopover();
-        const snap = await window.senku.deleteNote(id);
-        const remaining = snap.notes ?? [];
-        setActiveNoteId(remaining[0]?.id ?? null);
-        setState(snap);
-        render();
-        toast('Deleted', {
-          actionLabel: 'Undo',
-          onAction: async () => {
-            const restoredSnap = await window.senku.restoreNote(note);
-            setActiveNoteId(note.id);
-            setState(restoredSnap);
-            render();
-          },
-        });
+    const onDocKey = (evt: KeyboardEvent) => {
+      if (evt.key === 'Escape') closePopover();
+    };
+
+    setTimeout(() => {
+      document.addEventListener('click', onDocClick);
+      document.addEventListener('keydown', onDocKey);
+    }, 0);
+
+    popover.querySelector('#note-menu-export')?.addEventListener('click', async () => {
+      closePopover();
+      const res = await window.senku.exportNote(id);
+      if (res.ok) {
+        toast(`Exported "${note.name}" to Downloads.`);
+      } else if (res.error && res.error !== 'Cancelled.') {
+        toast(`Export failed: ${res.error}`);
+      }
+    });
+
+    popover.querySelector('#note-menu-delete')?.addEventListener('click', async () => {
+      closePopover();
+      const snap = await window.senku.deleteNote(id);
+      const remaining = snap.notes ?? [];
+      setActiveNoteId(remaining[0]?.id ?? null);
+      setState(snap);
+      render();
+      toast('Deleted', {
+        actionLabel: 'Undo',
+        onAction: async () => {
+          const restoredSnap = await window.senku.restoreNote(note);
+          setActiveNoteId(note.id);
+          setState(restoredSnap);
+          render();
+        },
       });
     });
   });

@@ -10,6 +10,7 @@ import pkg from '../package.json';
 // ---------------------------------------------------------------------------
 
 function createOverlay(innerHtml: string): HTMLDivElement {
+  document.querySelectorAll('.modal-backdrop').forEach((m) => m.remove());
   const overlay = document.createElement('div');
   overlay.className = 'modal-backdrop';
   overlay.innerHTML = innerHtml;
@@ -116,7 +117,7 @@ export function openAppSettingsModal(render: () => void): void {
           <div class="settings-action-row">
             <div class="toggle-text">
               <strong>Export All Notes</strong>
-              <small>Save compiled markdown to Desktop</small>
+              <small>Save compiled markdown to Downloads</small>
             </div>
             <button type="button" class="settings-action-btn" id="export-notes-btn">Export Notes</button>
           </div>
@@ -143,7 +144,7 @@ export function openAppSettingsModal(render: () => void): void {
   overlay.querySelector('#export-notes-btn')?.addEventListener('click', async () => {
     const res = await window.senku.exportAllNotes();
     if (res.ok) {
-      toast(`Exported ${res.count ?? 0} notes to Desktop.`);
+      toast(`Exported ${res.count ?? 0} notes to Downloads.`);
     } else if (!res.empty) {
       toast(res.error || 'Could not export notes.');
     }

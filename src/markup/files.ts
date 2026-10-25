@@ -169,7 +169,6 @@ export function filePanelMarkup(): string {
         <div class="file-panel-actions">
           <button class="file-action-btn primary" id="open-folder" title="Open folder in File Explorer">
             ${uiIcon('folder', 13)}
-            <span class="action-label">Explorer</span>
           </button>
           <button class="file-action-btn" id="open-in-vscode" title="Open in VS Code">
             ${uiIcon('code', 13)}

@@ -119,9 +119,9 @@
 /* Compact Log Row (no cards) */
 .log-row-compact {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 6px 4px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--line);
   font-size: 13px;
   transition: background .12s;
@@ -132,18 +132,20 @@
 }
 
 .log-row-seq {
-  font: 700 11.5px var(--mono);
+  font: 700 11px var(--mono);
   color: var(--soft);
-  width: 44px;
-  flex: 0 0 44px;
+  width: 38px;
+  flex: 0 0 38px;
   text-align: right;
+  padding-top: 1px;
 }
 
 .log-row-time {
   font: 600 11.5px var(--mono);
   color: var(--soft);
-  width: 72px;
-  flex: 0 0 72px;
+  width: 66px;
+  flex: 0 0 66px;
+  padding-top: 1px;
 }
 
 .log-row-text {
@@ -151,9 +153,11 @@
   min-width: 0;
   color: var(--ink);
   cursor: default;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 13px;
 }
 
 .log-row-edit-input {
@@ -511,7 +515,7 @@
 
 .global-home-log-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 12px;
   padding: 7px 4px;
   font-size: 13px;
@@ -524,15 +528,17 @@
   width: 32px;
   flex: 0 0 32px;
   text-align: right;
+  padding-top: 1px;
 }
 
 .global-home-log-text {
   flex: 1 1 0;
   min-width: 0;
   color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .global-home-log-meta {

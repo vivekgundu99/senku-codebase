@@ -1315,7 +1315,7 @@ ipcMain.handle('notes:export', async (_event, id: string) => {
 
   const result = await dialog.showSaveDialog({
     title: 'Export Note',
-    defaultPath: path.join(app.getPath('desktop'), `${note.name}.md`),
+    defaultPath: path.join(app.getPath('downloads'), `${note.name}.md`),
     filters: [{ name: 'Markdown Files', extensions: ['md'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
@@ -1374,7 +1374,7 @@ ipcMain.handle('notes:export-bundle', async (_event, bundleName: string) => {
 
   const result = await dialog.showSaveDialog({
     title: `Export ${bundleName}`,
-    defaultPath: path.join(app.getPath('desktop'), `${sanitizeFileName(bundleName)}.md`),
+    defaultPath: path.join(app.getPath('downloads'), `${sanitizeFileName(bundleName)}.md`),
     filters: [{ name: 'Markdown Files', extensions: ['md'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
@@ -1387,7 +1387,7 @@ ipcMain.handle('notes:export-bundle', async (_event, bundleName: string) => {
 ipcMain.handle('log:export', async (_event, content: string, defaultName?: string) => {
   const result = await dialog.showSaveDialog({
     title: 'Export Logs',
-    defaultPath: path.join(app.getPath('desktop'), defaultName || `senku-logs-${Date.now()}.md`),
+    defaultPath: path.join(app.getPath('downloads'), defaultName || `senku-logs-${Date.now()}.md`),
     filters: [{ name: 'Markdown Files', extensions: ['md'] }],
   });
   if (result.canceled || !result.filePath) return { ok: false, error: 'Cancelled.' };
