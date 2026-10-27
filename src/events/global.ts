@@ -60,23 +60,27 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
         return;
       }
 
-      // 3. If an input or textarea is active: clear or blur
+      // 3. If file search input is active: clear filter query or close search bar
       const active = document.activeElement;
-      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+      if (active instanceof HTMLInputElement && active.id === 'file-filter-input') {
+        e.preventDefault();
         if (active.value) {
-          e.preventDefault();
           active.value = '';
           active.dispatchEvent(new Event('input', { bubbles: true }));
-          return;
+        } else {
+          active.blur();
+          const searchExp = document.querySelector<HTMLElement>('#file-search-expandable.open');
+          if (searchExp) searchExp.classList.remove('open');
         }
-        e.preventDefault();
-        active.blur();
-        const searchExp = document.querySelector<HTMLElement>('#file-search-expandable.open');
-        if (searchExp) searchExp.classList.remove('open');
         return;
       }
 
-      // 4. At last: navigate to Home
+      // If any other input or textarea is focused, blur it safely (never wipe value!)
+      if (active instanceof HTMLElement && (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) {
+        active.blur();
+      }
+
+      // 4. Navigate to Home overview
       if (currentView !== 'Home' || isGlobalNotesMode || homeCenterMode !== 'overview') {
         e.preventDefault();
         setGlobalNotesMode(false);

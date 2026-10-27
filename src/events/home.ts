@@ -13,6 +13,7 @@ import {
   setIsNoteAllPagesView,
   isGlobalNotesMode,
   setGlobalNotesMode,
+  setView,
 } from '../state';
 import { parseNotePages, joinNotePages, PAGE_SEPARATOR } from '../utils';
 import { toast } from '../toast';
@@ -212,9 +213,26 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     fileEditor.addEventListener('blur', () => void saveNoteFile());
 
     const onWinBlur = () => void saveNoteFile();
-    window.addEventListener('blur', onWinBlur);
+    window.addEventListener('blur', onWinBlur, { once: true });
 
     fileEditor.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        void (async () => {
+          await saveNoteFile();
+          fileEditor.blur();
+          setGlobalNotesMode(false);
+          setHomeCenterMode('overview');
+          setView('Home');
+          if (state.workspace?.masterFolder) {
+            await load(state.workspace.masterFolder);
+          } else {
+            render();
+          }
+        })();
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         void saveNoteFile();
