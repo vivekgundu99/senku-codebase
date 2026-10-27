@@ -104,7 +104,7 @@ const workspacesFile = () => path.join(baseDir(), 'workspaces.json');
 const trashFile = () => path.join(baseDir(), 'trash.json');
 const spaceDir = (id: string) => path.join(baseDir(), 'spaces', id);
 const trashSpaceDir = (id: string) => path.join(baseDir(), 'trash', id);
-const globalNotesDir = () => path.join(baseDir(), 'notes');
+const globalNotesDir = () => path.join(app.getPath('documents'), 'Senku Notes');
 
 // ---------------------------------------------------------------------------
 // JSON helpers
@@ -1198,6 +1198,25 @@ ipcMain.handle('terminal:open', async (_event, targetPath: string) => {
 async function migrateNotesToGlobal(): Promise<void> {
   const gDir = globalNotesDir();
   await fs.mkdir(gDir, { recursive: true });
+
+  // 1. Migrate from legacy <userData>/notes if target documents folder doesn't have notes yet
+  const legacyGlobalDir = path.join(baseDir(), 'notes');
+  try {
+    const legacyItems = await fs.readdir(legacyGlobalDir, { withFileTypes: true }).catch(() => []);
+    for (const item of legacyItems) {
+      const src = path.join(legacyGlobalDir, item.name);
+      const dest = path.join(gDir, item.name);
+      const exists = await fs.access(dest).then(() => true).catch(() => false);
+      if (!exists) {
+        if (item.isDirectory()) {
+          await fs.cp(src, dest, { recursive: true }).catch(() => undefined);
+        } else if (item.name.endsWith('.md')) {
+          await fs.copyFile(src, dest).catch(() => undefined);
+        }
+      }
+    }
+  } catch {}
+
   const existing = await listNotes(gDir);
   if (existing.length > 0) return;
 
