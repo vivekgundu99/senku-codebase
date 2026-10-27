@@ -21,6 +21,9 @@ declare global {
       copyPath(path: string): Promise<boolean>;
       pinPath(path: string): Promise<AppSnapshot>;
       unpinPath(path: string): Promise<AppSnapshot>;
+      readTextFile(path: string): Promise<string>;
+      saveTextFile(path: string, content: string): Promise<boolean>;
+      createFileNote(folderPath: string, name?: string): Promise<{ path: string; name: string; content: string }>;
       zoomIn(): void;
       zoomOut(): void;
       resetZoom(): void;

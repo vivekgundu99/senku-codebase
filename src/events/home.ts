@@ -1,4 +1,13 @@
-import { state, homeLogDraft, setHomeLogDraft } from '../state';
+import {
+  state,
+  homeLogDraft,
+  setHomeLogDraft,
+  setHomeCenterMode,
+  activeMarkdownFile,
+  setActiveMarkdownFile,
+  isNotePreviewMode,
+  setIsNotePreviewMode,
+} from '../state';
 import { toast } from '../toast';
 import { openLaunchpadFormModal } from '../modals';
 import type { LoadFn, RenderFn } from './types';
@@ -95,4 +104,86 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
       await load();
     });
   });
+
+  // Home dual-pill mode toggle: Overview vs Notes
+  document.querySelectorAll<HTMLElement>('[data-home-mode]').forEach((pillBtn) => {
+    pillBtn.addEventListener('click', () => {
+      const mode = pillBtn.dataset.homeMode as 'overview' | 'notes';
+      if (mode) {
+        setHomeCenterMode(mode);
+        render();
+      }
+    });
+  });
+
+  // Notes Window: Create new note in current folder
+  document.querySelector('#new-note-in-folder')?.addEventListener('click', async () => {
+    const folder = state.currentPath || state.workspace?.masterFolder;
+    if (!folder) {
+      toast('No active folder linked.');
+      return;
+    }
+    try {
+      const note = await window.senku.createFileNote(folder);
+      setActiveMarkdownFile(note);
+      setHomeCenterMode('notes');
+      toast(`Created ${note.name}`);
+      await load(folder);
+    } catch {
+      toast('Could not create note.');
+    }
+  });
+
+  // Notes Window: Open active note in VS Code
+  document.querySelector('#open-note-file-vscode')?.addEventListener('click', async () => {
+    if (activeMarkdownFile?.path) {
+      const res = await window.senku.openInVSCode(activeMarkdownFile.path);
+      if (!res.ok) toast(res.error || 'Could not open in VS Code.');
+    }
+  });
+
+  // Notes Window: Toggle preview / edit mode
+  document.querySelector('#toggle-note-preview-mode')?.addEventListener('click', () => {
+    setIsNotePreviewMode(!isNotePreviewMode);
+    render();
+  });
+
+  // Notes Window: Editor input & saving
+  const fileEditor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+  const saveStatus = document.querySelector<HTMLElement>('#notes-file-save-status');
+  if (fileEditor && activeMarkdownFile) {
+    let isDirty = false;
+    fileEditor.addEventListener('input', () => {
+      isDirty = true;
+      if (saveStatus) saveStatus.textContent = 'unsaved';
+    });
+
+    const saveNoteFile = async () => {
+      if (!isDirty || !activeMarkdownFile) return;
+      const newContent = fileEditor.value;
+      try {
+        await window.senku.saveTextFile(activeMarkdownFile.path, newContent);
+        activeMarkdownFile.content = newContent;
+        isDirty = false;
+        if (saveStatus) {
+          saveStatus.textContent = 'saved';
+          setTimeout(() => { if (saveStatus && !isDirty) saveStatus.textContent = ''; }, 1500);
+        }
+      } catch {
+        if (saveStatus) saveStatus.textContent = 'error';
+      }
+    };
+
+    fileEditor.addEventListener('blur', () => void saveNoteFile());
+
+    const onWinBlur = () => void saveNoteFile();
+    window.addEventListener('blur', onWinBlur);
+
+    fileEditor.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void saveNoteFile();
+      }
+    });
+  }
 }

@@ -97,5 +97,17 @@
   - Gimmicks like collapsing sidebars (`Ctrl+B`) only make sense in code editors where someone stares at continuous lines of code for hours.
   - In Senku, the sidebar is the permanent, comforting anchor of the cockpit. It remains stable, predictable, and solid.
 
+---
 
-
+### 9. The Filesystem as the Note Engine — Unifying Notes & Explorer into the "Notes Window"
+* **Date Documented:** October 27, 2026
+* **The Core Truth:**
+  - Notes is not a standalone app or an isolated silo. Notes are simply `.md` files residing in the real filesystem.
+  - Creating a separate silo for notes caused duplicate sidebars, extra mental categories, and redundant bundle abstractions.
+* **The Unified Workflow:**
+  - **Notes as a Space:** The default Notes location is `Documents/Senku Notes`. When the user clicks "Notes" in the sidebar, Senku points the File Manager directly to this directory, compresses the pane into compact mode, and reveals the Notes Window.
+  - **The Dual Toggle at Home:** The Home cockpit features a clean dual toggle pill: `[ Overview ]` (cockpit, stats, logs) and `[ 📝 ]` (the Notes Window / Reader).
+  - **Any Markdown Everywhere:** Clicking any `.md` file in the File Manager (whether inside a project space or personal notes) instantly switches the pill to the Notes Window, minimizes/compresses the file manager, and loads the document into the reader.
+  - **1-Click Creation in Active Context:** Inside the Notes Window, `+ New Note` creates a clean `.md` file directly in whatever active folder or subfolder the File Manager is currently browsing.
+  - **Default Empty State:** If no file has been opened yet, the Notes Window shows a calm, welcoming default placeholder without forcing any file open.
+  - **Zero Database / Zero Magic:** Everything is pure plain-text `.md` files on the user's hard drive, easily browsable via Windows Explorer, VS Code, or Senku.

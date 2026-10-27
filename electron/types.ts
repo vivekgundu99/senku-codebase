@@ -22,9 +22,10 @@ export interface Workspace {
   id: string;
   name: string;
   masterFolder: string;
-  lastSubfolder: string;
+  lastSubfolder?: string;
   createdAt: string;
   pinnedPaths: string[];
+  isNotesSpace?: boolean;
 }
 
 export interface FileEntry {

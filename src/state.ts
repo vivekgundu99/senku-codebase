@@ -24,6 +24,21 @@ export function setLogPageDraft(text: string): void {
   logPageDraft = text;
 }
 
+export let homeCenterMode: 'overview' | 'notes' = 'overview';
+export function setHomeCenterMode(mode: 'overview' | 'notes'): void {
+  homeCenterMode = mode;
+}
+
+export interface MarkdownFileState {
+  path: string;
+  name: string;
+  content: string;
+}
+export let activeMarkdownFile: MarkdownFileState | null = null;
+export function setActiveMarkdownFile(file: MarkdownFileState | null): void {
+  activeMarkdownFile = file;
+}
+
 export let activeNoteId: string | null = null;
 export let activeNotePageIndex = 0;
 export let isNoteAllPagesView = false;

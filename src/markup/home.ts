@@ -1,16 +1,38 @@
 import type { Launchpad } from '../../electron/types';
-import { state, getLogEntries, homeLogDraft } from '../state';
+import {
+  state,
+  getLogEntries,
+  homeLogDraft,
+  homeCenterMode,
+  activeMarkdownFile,
+  isNotePreviewMode,
+} from '../state';
 import { escapeHtml, renderGreeting } from '../utils';
 import { uiIcon } from './icons';
 import { formatRelativeTime } from './files';
+import { marked } from 'marked';
 
 export function overviewPanelMarkup(): string {
+  if (homeCenterMode === 'notes') {
+    return notesWindowMarkup();
+  }
+
   const ws = state.workspace;
   const greeting = renderGreeting(state.settings.greeting, state.settings.userName);
 
   if (!ws) {
     return `
     <section class="home-panel-v3">
+      <div class="home-center-header">
+        <div class="home-pill-toggle">
+          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Overview">
+            <span>Overview</span>
+          </button>
+          <button type="button" class="home-pill-btn" data-home-mode="notes" title="Notes Window">
+            <span class="home-pill-icon">${uiIcon('note', 13)}</span>
+          </button>
+        </div>
+      </div>
       <div class="home-hero">
         <h1 class="home-greeting">${greeting}</h1>
         <p class="home-hero-subtitle">Link a project folder to log progress, launch resources, and track files.</p>
@@ -62,8 +84,15 @@ export function homePanelV3Markup(): string {
 
   return `
     <section class="home-panel-v3">
-      <div class="panel-header-line">
-        <h2 class="panel-header-title">Overview</h2>
+      <div class="home-center-header">
+        <div class="home-pill-toggle">
+          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Overview">
+            <span>Overview</span>
+          </button>
+          <button type="button" class="home-pill-btn" data-home-mode="notes" title="Notes Window">
+            <span class="home-pill-icon">${uiIcon('note', 13)}</span>
+          </button>
+        </div>
       </div>
       <div class="home-decks-container">
         <!-- Top: Quick Launchpads -->
@@ -183,4 +212,78 @@ export function homePanelMarkup(): string {
         <div class="global-home-lp-list">${padRows}</div>
       </div>
     </section>`;
+}
+
+export function notesWindowMarkup(): string {
+  const file = activeMarkdownFile;
+  const isPreview = isNotePreviewMode;
+
+  const headerPill = `
+    <div class="home-center-header">
+      <div class="home-pill-toggle">
+        <button type="button" class="home-pill-btn" data-home-mode="overview" title="Overview">
+          <span>Overview</span>
+        </button>
+        <button type="button" class="home-pill-btn active" data-home-mode="notes" title="Notes Window">
+          <span class="home-pill-icon">${uiIcon('note', 13)}</span>
+        </button>
+      </div>
+      ${file ? `
+        <div class="notes-window-actions">
+          <button type="button" class="notes-window-action-btn" id="new-note-in-folder" title="New Note in active folder">
+            ${uiIcon('plus', 11)} <span>Note</span>
+          </button>
+          <button type="button" class="notes-window-action-btn" id="open-note-file-vscode" title="Open in VS Code" data-file-path="${escapeHtml(file.path)}">
+            ${uiIcon('code', 11)} <span>Code</span>
+          </button>
+          <button type="button" class="notes-window-action-btn ${isPreview ? 'active' : ''}" id="toggle-note-preview-mode" title="${isPreview ? 'Switch to Edit' : 'Switch to Preview'}">
+            ${uiIcon(isPreview ? 'pen' : 'eye', 11)} <span>${isPreview ? 'Edit' : 'Preview'}</span>
+          </button>
+          <span class="notes-window-save-status" id="notes-file-save-status"></span>
+        </div>
+      ` : ''}
+    </div>`;
+
+  if (!file) {
+    return `
+      <section class="notes-window-panel">
+        ${headerPill}
+        <div class="notes-window-empty">
+          <div class="notes-empty-icon">${uiIcon('note', 32)}</div>
+          <h3 class="notes-empty-title">Notes Window</h3>
+          <p class="notes-empty-sub">Select any <code>.md</code> file from the file manager, or start a new note in the active folder.</p>
+          <button type="button" class="primary-button mini" id="new-note-in-folder">+ New Note</button>
+        </div>
+      </section>
+    `;
+  }
+
+  const content = file.content;
+  const previewHtml = isPreview ? (marked.parse(content, { gfm: true, breaks: true }) as string) : '';
+
+  return `
+    <section class="notes-window-panel">
+      ${headerPill}
+      <div class="notes-window-body">
+        <div class="notes-window-file-title" title="${escapeHtml(file.path)}">
+          <span class="notes-window-file-icon">${uiIcon('note', 13)}</span>
+          <span class="notes-window-file-name">${escapeHtml(file.name)}</span>
+        </div>
+
+        ${isPreview ? `
+          <div class="notes-preview-scroll">
+            <div class="notes-markdown-preview markdown-body">${previewHtml || '<p class="notes-preview-empty">Empty note. Click Edit to start writing.</p>'}</div>
+          </div>
+        ` : `
+          <textarea
+            id="notes-file-editor"
+            class="notes-window-editor"
+            placeholder="Type notes in Markdown…"
+            data-file-path="${escapeHtml(file.path)}"
+            spellcheck="false"
+          >${escapeHtml(content)}</textarea>
+        `}
+      </div>
+    </section>
+  `;
 }

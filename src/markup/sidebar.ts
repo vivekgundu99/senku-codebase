@@ -1,4 +1,4 @@
-import { state, currentView, isAppSidebarCollapsed } from '../state';
+import { state, currentView, isAppSidebarCollapsed, homeCenterMode } from '../state';
 import { escapeHtml } from '../utils';
 import { uiIcon } from './icons';
 
@@ -6,10 +6,10 @@ export function sidebarMarkup(): string {
   const ws = state.workspace;
   const isCollapsed = isAppSidebarCollapsed;
 
-  // Spaces arranged in alphabetical order
-  const sortedWorkspaces = [...(state.workspaces ?? [])].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  );
+  // Spaces arranged in alphabetical order (excluding internal notes space)
+  const sortedWorkspaces = [...(state.workspaces ?? [])]
+    .filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
   const spaceRow = (space: (typeof state.workspaces)[number]) => {
     const isActive = ws ? space.id === ws.id : false;
@@ -45,7 +45,7 @@ export function sidebarMarkup(): string {
       </div>
 
       <div class="nav-list">
-        <button class="nav-item ${currentView === 'Home' || currentView === 'Overview' ? 'selected' : ''}" data-view="Home" title="Home (H)">
+        <button class="nav-item ${currentView === 'Home' && homeCenterMode === 'overview' ? 'selected' : ''}" data-view="Home" title="Home (H)">
           <span class="nav-icon">${uiIcon('home', 15)}</span>
           <span class="nav-label">Home</span>
           <span class="nav-key">H</span>
@@ -60,7 +60,7 @@ export function sidebarMarkup(): string {
           <span class="nav-label">Logs</span>
           <span class="nav-key">G</span>
         </button>
-        <button class="nav-item ${currentView === 'Notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
+        <button class="nav-item ${currentView === 'Home' && homeCenterMode === 'notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
           <span class="nav-icon">${uiIcon('note', 15)}</span>
           <span class="nav-label">Notes</span>
           <span class="nav-key">N</span>

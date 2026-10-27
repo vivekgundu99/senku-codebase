@@ -642,6 +642,7 @@ app.whenReady().then(async () => {
   try {
     await migrateLegacyData(baseDir(), await getWorkspaces(), await getSettings(), await activeSpaceId(), readJson);
     await migrateNotesToGlobal();
+    await ensureNotesSpace();
   } catch (err) {
     console.error('Migration failed:', err);
   }
@@ -1004,6 +1005,44 @@ ipcMain.handle('folder:read', async (_event, targetPath: string) => {
   return { entries, currentPath: resolved };
 });
 
+ipcMain.handle('file:read-text', async (_event, filePath: string) => {
+  try {
+    return await fs.readFile(filePath, 'utf-8');
+  } catch {
+    return '';
+  }
+});
+
+ipcMain.handle('file:save-text', async (_event, filePath: string, content: string) => {
+  try {
+    await fs.writeFile(filePath, content, 'utf-8');
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('file:create-note', async (_event, folderPath: string, name?: string) => {
+  let noteName = (name || '').trim();
+  if (!noteName) noteName = 'New Note';
+  if (!noteName.toLowerCase().endsWith('.md')) noteName += '.md';
+
+  let targetPath = path.join(folderPath, noteName);
+  let counter = 1;
+  while (await fs.access(targetPath).then(() => true).catch(() => false)) {
+    const base = noteName.replace(/\.md$/i, '');
+    targetPath = path.join(folderPath, `${base} (${counter}).md`);
+    counter++;
+  }
+  const defaultContent = `# ${path.basename(targetPath, '.md')}\n\n`;
+  await fs.writeFile(targetPath, defaultContent, 'utf-8');
+  return {
+    path: targetPath,
+    name: path.basename(targetPath),
+    content: defaultContent,
+  };
+});
+
 // ---------------------------------------------------------------------------
 // V3: Resource Opening (Web URL or default OS handler)
 // ---------------------------------------------------------------------------
@@ -1237,6 +1276,30 @@ async function migrateNotesToGlobal(): Promise<void> {
     } catch {
       // No notes
     }
+  }
+}
+
+const NOTES_SPACE_ID = '__senku_notes__';
+
+async function ensureNotesSpace(): Promise<void> {
+  const gDir = globalNotesDir();
+  await fs.mkdir(gDir, { recursive: true });
+  const workspaces = await getWorkspaces();
+  let notesSpace = workspaces.find((w) => w.id === NOTES_SPACE_ID);
+  if (!notesSpace) {
+    notesSpace = {
+      id: NOTES_SPACE_ID,
+      name: 'Senku Notes',
+      masterFolder: gDir,
+      createdAt: String(Date.now()),
+      pinnedPaths: [],
+      isNotesSpace: true,
+    };
+    workspaces.push(notesSpace);
+    await writeJson(workspacesFile(), workspaces);
+  } else if (notesSpace.masterFolder !== gDir) {
+    notesSpace.masterFolder = gDir;
+    await writeJson(workspacesFile(), workspaces);
   }
 }
 

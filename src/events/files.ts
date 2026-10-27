@@ -4,6 +4,10 @@ import {
   showMoreFiles,
   setCurrentFolder,
   toggleFilePaneCompact,
+  isFilePaneCompact,
+  setView,
+  setActiveMarkdownFile,
+  setHomeCenterMode,
 } from '../state';
 import { fileCountLabel, fileListMarkup, filePanelMarkup } from '../markup';
 import { isSamePath, parentOf } from '../utils';
@@ -71,8 +75,23 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
     const open = target.closest<HTMLElement>('[data-open-path]');
     if (open) {
       const p = open.dataset.openPath!;
-      if (open.dataset.kind === 'folder') await navigateToFolder(p);
-      else await window.senku.openPath(p);
+      if (open.dataset.kind === 'folder') {
+        await navigateToFolder(p);
+        return;
+      }
+      if (p.toLowerCase().endsWith('.md')) {
+        try {
+          const content = await window.senku.readTextFile(p);
+          const name = p.split(/[\\/]/).pop() || 'Note.md';
+          setActiveMarkdownFile({ path: p, name, content });
+          setHomeCenterMode('notes');
+          if (!isFilePaneCompact) toggleFilePaneCompact();
+          setView('Home');
+          if (render) render();
+          return;
+        } catch {}
+      }
+      await window.senku.openPath(p);
       return;
     }
 

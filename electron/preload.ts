@@ -70,6 +70,15 @@ const api = {
   unpinPath: (path: string) =>
     ipcRenderer.invoke('path:unpin', path) as Promise<AppSnapshot>,
 
+  readTextFile: (filePath: string) =>
+    ipcRenderer.invoke('file:read-text', filePath) as Promise<string>,
+
+  saveTextFile: (filePath: string, content: string) =>
+    ipcRenderer.invoke('file:save-text', filePath, content) as Promise<boolean>,
+
+  createFileNote: (folderPath: string, name?: string) =>
+    ipcRenderer.invoke('file:create-note', folderPath, name) as Promise<{ path: string; name: string; content: string }>,
+
   // --- V3: Quiet Log ---
   addLogEntry: (text: string, spaceId?: string) =>
     ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,
