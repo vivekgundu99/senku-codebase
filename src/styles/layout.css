@@ -13,7 +13,7 @@
   min-width: 0;
   height: 100vh;
   overflow: hidden;
-  padding: 24px clamp(20px, 3.2vw, 40px) 24px;
+  padding: 18px 20px 18px 18px;
 }
 
 .topbar {
@@ -81,7 +81,7 @@
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(16px, 2vw, 28px);
+  gap: 20px;
   flex: 1 1 0;
   min-height: 0;
   align-items: stretch;
@@ -109,7 +109,7 @@
   min-width: 0;
   height: 100%;
   min-height: 0;
-  padding-right: 22px;
+  padding-right: 20px;
   border-right: 1px solid var(--line);
   overflow: hidden;
 }
@@ -139,16 +139,16 @@
 
 @media (max-width: 1180px) {
   .main-area {
-    padding-right: 20px;
-    padding-left: 20px;
+    padding-right: 16px;
+    padding-left: 14px;
   }
 
   .content-grid {
-    gap: 18px;
+    gap: 16px;
   }
 
   .main-left {
-    padding-right: 18px;
+    padding-right: 16px;
   }
 }
 
