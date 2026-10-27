@@ -1,4 +1,4 @@
-import { state, currentView, isAppSidebarCollapsed, homeCenterMode } from '../state';
+import { state, currentView, isAppSidebarCollapsed, homeCenterMode, isGlobalNotesMode } from '../state';
 import { escapeHtml } from '../utils';
 import { uiIcon } from './icons';
 
@@ -12,7 +12,7 @@ export function sidebarMarkup(): string {
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
   const spaceRow = (space: (typeof state.workspaces)[number]) => {
-    const isActive = ws ? space.id === ws.id : false;
+    const isActive = !isGlobalNotesMode && (ws ? space.id === ws.id : false);
     const missing = state.workspaceFolderAvailability[space.id] === false;
 
     return `
@@ -45,7 +45,7 @@ export function sidebarMarkup(): string {
       </div>
 
       <div class="nav-list">
-        <button class="nav-item ${currentView === 'Home' && homeCenterMode === 'overview' ? 'selected' : ''}" data-view="Home" title="Home (H)">
+        <button class="nav-item ${!isGlobalNotesMode && currentView === 'Home' ? 'selected' : ''}" data-view="Home" title="Home (H)">
           <span class="nav-icon">${uiIcon('home', 15)}</span>
           <span class="nav-label">Home</span>
           <span class="nav-key">H</span>
@@ -60,7 +60,7 @@ export function sidebarMarkup(): string {
           <span class="nav-label">Logs</span>
           <span class="nav-key">G</span>
         </button>
-        <button class="nav-item ${currentView === 'Home' && homeCenterMode === 'notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
+        <button class="nav-item ${isGlobalNotesMode || currentView === 'Notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
           <span class="nav-icon">${uiIcon('note', 15)}</span>
           <span class="nav-label">Notes</span>
           <span class="nav-key">N</span>

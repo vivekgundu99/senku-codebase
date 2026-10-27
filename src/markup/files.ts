@@ -1,5 +1,5 @@
 import type { FileEntry } from '../../electron/types';
-import { state, fileFilter, visibleEntries, isFilePaneCompact } from '../state';
+import { state, fileFilter, visibleEntries, isFilePaneCompact, isGlobalNotesMode } from '../state';
 import { escapeHtml, folderName, isInside, isSamePath, pathCrumbs } from '../utils';
 import { uiIcon } from './icons';
 
@@ -146,13 +146,23 @@ export function filePanelMarkup(): string {
   let rootFolder = ws ? ws.masterFolder : state.currentPath;
   let rootName = ws ? ws.name : folderName(state.currentPath);
 
-  const senkuNotesIdx = state.currentPath.toLowerCase().indexOf('senku notes');
-  if (senkuNotesIdx !== -1) {
-    rootFolder = state.currentPath.slice(0, senkuNotesIdx + 'senku notes'.length);
+  if (isGlobalNotesMode) {
+    const senkuNotesIdx = state.currentPath.toLowerCase().indexOf('senku notes');
+    if (senkuNotesIdx !== -1) {
+      rootFolder = state.currentPath.slice(0, senkuNotesIdx + 'senku notes'.length);
+    } else {
+      rootFolder = state.currentPath;
+    }
     rootName = 'Senku Notes';
-  } else if (!ws || !isInside(ws.masterFolder, state.currentPath)) {
-    rootFolder = state.currentPath;
-    rootName = folderName(state.currentPath);
+  } else {
+    const senkuNotesIdx = state.currentPath.toLowerCase().indexOf('senku notes');
+    if (senkuNotesIdx !== -1) {
+      rootFolder = state.currentPath.slice(0, senkuNotesIdx + 'senku notes'.length);
+      rootName = 'Senku Notes';
+    } else if (!ws || !isInside(ws.masterFolder, state.currentPath)) {
+      rootFolder = state.currentPath;
+      rootName = folderName(state.currentPath);
+    }
   }
 
   const atRoot = isSamePath(state.currentPath, rootFolder);

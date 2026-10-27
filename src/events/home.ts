@@ -11,6 +11,8 @@ import {
   setActiveNotePageIndex,
   isNoteAllPagesView,
   setIsNoteAllPagesView,
+  isGlobalNotesMode,
+  setGlobalNotesMode,
 } from '../state';
 import { parseNotePages, joinNotePages } from '../utils';
 import { toast } from '../toast';
@@ -112,10 +114,26 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
 
   // Home dual-pill mode toggle: Overview vs Notes
   document.querySelectorAll<HTMLElement>('[data-home-mode]').forEach((pillBtn) => {
-    pillBtn.addEventListener('click', () => {
+    pillBtn.addEventListener('click', async () => {
       const mode = pillBtn.dataset.homeMode as 'overview' | 'notes';
-      if (mode) {
-        setHomeCenterMode(mode);
+      if (mode === 'overview') {
+        if (isGlobalNotesMode) {
+          // The Exit Handshake: exit Global Notes, restore active workspace, and refresh FM
+          setGlobalNotesMode(false);
+          setHomeCenterMode('overview');
+          if (state.workspace?.masterFolder) {
+            await load(state.workspace.masterFolder);
+          } else {
+            render();
+          }
+          return;
+        }
+        setHomeCenterMode('overview');
+        render();
+        return;
+      }
+      if (mode === 'notes') {
+        setHomeCenterMode('notes');
         render();
       }
     });

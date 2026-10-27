@@ -9,6 +9,8 @@ import {
   toggleFilePaneCompact,
   setCurrentFolder,
   setActiveMarkdownFile,
+  isGlobalNotesMode,
+  setGlobalNotesMode,
 } from '../state';
 import { uiIcon } from '../markup';
 import { toast } from '../toast';
@@ -21,6 +23,7 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
     btn.addEventListener('click', async () => {
       const view = btn.dataset.view ?? 'Home';
       if (view === 'Notes') {
+        setGlobalNotesMode(true);
         const notesPath = await window.senku.getNotesPath();
         const res = await window.senku.readFolder(notesPath);
         setCurrentFolder(res.entries, res.currentPath);
@@ -35,10 +38,22 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
         return;
       }
       if (view === 'Home') {
+        const wasGlobal = isGlobalNotesMode;
+        setGlobalNotesMode(false);
         setView('Home');
         setHomeCenterMode('overview');
-        render();
+        if (wasGlobal && state.workspace?.masterFolder) {
+          await load(state.workspace.masterFolder);
+        } else {
+          render();
+        }
         return;
+      }
+      if (isGlobalNotesMode) {
+        setGlobalNotesMode(false);
+        if (state.workspace?.masterFolder) {
+          await load(state.workspace.masterFolder);
+        }
       }
       setView(view);
       if (view === 'AllLog') {

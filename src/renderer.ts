@@ -168,7 +168,8 @@ window.senku.onOpenQuickNote(() => {
   void window.senku.showOverlay();
 });
 window.senku.onSnapshotUpdated(async () => {
-  if (currentView === 'Notes' && document.activeElement?.id === 'notes-editor' && isNoteEditorPendingSave()) {
+  const activeId = document.activeElement?.id;
+  if ((activeId === 'notes-editor' || activeId === 'notes-file-editor') && isNoteEditorPendingSave()) {
     try {
       const snapshot = await window.senku.getSnapshot(state.currentPath);
       setState(snapshot);

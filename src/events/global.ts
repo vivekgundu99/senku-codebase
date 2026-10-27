@@ -1,4 +1,4 @@
-import { state, currentView, setView, toggleAppSidebarCollapsed } from '../state';
+import { state, currentView, setView, toggleAppSidebarCollapsed, setGlobalNotesMode, isGlobalNotesMode, setHomeCenterMode } from '../state';
 import { registerShortcuts } from '../shortcuts';
 import { openPalette } from '../palette';
 import {
@@ -106,19 +106,20 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       const targetSpaceId = switchSpaceBtn.dataset.switchSpace;
       if (!targetSpaceId) return;
 
+      if (isGlobalNotesMode) {
+        setGlobalNotesMode(false);
+        setHomeCenterMode('overview');
+      }
+
       const isActive = state.workspace?.id === targetSpaceId;
       if (isActive) {
-        if (currentView === 'Home' || currentView === 'AllLog') {
-          setView('Overview');
-          render();
-        }
+        setView('Home');
+        await load(state.workspace?.masterFolder);
         return;
       }
 
       await window.senku.switchWorkspace(targetSpaceId);
-      if (currentView === 'Home' || currentView === 'AllLog') {
-        setView('Overview');
-      }
+      setView('Home');
       await load();
       return;
     }

@@ -260,7 +260,7 @@ export function notesWindowMarkup(): string {
         <div class="notes-window-empty">
           <div class="notes-empty-icon">${uiIcon('note', 32)}</div>
           <h3 class="notes-empty-title">Notes Window</h3>
-          <p class="notes-empty-sub">Select any <code>.md</code> file from the file manager, or start a new note in the active folder.</p>
+          <p class="notes-empty-sub">No file is selected for preview. Select a markdown to show here.</p>
           <button type="button" class="primary-button mini" id="new-note-in-folder">+ New Note</button>
         </div>
       </section>
@@ -299,11 +299,6 @@ export function notesWindowMarkup(): string {
               ${isNoteAllPagesView ? 'Page view' : 'All'}
             </button>
             <button type="button" class="notes-page-add-btn" id="notes-page-add" title="Add clean page">+ Page</button>
-            ${pages.length > 1 && !isNoteAllPagesView ? `
-              <button type="button" class="notes-page-delete-btn" id="notes-page-delete" title="Delete current page">
-                ${uiIcon('trash', 12)}
-              </button>
-            ` : ''}
           </div>
           <div class="notes-pages-nav">
             <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page (Alt+←)" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
@@ -315,6 +310,13 @@ export function notesWindowMarkup(): string {
               `).join('')}
             </div>
             <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page (Alt+→)" ${currentPageIndex >= pages.length - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
+          </div>
+          <div class="notes-pages-danger">
+            ${pages.length > 1 && !isNoteAllPagesView ? `
+              <button type="button" class="notes-page-delete-btn" id="notes-page-delete" title="Delete current page">
+                ${uiIcon('trash', 12)}
+              </button>
+            ` : ''}
           </div>
         </div>
       </div>

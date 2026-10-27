@@ -29,6 +29,12 @@ export function setHomeCenterMode(mode: 'overview' | 'notes'): void {
   homeCenterMode = mode;
 }
 
+export let isGlobalNotesMode = false;
+export function setGlobalNotesMode(val: boolean): void {
+  isGlobalNotesMode = val;
+}
+
+
 export interface MarkdownFileState {
   path: string;
   name: string;

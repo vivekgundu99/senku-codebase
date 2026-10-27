@@ -127,3 +127,31 @@
   - The pill is centered in the header row.
   - The active file name moves into the left space of the header row, eliminating the redundant title row below and allowing the note editor canvas to begin immediately.
 
+---
+
+### 11. Architecture Refinement: The Two Notes Windows & The Exit Handshake
+* **Date Documented:** October 27, 2026
+* **The Core Distinction (Dual Notes Workflow):**
+  - **Type 1: Contextual Project Space Notes (Inside an Active Space):**
+    - The user is working inside a dedicated project space (e.g. `College`).
+    - The File Manager shows `College` files.
+    - Toggling the center pill to `[ 📄 ]` opens the Notes Window for `College`.
+    - If no file is selected yet, it presents a clear placeholder: *"No file is selected for preview. Select a markdown to show here."* with `[+ New Note]`.
+    - Clicking `+ New Note` creates a clean note directly in `College`.
+    - Toggling back to `[ 🏠 ]` returns to Overview for `College` with zero space change.
+  - **Type 2: Global Notes Engine (Via Sidebar "Notes"):**
+    - The user clicks **Notes** in the primary sidebar.
+    - The active project space (`College`) is saved safely in the background.
+    - The File Manager bypasses project boundaries and roots directly into `Documents/Senku Notes`.
+    - The Notes Window opens `QuickNote.md` by default (or the empty state if absent).
+    - The Senku topbar displays `Notes · <Date>` cleanly without a confusing space pill.
+  - **The Exit Handshake (Symmetrical Return):**
+    - When in Global Notes (Type 2), clicking **Home** in the sidebar OR clicking the **`[ 🏠 ]`** toggle pill in the center header executes the Exit Handshake.
+    - Both actions immediately exit Global Notes mode, restore the active project space (`College`), re-anchor the File Manager back to `College`, and open the Home Overview.
+* **UX Safety: Accidental Page Deletion Prevention:**
+  - Placing page deletion `[🗑]` directly adjacent to `[+ Page]` is high friction and risky.
+  - Page deletion is moved to the far-right end of the bottom pagination bar (`.notes-pages-danger`), creating a clear physical separation between creation/navigation (`+ Page`, `‹ (1) 2 ›`) and destructive removal.
+* **Radical Legacy Purge:**
+  - Eliminated 800+ lines of obsolete v3.1 code, including bundled notes machinery, dead modals, and redundant sidebars. Notes are pure local markdown files.
+
+

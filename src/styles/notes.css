@@ -746,6 +746,13 @@
   flex-shrink: 0;
 }
 
+.notes-pages-danger {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .notes-page-delete-btn {
   display: inline-flex;
   align-items: center;
