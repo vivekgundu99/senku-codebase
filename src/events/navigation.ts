@@ -93,7 +93,6 @@ export function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
           <span class="tools-menu-label">Quick Note Overlay</span>
           <span class="tools-menu-sub">Floating scratchpad</span>
         </div>
-        <kbd class="tools-menu-key">O</kbd>
       </button>
       <button class="tools-menu-item" id="tools-palette">
         <span class="tools-menu-icon">${uiIcon('search', 13)}</span>
@@ -101,7 +100,7 @@ export function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
           <span class="tools-menu-label">Command Palette</span>
           <span class="tools-menu-sub">Search and navigation</span>
         </div>
-        <kbd class="tools-menu-key">Ctrl+K</kbd>
+        <kbd class="tools-menu-key">P</kbd>
       </button>
       <button class="tools-menu-item" id="tools-guide">
         <span class="tools-menu-icon">${uiIcon('note', 13)}</span>

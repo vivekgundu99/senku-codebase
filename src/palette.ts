@@ -1,8 +1,7 @@
-import { state, setView, setActiveNoteId, currentView } from './state';
+import { state, setView, currentView } from './state';
 import { fuzzyMatch } from './utils';
 import { toast } from './toast';
 import {
-  openCreateNoteModal,
   openLaunchpadFormModal,
   openWorkspaceFormModal,
   openAppSettingsModal,
@@ -13,10 +12,9 @@ type RenderFn = () => void;
 
 interface PaletteItem {
   id: string;
-  type: 'View' | 'Space' | 'Launchpad' | 'Note' | 'Action';
+  type: 'View' | 'Space' | 'Launchpad' | 'Action';
   typeOrder: number;
   text: string;
-  shortcut?: string;
   run: () => Promise<void> | void;
 }
 
@@ -38,7 +36,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         <input
           class="palette-input"
           type="text"
-          placeholder="Search commands, notes, spaces, or type to log…"
+          placeholder="Search commands, spaces, or type to log…"
           autocomplete="off"
           spellcheck="false"
         />
@@ -48,7 +46,6 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         <span class="palette-footer-item"><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
         <span class="palette-footer-item"><kbd>↵</kbd> select</span>
         <span class="palette-footer-item"><kbd>esc</kbd> close</span>
-        <span class="palette-footer-item"><kbd>n text</kbd> note</span>
       </div>
     </div>
   `;
@@ -75,12 +72,10 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
 
     // 1. Views
     items.push(
-      { id: 'view-home', type: 'View', typeOrder: 0, text: 'Home', shortcut: 'H', run: () => { setView('Home'); render(); } },
-      { id: 'view-overview', type: 'View', typeOrder: 0, text: 'Overview', shortcut: 'S', run: () => { setView('Overview'); render(); } },
-      { id: 'view-launchpads', type: 'View', typeOrder: 0, text: 'Launchpads', shortcut: 'L', run: () => { setView('Launchpads'); render(); } },
-      { id: 'view-notes', type: 'View', typeOrder: 0, text: 'Notes', shortcut: 'N', run: () => { setView('Notes'); render(); } },
-      { id: 'view-log', type: 'View', typeOrder: 0, text: 'Quiet Log (Space)', run: () => { setView('Log'); render(); } },
-      { id: 'view-all-logs', type: 'View', typeOrder: 0, text: 'All Logs (#senku)', shortcut: 'G', run: () => { setView('AllLog'); render(); } },
+      { id: 'view-home', type: 'View', typeOrder: 0, text: 'Home', run: () => { setView('Home'); render(); } },
+      { id: 'view-launchpads', type: 'View', typeOrder: 0, text: 'Launchpads', run: () => { setView('Launchpads'); render(); } },
+      { id: 'view-notes', type: 'View', typeOrder: 0, text: 'Notes', run: () => { setView('Notes'); render(); } },
+      { id: 'view-all-logs', type: 'View', typeOrder: 0, text: 'Logs', run: () => { setView('AllLog'); render(); } },
     );
 
     // 2. Spaces
@@ -94,9 +89,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         run: async () => {
           if (!isCurrent) {
             await window.senku.switchWorkspace(ws.id);
-            if (currentView === 'Home' || currentView === 'AllLog') {
-              setView('Overview');
-            }
+            setView('Home');
             await load();
           }
         },
@@ -110,7 +103,6 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         type: 'Launchpad',
         typeOrder: 2,
         text: `Launch: ${lp.name}`,
-        shortcut: '↗',
         run: async () => {
           const res = await window.senku.launchLaunchpad(lp.id);
           if (res.ok) {
@@ -122,46 +114,14 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
       });
     });
 
-    // 4. Notes
-    (state.notes || []).forEach((note) => {
-      const prefix = note.bundle ? `[${note.bundle}] ` : '';
-      items.push({
-        id: `note-${note.id}`,
-        type: 'Note',
-        typeOrder: 3,
-        text: `${prefix}${note.name}`,
-        run: async () => {
-          setActiveNoteId(note.id);
-          void window.senku.setActiveNote(note.id);
-          setView('Notes');
-          render();
-        },
-      });
-    });
-
-    // 5. Actions
+    // 4. Actions
     items.push(
       {
         id: 'action-quick-note',
         type: 'Action',
         typeOrder: 4,
         text: 'Quick Note Overlay',
-        shortcut: 'O',
         run: () => { void window.senku.showOverlay(); },
-      },
-      {
-        id: 'action-new-note',
-        type: 'Action',
-        typeOrder: 4,
-        text: 'New Note',
-        run: () => { openCreateNoteModal(load, render); },
-      },
-      {
-        id: 'action-new-launchpad',
-        type: 'Action',
-        typeOrder: 4,
-        text: 'New Launchpad',
-        run: () => { openLaunchpadFormModal(load); },
       },
       {
         id: 'action-new-space',
@@ -171,22 +131,18 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         run: () => { openWorkspaceFormModal(load); },
       },
       {
+        id: 'action-new-launchpad',
+        type: 'Action',
+        typeOrder: 4,
+        text: 'New Launchpad',
+        run: () => { openLaunchpadFormModal(load); },
+      },
+      {
         id: 'action-app-settings',
         type: 'Action',
         typeOrder: 4,
         text: 'App Settings',
         run: () => { openAppSettingsModal(render, load); },
-      },
-      {
-        id: 'action-guide',
-        type: 'Action',
-        typeOrder: 4,
-        text: 'User Guide & Shortcuts',
-        shortcut: '?',
-        run: async () => {
-          const res = await window.senku.openUserGuide();
-          if (!res.ok) toast(res.error || 'User guide not found.');
-        },
       },
     );
 
@@ -246,39 +202,18 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         highlightedHtml: highlight(s.item.text, s.indices),
       }));
 
-      let dynamicItem: PaletteItem;
-      if (/^(?:n|note)\s+/i.test(rawQuery)) {
-        const rest = rawQuery.replace(/^(?:n|note)\s+/i, '').trim();
-        dynamicItem = {
-          id: 'dynamic-note',
-          type: 'Note',
-          typeOrder: 5,
-          text: `Note: “${rest}”`,
-          run: async () => {
-            if (!rest) return;
-            const res = await window.senku.appendToActiveNote(rest);
-            if (res.ok) {
-              await load(state.currentPath);
-              toast('Saved to Note');
-            } else {
-              toast(res.error || 'Could not save note');
-            }
-          },
-        };
-      } else {
-        dynamicItem = {
-          id: 'dynamic-log',
-          type: 'Action',
-          typeOrder: 5,
-          text: `Log: “${rawQuery}”`,
-          run: async () => {
-            const spaceId = state.workspace?.id;
-            await window.senku.addLogEntry(rawQuery, spaceId);
-            await load(state.currentPath);
-            toast('Logged');
-          },
-        };
-      }
+      const dynamicItem: PaletteItem = {
+        id: 'dynamic-log',
+        type: 'Action',
+        typeOrder: 5,
+        text: `Log: “${rawQuery}”`,
+        run: async () => {
+          const spaceId = state.workspace?.id;
+          await window.senku.addLogEntry(rawQuery, spaceId);
+          await load(state.currentPath);
+          toast('Logged');
+        },
+      };
 
       currentRows = [...topScored, { item: dynamicItem, highlightedHtml: escapeHtmlText(dynamicItem.text) }];
     }
@@ -297,7 +232,6 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
       <div class="palette-row ${idx === selectedIndex ? 'selected' : ''}" data-idx="${idx}">
         <span class="palette-row-text">${row.highlightedHtml}</span>
         <div class="palette-row-meta">
-          ${row.item.shortcut ? `<kbd class="palette-row-kbd">${escapeHtmlText(row.item.shortcut)}</kbd>` : ''}
           <span class="palette-row-type type-${row.item.type.toLowerCase()}">${row.item.type}</span>
         </div>
       </div>`,

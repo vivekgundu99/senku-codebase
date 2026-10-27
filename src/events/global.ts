@@ -1,4 +1,4 @@
-import { state, currentView, setView, toggleAppSidebarCollapsed, setGlobalNotesMode, isGlobalNotesMode, setHomeCenterMode } from '../state';
+import { state, currentView, setView, toggleAppSidebarCollapsed, setGlobalNotesMode, isGlobalNotesMode, setHomeCenterMode, homeCenterMode } from '../state';
 import { registerShortcuts } from '../shortcuts';
 import { openPalette } from '../palette';
 import {
@@ -18,15 +18,6 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       openPalette(load, render);
     }
   }, { capture: true });
-
-  // Global Ctrl+B toggles collapsible sidebar
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
-      e.preventDefault();
-      toggleAppSidebarCollapsed();
-      render();
-    }
-  });
 
   // Global Zoom: Ctrl+=, Ctrl++, Ctrl+-, Ctrl+0
   document.addEventListener('keydown', (e) => {
@@ -52,41 +43,50 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
     }
   });
 
-
-  // Global Ctrl+Enter focuses quick capture or navigates to Log
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key === 'Enter') {
-      e.preventDefault();
-      const homeInput = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
-      const logInput = document.querySelector<HTMLTextAreaElement>('#log-compose-textarea');
-      if (homeInput) {
-        homeInput.focus();
-      } else if (logInput) {
-        logInput.focus();
-      } else {
-        setView('Log');
-        render();
-        setTimeout(() => document.querySelector<HTMLTextAreaElement>('#log-compose-textarea')?.focus(), 50);
-      }
-    }
-  }, { capture: true });
-
-  // Esc clears non-empty search input first; if empty or not search, blurs it
+  // Esc: cancel / dismiss / clear, and at last navigate to Home
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      // 1. Let open modal or command palette handle their own dismissal
+      if (document.querySelector('.modal-backdrop, .palette-backdrop')) {
+        return;
+      }
+
+      // 2. If dropdown menu or tools popover is open, close it
+      const openMenu = document.querySelector<HTMLElement>('.file-tools-dropdown-menu.open, .tools-menu-popover');
+      if (openMenu) {
+        e.preventDefault();
+        openMenu.classList.remove('open');
+        if (openMenu.classList.contains('tools-menu-popover')) openMenu.remove();
+        return;
+      }
+
+      // 3. If an input or textarea is active: clear or blur
       const active = document.activeElement;
       if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
-        if (active.closest('.modal-backdrop, .palette-backdrop')) return;
-        if (active.type === 'search' || active.id === 'file-filter' || active.id === 'log-search') {
-          if (active.value) {
-            e.preventDefault();
-            active.value = '';
-            active.dispatchEvent(new Event('input', { bubbles: true }));
-            return;
-          }
+        if (active.value) {
+          e.preventDefault();
+          active.value = '';
+          active.dispatchEvent(new Event('input', { bubbles: true }));
+          return;
         }
         e.preventDefault();
         active.blur();
+        const searchExp = document.querySelector<HTMLElement>('#file-search-expandable.open');
+        if (searchExp) searchExp.classList.remove('open');
+        return;
+      }
+
+      // 4. At last: navigate to Home
+      if (currentView !== 'Home' || isGlobalNotesMode || homeCenterMode !== 'overview') {
+        e.preventDefault();
+        setGlobalNotesMode(false);
+        setHomeCenterMode('overview');
+        setView('Home');
+        if (state.workspace?.masterFolder) {
+          void load(state.workspace.masterFolder);
+        } else {
+          render();
+        }
       }
     }
   });

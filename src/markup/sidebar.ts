@@ -39,31 +39,27 @@ export function sidebarMarkup(): string {
           <span class="brand-mark" title="Senku">S</span>
           <span class="brand-text">senku</span>
         </div>
-        <button class="sidebar-toggle-btn" id="toggle-sidebar" title="${isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}" aria-label="Toggle sidebar">
+        <button class="sidebar-toggle-btn" id="toggle-sidebar" title="${isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}" aria-label="Toggle sidebar">
           ${uiIcon('sidebar', 14)}
         </button>
       </div>
 
       <div class="nav-list">
-        <button class="nav-item ${!isGlobalNotesMode && currentView === 'Home' ? 'selected' : ''}" data-view="Home" title="Home (H)">
+        <button class="nav-item ${!isGlobalNotesMode && currentView === 'Home' ? 'selected' : ''}" data-view="Home" title="Home">
           <span class="nav-icon">${uiIcon('home', 15)}</span>
           <span class="nav-label">Home</span>
-          <span class="nav-key">H</span>
         </button>
-        <button class="nav-item ${currentView === 'Launchpads' ? 'selected' : ''}" data-view="Launchpads" title="Launchpads (L)">
+        <button class="nav-item ${currentView === 'Launchpads' ? 'selected' : ''}" data-view="Launchpads" title="Launchpads">
           <span class="nav-icon">${uiIcon('play', 15)}</span>
           <span class="nav-label">Launchpads</span>
-          <span class="nav-key">L</span>
         </button>
-        <button class="nav-item ${currentView === 'Log' || currentView === 'AllLog' ? 'selected' : ''}" data-view="AllLog" title="Logs (G)">
+        <button class="nav-item ${currentView === 'Log' || currentView === 'AllLog' ? 'selected' : ''}" data-view="AllLog" title="Logs">
           <span class="nav-icon">${uiIcon('list', 15)}</span>
           <span class="nav-label">Logs</span>
-          <span class="nav-key">G</span>
         </button>
-        <button class="nav-item ${isGlobalNotesMode || currentView === 'Notes' ? 'selected' : ''}" data-view="Notes" title="Notes (N)">
+        <button class="nav-item ${isGlobalNotesMode || currentView === 'Notes' ? 'selected' : ''}" data-view="Notes" title="Notes">
           <span class="nav-icon">${uiIcon('note', 15)}</span>
           <span class="nav-label">Notes</span>
-          <span class="nav-key">N</span>
         </button>
       </div>
 

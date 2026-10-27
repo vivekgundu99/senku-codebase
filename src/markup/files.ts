@@ -205,7 +205,7 @@ export function filePanelMarkup(): string {
             ${uiIcon('sidebar', 13)}
           </button>
           <div class="file-search-expandable ${fileFilter ? 'open' : ''}" id="file-search-expandable">
-            <button type="button" class="file-action-btn search-trigger-btn" id="file-search-trigger" title="Search files (/)">
+            <button type="button" class="file-action-btn search-trigger-btn" id="file-search-trigger" title="Search files">
               ${uiIcon('search', 13)}
             </button>
             <div class="file-search-input-wrap">

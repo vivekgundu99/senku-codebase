@@ -1,4 +1,4 @@
-import { currentPath, setView, state } from './state';
+import { state } from './state';
 import { isSamePath, parentOf } from './utils';
 
 type ShortcutContext = {
@@ -7,52 +7,20 @@ type ShortcutContext = {
 };
 
 const shortcuts = [
-  { key: 'h', run: ({ render }: ShortcutContext) => { setView('Home'); render(); } },
-  { key: 's', run: ({ render }: ShortcutContext) => { setView('Overview'); render(); } },
-  { key: 'l', run: ({ render }: ShortcutContext) => { setView('Launchpads'); render(); } },
-  { key: 'g', run: ({ render }: ShortcutContext) => { setView('AllLog'); render(); } },
   {
-    key: 'n',
-    run: ({ render }: ShortcutContext) => {
-      void (async () => {
-        const { setCurrentFolder, setActiveMarkdownFile, setHomeCenterMode, toggleFilePaneCompact, isFilePaneCompact } = await import('./state');
-        const notesPath = await window.senku.getNotesPath();
-        const res = await window.senku.readFolder(notesPath);
-        setCurrentFolder(res.entries, res.currentPath);
-
-        const qNote = await window.senku.getOrCreateQuickNote();
-        setActiveMarkdownFile(qNote);
-
-        setView('Home');
-        setHomeCenterMode('notes');
-        if (!isFilePaneCompact) toggleFilePaneCompact();
-        render();
-      })();
+    key: 'p',
+    run: ({ load, render }: ShortcutContext) => {
+      void import('./palette').then((m) => m.openPalette(load, render));
     },
   },
-  { key: 'o', run: () => { void window.senku.showOverlay(); } },
-  { key: 'p', run: ({ load, render }: ShortcutContext) => { void import('./palette').then(m => m.openPalette(load, render)); } },
-  { key: '?', run: () => { void window.senku.openUserGuide(); } },
   {
-    key: 'r',
+    key: 'b',
     run: ({ load }: ShortcutContext) => {
       const root = state.workspace?.masterFolder;
-      if (!root || isSamePath(currentPath, root)) return;
-      const parent = parentOf(currentPath);
+      const current = state.currentPath;
+      if (!root || !current || isSamePath(current, root)) return;
+      const parent = parentOf(current);
       if (parent) void load(parent);
-    },
-  },
-  {
-    key: '/',
-    run: () => {
-      const searchExp = document.querySelector<HTMLElement>('#file-search-expandable');
-      if (searchExp) searchExp.classList.add('open');
-      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('#file-filter, #log-search, input[type="search"]'));
-      const visible = inputs.find((el) => el.offsetParent !== null);
-      if (visible) {
-        visible.focus();
-        visible.select();
-      }
     },
   },
 ];
