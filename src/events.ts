@@ -17,7 +17,7 @@ export function bindAll(load: LoadFn, render: RenderFn): void {
   bindNavigation(load, render);
   bindSidebarButtons(load, render);
   bindTopbarButtons(load, render);
-  bindFileActions(load);
+  bindFileActions(load, render);
   bindHomeActions(load, render);
   bindLogPanel(load, render);
   bindLaunchpadActions(load);

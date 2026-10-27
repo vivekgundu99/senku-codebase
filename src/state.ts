@@ -53,6 +53,12 @@ export function toggleAppSidebarCollapsed(): void {
   localStorage.setItem('senku:appSidebarCollapsed', String(isAppSidebarCollapsed));
 }
 
+export let isFilePaneCompact = localStorage.getItem('senku:filePaneCompact') === 'true';
+export function toggleFilePaneCompact(): void {
+  isFilePaneCompact = !isFilePaneCompact;
+  localStorage.setItem('senku:filePaneCompact', String(isFilePaneCompact));
+}
+
 export let noteFilter = '';
 export function setNoteFilter(text: string): void {
   noteFilter = text;

@@ -3,13 +3,14 @@ import {
   setFileFilter,
   showMoreFiles,
   setCurrentFolder,
+  toggleFilePaneCompact,
 } from '../state';
 import { fileCountLabel, fileListMarkup, filePanelMarkup } from '../markup';
 import { isSamePath, parentOf } from '../utils';
 import { toast } from '../toast';
-import type { LoadFn } from './types';
+import type { LoadFn, RenderFn } from './types';
 
-export function bindFileActions(load: LoadFn): void {
+export function bindFileActions(load: LoadFn, render?: RenderFn): void {
   const panel = document.querySelector<HTMLElement>('.files-panel');
   if (!panel) return;
 
@@ -28,7 +29,7 @@ export function bindFileActions(load: LoadFn): void {
       const rightCol = document.querySelector('.right-column');
       if (rightCol) {
         rightCol.innerHTML = filePanelMarkup();
-        bindFileActions(load);
+        bindFileActions(load, render);
       }
     } catch {
       await load(folderPath);
@@ -37,6 +38,12 @@ export function bindFileActions(load: LoadFn): void {
 
   panel.addEventListener('click', async (event) => {
     const target = event.target as HTMLElement;
+
+    if (target.closest('#toggle-file-pane-size')) {
+      toggleFilePaneCompact();
+      if (render) render();
+      return;
+    }
 
     const fileAction = target.closest<HTMLElement>('[data-file-action]');
     if (fileAction) {

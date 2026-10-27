@@ -1,5 +1,5 @@
 import type { FileEntry } from '../../electron/types';
-import { state, fileFilter, visibleEntries } from '../state';
+import { state, fileFilter, visibleEntries, isFilePaneCompact } from '../state';
 import { escapeHtml, folderName, isSamePath, pathCrumbs } from '../utils';
 import { uiIcon } from './icons';
 
@@ -174,6 +174,9 @@ export function filePanelMarkup(): string {
           </button>
           <button class="file-action-btn" id="open-in-terminal" title="Open in Terminal">
             ${uiIcon('terminal', 13)}
+          </button>
+          <button class="file-action-btn ${isFilePaneCompact ? 'active' : ''}" id="toggle-file-pane-size" title="${isFilePaneCompact ? 'Expand file pane' : 'Compact file pane'}">
+            ${uiIcon('sidebar', 13)}
           </button>
           <div class="file-search-expandable ${fileFilter ? 'open' : ''}" id="file-search-expandable">
             <button type="button" class="file-action-btn search-trigger-btn" id="file-search-trigger" title="Search files (/)">

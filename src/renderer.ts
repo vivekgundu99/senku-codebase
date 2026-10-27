@@ -5,6 +5,7 @@ import {
   setAllLog,
   isPathAvailabilityCacheStale,
   setCachedPathAvailability,
+  isFilePaneCompact,
 } from './state';
 import {
   sidebarMarkup,
@@ -47,7 +48,7 @@ function render(): void {
   const showFiles = currentView === 'Home' || currentView === 'Overview';
 
   const mainContent = showFiles
-    ? `<div class="content-grid">
+    ? `<div class="content-grid ${isFilePaneCompact ? 'compact-files' : ''}">
          <div class="main-left">${leftPanel}</div>
          <div class="right-column">${filePanelMarkup()}</div>
        </div>`
