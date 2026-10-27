@@ -111,3 +111,19 @@
   - **1-Click Creation in Active Context:** Inside the Notes Window, `+ New Note` creates a clean `.md` file directly in whatever active folder or subfolder the File Manager is currently browsing.
   - **Default Empty State:** If no file has been opened yet, the Notes Window shows a calm, welcoming default placeholder without forcing any file open.
   - **Zero Database / Zero Magic:** Everything is pure plain-text `.md` files on the user's hard drive, easily browsable via Windows Explorer, VS Code, or Senku.
+
+---
+
+### 10. Proposed Ideas & Bloat Removal: Pure Folder Navigation (No Fake Spaces) & QuickNote Streamline
+* **Date Documented:** October 27, 2026
+* **Bloat Removed (The "Notes Space" Trap):**
+  - Trying to register "Senku Notes" as a workspace in `workspaces.json` caused immediate bloat and danger: it risked accidental space renaming, space deletion, and overrode the user's active project workspace in the topbar.
+  - **The Solution:** Notes is **not** a space. The user's active project workspace stays untouched. Clicking "Notes" in the sidebar simply directs the File Explorer to `Documents/Senku Notes` and opens the Notes Window.
+* **QuickNote.md as the Single Source of Truth:**
+  - The floating Quick Note overlay drops all complex bundle/note lookup logic. It has one simple job: append directly to `Documents/Senku Notes/QuickNote.md`.
+  - When the user clicks "Notes" in the sidebar, Senku opens `QuickNote.md` by default, giving immediate access to recently captured thoughts without hunting.
+* **Visual Symmetry & Vertical Space Optimization:**
+  - The Home header pill is converted from text (`[Overview] [📄]`) to balanced icons: `[ 🏠 | 📄 ]`.
+  - The pill is centered in the header row.
+  - The active file name moves into the left space of the header row, eliminating the redundant title row below and allowing the note editor canvas to begin immediately.
+

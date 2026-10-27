@@ -7,6 +7,8 @@ import {
   setHomeCenterMode,
   isFilePaneCompact,
   toggleFilePaneCompact,
+  setCurrentFolder,
+  setActiveMarkdownFile,
 } from '../state';
 import { uiIcon } from '../markup';
 import { toast } from '../toast';
@@ -19,11 +21,13 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
     btn.addEventListener('click', async () => {
       const view = btn.dataset.view ?? 'Home';
       if (view === 'Notes') {
-        const notesSpace = state.workspaces?.find((w) => w.id === '__senku_notes__' || (w as any).isNotesSpace);
-        if (notesSpace && state.workspace?.id !== notesSpace.id) {
-          const snap = await window.senku.switchWorkspace(notesSpace.id);
-          setState(snap);
-        }
+        const notesPath = await window.senku.getNotesPath();
+        const res = await window.senku.readFolder(notesPath);
+        setCurrentFolder(res.entries, res.currentPath);
+
+        const qNote = await window.senku.getOrCreateQuickNote();
+        setActiveMarkdownFile(qNote);
+
         setView('Home');
         setHomeCenterMode('notes');
         if (!isFilePaneCompact) toggleFilePaneCompact();

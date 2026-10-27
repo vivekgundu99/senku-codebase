@@ -26,14 +26,16 @@ export function overviewPanelMarkup(): string {
     return `
     <section class="home-panel-v3">
       <div class="home-center-header">
+        <div class="notes-header-file-title"></div>
         <div class="home-pill-toggle">
-          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Overview">
-            <span>Overview</span>
+          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Home Overview">
+            <span class="home-pill-icon">${uiIcon('home', 13)}</span>
           </button>
           <button type="button" class="home-pill-btn" data-home-mode="notes" title="Notes Window">
             <span class="home-pill-icon">${uiIcon('note', 13)}</span>
           </button>
         </div>
+        <div class="notes-window-actions"></div>
       </div>
       <div class="home-hero">
         <h1 class="home-greeting">${greeting}</h1>
@@ -87,14 +89,16 @@ export function homePanelV3Markup(): string {
   return `
     <section class="home-panel-v3">
       <div class="home-center-header">
+        <div class="notes-header-file-title"></div>
         <div class="home-pill-toggle">
-          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Overview">
-            <span>Overview</span>
+          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Home Overview">
+            <span class="home-pill-icon">${uiIcon('home', 13)}</span>
           </button>
           <button type="button" class="home-pill-btn" data-home-mode="notes" title="Notes Window">
             <span class="home-pill-icon">${uiIcon('note', 13)}</span>
           </button>
         </div>
+        <div class="notes-window-actions"></div>
       </div>
       <div class="home-decks-container">
         <!-- Top: Quick Launchpads -->
@@ -222,16 +226,22 @@ export function notesWindowMarkup(): string {
 
   const headerPill = `
     <div class="home-center-header">
+      <div class="notes-header-file-title">
+        ${file ? `
+          <span class="notes-window-file-icon">${uiIcon('note', 13)}</span>
+          <span class="notes-window-file-name" title="${escapeHtml(file.path)}">${escapeHtml(file.name)}</span>
+        ` : ''}
+      </div>
       <div class="home-pill-toggle">
-        <button type="button" class="home-pill-btn" data-home-mode="overview" title="Overview">
-          <span>Overview</span>
+        <button type="button" class="home-pill-btn" data-home-mode="overview" title="Home Overview">
+          <span class="home-pill-icon">${uiIcon('home', 13)}</span>
         </button>
         <button type="button" class="home-pill-btn active" data-home-mode="notes" title="Notes Window">
           <span class="home-pill-icon">${uiIcon('note', 13)}</span>
         </button>
       </div>
-      ${file ? `
-        <div class="notes-window-actions">
+      <div class="notes-window-actions">
+        ${file ? `
           <button type="button" class="notes-window-action-btn" id="new-note-in-folder" title="New Note in active folder">
             ${uiIcon('plus', 11)} <span>Note</span>
           </button>
@@ -239,8 +249,8 @@ export function notesWindowMarkup(): string {
             ${uiIcon(isPreview ? 'pen' : 'eye', 11)} <span>${isPreview ? 'Edit' : 'Preview'}</span>
           </button>
           <span class="notes-window-save-status" id="notes-file-save-status"></span>
-        </div>
-      ` : ''}
+        ` : ''}
+      </div>
     </div>`;
 
   if (!file) {
@@ -268,10 +278,6 @@ export function notesWindowMarkup(): string {
     <section class="notes-window-panel">
       ${headerPill}
       <div class="notes-window-body">
-        <div class="notes-window-file-title" title="${escapeHtml(file.path)}">
-          <span class="notes-window-file-icon">${uiIcon('note', 13)}</span>
-          <span class="notes-window-file-name">${escapeHtml(file.name)}</span>
-        </div>
 
         ${isPreview ? `
           <div class="notes-preview-scroll">

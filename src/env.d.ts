@@ -63,6 +63,8 @@ declare global {
       exportAllNotes(): Promise<{ ok: boolean; count?: number; empty?: boolean; error?: string }>;
       exportBundle(bundleName: string): Promise<{ ok: boolean; count?: number; error?: string }>;
       exportLogs(content: string, defaultName?: string): Promise<{ ok: boolean; error?: string }>;
+      getNotesPath(): Promise<string>;
+      getOrCreateQuickNote(): Promise<{ path: string; name: string; content: string }>;
       // Floating Overlay
       showOverlay(): Promise<{ ok: boolean }>;
       hideOverlay(): Promise<{ ok: boolean }>;

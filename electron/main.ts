@@ -642,7 +642,7 @@ app.whenReady().then(async () => {
   try {
     await migrateLegacyData(baseDir(), await getWorkspaces(), await getSettings(), await activeSpaceId(), readJson);
     await migrateNotesToGlobal();
-    await ensureNotesSpace();
+    await cleanupNotesSpaceFromWorkspaces();
   } catch (err) {
     console.error('Migration failed:', err);
   }
@@ -1289,29 +1289,36 @@ async function migrateNotesToGlobal(): Promise<void> {
   }
 }
 
-const NOTES_SPACE_ID = '__senku_notes__';
-
-async function ensureNotesSpace(): Promise<void> {
+async function cleanupNotesSpaceFromWorkspaces(): Promise<void> {
   const gDir = globalNotesDir();
   await fs.mkdir(gDir, { recursive: true });
   const workspaces = await getWorkspaces();
-  let notesSpace = workspaces.find((w) => w.id === NOTES_SPACE_ID);
-  if (!notesSpace) {
-    notesSpace = {
-      id: NOTES_SPACE_ID,
-      name: 'Senku Notes',
-      masterFolder: gDir,
-      createdAt: String(Date.now()),
-      pinnedPaths: [],
-      isNotesSpace: true,
-    };
-    workspaces.push(notesSpace);
-    await writeJson(workspacesFile(), workspaces);
-  } else if (notesSpace.masterFolder !== gDir) {
-    notesSpace.masterFolder = gDir;
-    await writeJson(workspacesFile(), workspaces);
+  const filtered = workspaces.filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace);
+  if (filtered.length !== workspaces.length) {
+    await writeJson(workspacesFile(), filtered);
+    const settings = await getSettings();
+    if (settings.activeWorkspaceId === '__senku_notes__') {
+      settings.activeWorkspaceId = filtered[0]?.id ?? '';
+      await saveSettings(settings);
+    }
   }
 }
+
+ipcMain.handle('notes:get-path', () => globalNotesDir());
+
+ipcMain.handle('notes:get-or-create-quicknote', async () => {
+  const nDir = globalNotesDir();
+  await fs.mkdir(nDir, { recursive: true });
+  const qPath = path.join(nDir, 'QuickNote.md');
+  try {
+    const content = await fs.readFile(qPath, 'utf8');
+    return { path: qPath, name: 'QuickNote.md', content };
+  } catch {
+    const initialContent = '# Quick Note\n\nCaptured thoughts and ideas.\n';
+    await fs.writeFile(qPath, initialContent, 'utf8');
+    return { path: qPath, name: 'QuickNote.md', content: initialContent };
+  }
+});
 
 handleLocked('notes:create', async (_event, name: string, bundle?: string) => {
   const trimmed = (name || '').trim();
@@ -1607,30 +1614,27 @@ handleLocked('notes:set-active', async (_event, id: string) => {
   return { ok: true };
 });
 
-handleLocked('notes:append-active', async (_event, snippet: string, targetId?: string) => {
+handleLocked('notes:append-active', async (_event, snippet: string) => {
   const trimmed = (snippet || '').trim();
   if (!trimmed) return { ok: false, error: 'Snippet cannot be empty.' };
 
   const nDir = globalNotesDir();
-  const notes = await listNotes(nDir);
-  const settings = await getSettings();
-  const noteId = targetId || settings.activeNoteId || notes[0]?.id;
-  let active = notes.find((n) => n.id === noteId);
+  await fs.mkdir(nDir, { recursive: true });
+  const qPath = path.join(nDir, 'QuickNote.md');
 
-  if (!active) {
-    if (notes.length > 0) {
-      active = notes[0];
-    } else {
-      active = await createNote(nDir, 'Quick Notes');
-      notes.unshift(active);
-    }
-    settings.activeNoteId = active.id;
-    await saveSettings(settings);
+  let existing = '';
+  try {
+    existing = await fs.readFile(qPath, 'utf8');
+  } catch {
+    existing = '# Quick Note\n\nCaptured thoughts and ideas.\n';
   }
 
-  await appendToNote(nDir, active.id, trimmed);
+  const updated = existing.trim()
+    ? `${existing.trimEnd()}\n\n${trimmed}\n`
+    : `# Quick Note\n\n${trimmed}\n`;
+  await fs.writeFile(qPath, updated, 'utf8');
   mainWindow?.webContents.send('snapshot:updated');
 
-  return { ok: true, noteName: active.name };
+  return { ok: true, noteName: 'QuickNote.md' };
 });
 

@@ -179,6 +179,12 @@ const api = {
   exportLogs: (content: string, defaultName?: string) =>
     ipcRenderer.invoke('log:export', content, defaultName) as Promise<{ ok: boolean; error?: string }>,
 
+  getNotesPath: () =>
+    ipcRenderer.invoke('notes:get-path') as Promise<string>,
+
+  getOrCreateQuickNote: () =>
+    ipcRenderer.invoke('notes:get-or-create-quicknote') as Promise<{ path: string; name: string; content: string }>,
+
   // --- Floating Quick Note Overlay ---
   showOverlay: () =>
     ipcRenderer.invoke('overlay:show') as Promise<{ ok: boolean }>,
