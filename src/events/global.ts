@@ -44,6 +44,15 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
     }
   });
 
+  // Global F11: Toggle Fullscreen (Zen Writing Mode)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') {
+      e.preventDefault();
+      void window.senku.toggleFullscreen();
+    }
+  });
+
+
   // Global Ctrl+Enter focuses quick capture or navigates to Log
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'Enter') {

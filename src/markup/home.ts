@@ -6,8 +6,10 @@ import {
   homeCenterMode,
   activeMarkdownFile,
   isNotePreviewMode,
+  activeNotePageIndex,
+  isNoteAllPagesView,
 } from '../state';
-import { escapeHtml, renderGreeting } from '../utils';
+import { escapeHtml, renderGreeting, parseNotePages } from '../utils';
 import { uiIcon } from './icons';
 import { formatRelativeTime } from './files';
 import { marked } from 'marked';
@@ -233,9 +235,6 @@ export function notesWindowMarkup(): string {
           <button type="button" class="notes-window-action-btn" id="new-note-in-folder" title="New Note in active folder">
             ${uiIcon('plus', 11)} <span>Note</span>
           </button>
-          <button type="button" class="notes-window-action-btn" id="open-note-file-vscode" title="Open in VS Code" data-file-path="${escapeHtml(file.path)}">
-            ${uiIcon('code', 11)} <span>Code</span>
-          </button>
           <button type="button" class="notes-window-action-btn ${isPreview ? 'active' : ''}" id="toggle-note-preview-mode" title="${isPreview ? 'Switch to Edit' : 'Switch to Preview'}">
             ${uiIcon(isPreview ? 'pen' : 'eye', 11)} <span>${isPreview ? 'Edit' : 'Preview'}</span>
           </button>
@@ -259,7 +258,11 @@ export function notesWindowMarkup(): string {
   }
 
   const content = file.content;
-  const previewHtml = isPreview ? (marked.parse(content, { gfm: true, breaks: true }) as string) : '';
+  const pages = parseNotePages(content);
+  const totalPages = pages.length;
+  const currentPageIndex = Math.min(Math.max(0, activeNotePageIndex), Math.max(0, totalPages - 1));
+  const currentContent = isNoteAllPagesView ? content : (pages[currentPageIndex] ?? '');
+  const previewHtml = isPreview ? (marked.parse(currentContent, { gfm: true, breaks: true }) as string) : '';
 
   return `
     <section class="notes-window-panel">
@@ -272,17 +275,39 @@ export function notesWindowMarkup(): string {
 
         ${isPreview ? `
           <div class="notes-preview-scroll">
-            <div class="notes-markdown-preview markdown-body">${previewHtml || '<p class="notes-preview-empty">Empty note. Click Edit to start writing.</p>'}</div>
+            <div class="notes-markdown-preview markdown-body">${previewHtml || '<p class="notes-preview-empty">Empty note page. Click Edit to start writing.</p>'}</div>
           </div>
         ` : `
           <textarea
             id="notes-file-editor"
             class="notes-window-editor"
-            placeholder="Type notes in Markdown…"
+            placeholder="${isNoteAllPagesView ? 'Start writing (all pages)...' : `Start writing on Page ${currentPageIndex + 1}...`}"
             data-file-path="${escapeHtml(file.path)}"
             spellcheck="false"
-          >${escapeHtml(content)}</textarea>
+          >${escapeHtml(currentContent)}</textarea>
         `}
+
+        <div class="notes-window-pages-bar">
+          <div class="notes-window-pages-nav">
+            <button type="button" class="notes-page-nav-btn" id="notes-prev-page" title="Previous page (Alt+←)" ${currentPageIndex <= 0 || isNoteAllPagesView ? 'disabled' : ''}>
+              ‹
+            </button>
+            <span class="notes-page-counter" id="notes-page-counter-label">
+              ${isNoteAllPagesView ? `All Pages (${totalPages})` : `Page ${currentPageIndex + 1} of ${totalPages}`}
+            </span>
+            <button type="button" class="notes-page-nav-btn" id="notes-next-page" title="Next page (Alt+→)" ${currentPageIndex >= totalPages - 1 || isNoteAllPagesView ? 'disabled' : ''}>
+              ›
+            </button>
+          </div>
+          <div class="notes-window-pages-actions">
+            <button type="button" class="notes-page-action-btn ${isNoteAllPagesView ? 'active' : ''}" id="notes-toggle-all-pages" title="Toggle single-page / all-pages">
+              ${isNoteAllPagesView ? 'Single Page' : 'All Pages'}
+            </button>
+            <button type="button" class="notes-page-action-btn" id="notes-add-page-btn" title="Add page break (<!-- page -->)">
+              + Page
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   `;

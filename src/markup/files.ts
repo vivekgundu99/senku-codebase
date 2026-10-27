@@ -154,9 +154,6 @@ export function filePanelMarkup(): string {
     <section class="files-panel">
       <div class="file-top-bar">
         <div class="folder-path">
-          <button id="go-up" class="up-button" title="Up one folder (R)" aria-label="Up one folder" ${atRoot ? 'disabled' : ''}>
-            ${uiIcon('arrowUp', 13)}
-          </button>
           <div class="breadcrumbs-scroll">
             <button id="go-root" class="crumb-btn root-crumb" title="Go to ${escapeHtml(ws.name)} folder">
               <span class="crumb-icon">${uiIcon('folder', 13)}</span>
@@ -166,15 +163,17 @@ export function filePanelMarkup(): string {
           </div>
         </div>
         <div class="file-panel-actions">
-          <button class="file-action-btn primary" id="open-folder" title="Open folder in File Explorer">
-            ${uiIcon('folder', 13)}
-          </button>
-          <button class="file-action-btn" id="open-in-vscode" title="Open in VS Code">
-            ${uiIcon('code', 13)}
-          </button>
-          <button class="file-action-btn" id="open-in-terminal" title="Open in Terminal">
-            ${uiIcon('terminal', 13)}
-          </button>
+          <div class="file-action-group">
+            <button class="file-action-group-btn" id="open-folder" title="Open in File Explorer">
+              ${uiIcon('folder', 13)}
+            </button>
+            <button class="file-action-group-btn" id="open-in-vscode" title="Open in VS Code">
+              ${uiIcon('code', 13)}
+            </button>
+            <button class="file-action-group-btn" id="open-in-terminal" title="Open in Terminal">
+              ${uiIcon('terminal', 13)}
+            </button>
+          </div>
           <button class="file-action-btn ${isFilePaneCompact ? 'active' : ''}" id="toggle-file-pane-size" title="${isFilePaneCompact ? 'Expand file pane' : 'Compact file pane'}">
             ${uiIcon('sidebar', 13)}
           </button>

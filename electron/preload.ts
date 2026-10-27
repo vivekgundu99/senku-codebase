@@ -13,6 +13,9 @@ const api = {
   resetZoom: () => {
     webFrame.setZoomFactor(1);
   },
+  toggleFullscreen: () =>
+    ipcRenderer.invoke('window:toggle-fullscreen') as Promise<boolean>,
+
 
   getSnapshot: (path?: string) =>
     ipcRenderer.invoke('app:get-snapshot', path) as Promise<AppSnapshot>,

@@ -914,6 +914,16 @@ ipcMain.handle('path:copy', async (_event, target: string) => {
   return true;
 });
 
+ipcMain.handle('window:toggle-fullscreen', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const isFull = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFull);
+    return !isFull;
+  }
+  return false;
+});
+
+
 handleLocked('path:pin', async (_event, target: string) => {
   const settings = await getSettings();
   const workspaces = await getWorkspaces();

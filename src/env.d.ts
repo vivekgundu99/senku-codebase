@@ -27,6 +27,7 @@ declare global {
       zoomIn(): void;
       zoomOut(): void;
       resetZoom(): void;
+      toggleFullscreen(): Promise<boolean>;
       // V3: Log
       addLogEntry(text: string, spaceId?: string): Promise<AppSnapshot>;
       deleteLogEntry(id: string, spaceId?: string): Promise<AppSnapshot>;
