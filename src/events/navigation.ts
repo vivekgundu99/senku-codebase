@@ -9,6 +9,9 @@ import {
   toggleFilePaneCompact,
   setCurrentFolder,
   setActiveMarkdownFile,
+  setActiveNotePageIndex,
+  setIsNoteAllPagesView,
+  setIsNotePreviewMode,
   isGlobalNotesMode,
   setGlobalNotesMode,
 } from '../state';
@@ -30,6 +33,9 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
 
         const qNote = await window.senku.getOrCreateQuickNote();
         setActiveMarkdownFile(qNote);
+        setActiveNotePageIndex(0);
+        setIsNoteAllPagesView(true);
+        setIsNotePreviewMode(true);
 
         setView('Home');
         setHomeCenterMode('notes');

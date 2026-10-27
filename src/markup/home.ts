@@ -186,13 +186,13 @@ export function notesWindowMarkup(): string {
       </div>
       <div class="notes-window-actions">
         ${file ? `
+          <span class="notes-window-save-status" id="notes-file-save-status"></span>
           <button type="button" class="notes-window-action-btn" id="new-note-in-folder" title="New Note in active folder">
             ${uiIcon('plus', 11)} <span>Note</span>
           </button>
           <button type="button" class="notes-window-action-btn ${isPreview ? 'active' : ''}" id="toggle-note-preview-mode" title="${isPreview ? 'Switch to Edit' : 'Switch to Preview'}">
             ${uiIcon(isPreview ? 'pen' : 'eye', 11)} <span>${isPreview ? 'Edit' : 'Preview'}</span>
           </button>
-          <span class="notes-window-save-status" id="notes-file-save-status"></span>
         ` : ''}
       </div>
     </div>`;
@@ -216,7 +216,8 @@ export function notesWindowMarkup(): string {
   const totalPages = pages.length;
   const currentPageIndex = Math.min(Math.max(0, activeNotePageIndex), Math.max(0, totalPages - 1));
   const currentContent = isNoteAllPagesView ? content : (pages[currentPageIndex] ?? '');
-  const previewHtml = isPreview ? (marked.parse(currentContent, { gfm: true, breaks: true }) as string) : '';
+  const hasVisibleContent = currentContent.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0;
+  const previewHtml = isPreview && hasVisibleContent ? (marked.parse(currentContent, { gfm: true, breaks: true }) as string) : '';
 
   return `
     <section class="notes-window-panel">
@@ -225,7 +226,7 @@ export function notesWindowMarkup(): string {
 
         ${isPreview ? `
           <div class="notes-preview-scroll">
-            <div class="notes-markdown-preview markdown-body">${previewHtml || '<p class="notes-preview-empty">Empty note page. Click Edit to start writing.</p>'}</div>
+            <div class="notes-markdown-preview markdown-body">${previewHtml || '<p class="notes-preview-empty" id="notes-preview-empty-click" title="Click to start writing">Empty note. Click Edit to start writing.</p>'}</div>
           </div>
         ` : `
           <textarea
@@ -239,29 +240,37 @@ export function notesWindowMarkup(): string {
 
         <div class="notes-pages-bar">
           <div class="notes-pages-actions">
-            <button type="button" class="notes-pages-mode-btn ${isNoteAllPagesView ? 'active' : ''}" id="notes-toggle-all-view" title="${isNoteAllPagesView ? 'Switch to single page view' : 'View full note (all pages)'}">
-              ${isNoteAllPagesView ? 'Page view' : 'All'}
-            </button>
-            <button type="button" class="notes-page-add-btn" id="notes-page-add" title="Add clean page">+ Page</button>
-          </div>
-          <div class="notes-pages-nav">
-            <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page (Alt+←)" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
-            <div class="notes-pages-list">
-              ${pages.map((_, i) => `
-                <button type="button" class="notes-page-circle ${!isNoteAllPagesView && i === currentPageIndex ? 'active' : ''}" data-page-index="${i}" title="Page ${i + 1}">
-                  ${i + 1}
-                </button>
-              `).join('')}
-            </div>
-            <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page (Alt+→)" ${currentPageIndex >= pages.length - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
-          </div>
-          <div class="notes-pages-danger">
-            ${pages.length > 1 && !isNoteAllPagesView ? `
-              <button type="button" class="notes-page-delete-btn" id="notes-page-delete" title="Delete current page">
-                ${uiIcon('trash', 12)}
+            ${totalPages > 1 ? `
+              <button type="button" class="notes-pages-mode-btn ${isNoteAllPagesView ? 'active' : ''}" id="notes-toggle-all-view" title="${isNoteAllPagesView ? 'Switch to single page view' : 'View full note (all pages)'}">
+                ${isNoteAllPagesView ? 'Page view' : 'All'}
               </button>
             ` : ''}
+            <button type="button" class="notes-page-add-btn" id="notes-page-add" title="Add clean page">+ Page</button>
           </div>
+          ${totalPages > 1 ? `
+            <div class="notes-pages-nav">
+              <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page (Alt+←)" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
+              <div class="notes-pages-list">
+                ${pages.map((_, i) => `
+                  <button type="button" class="notes-page-circle ${!isNoteAllPagesView && i === currentPageIndex ? 'active' : ''}" data-page-index="${i}" title="Page ${i + 1}">
+                    ${i + 1}
+                  </button>
+                `).join('')}
+              </div>
+              <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page (Alt+→)" ${currentPageIndex >= totalPages - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
+            </div>
+            <div class="notes-pages-danger">
+              ${!isNoteAllPagesView ? `
+                <button type="button" class="notes-page-delete-btn" id="notes-page-delete" title="Delete current page">
+                  ${uiIcon('trash', 12)}
+                </button>
+              ` : ''}
+            </div>
+          ` : `
+            <div class="notes-pages-info">
+              <span class="notes-pages-single-hint">1 page</span>
+            </div>
+          `}
         </div>
       </div>
     </section>

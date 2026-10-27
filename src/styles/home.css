@@ -935,7 +935,10 @@
 .notes-window-save-status {
   font: 700 9.5px var(--mono);
   color: var(--soft);
-  min-width: 38px;
+  min-width: 44px;
+  text-align: right;
+  letter-spacing: .04em;
+  padding-right: 4px;
 }
 
 .notes-window-body {

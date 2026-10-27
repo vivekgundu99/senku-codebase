@@ -909,6 +909,25 @@
   color: var(--soft);
   font-style: italic;
   padding: 12px 0;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.notes-preview-empty:hover {
+  color: var(--ink);
+}
+
+.notes-pages-info {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.notes-pages-single-hint {
+  font: 600 10px var(--mono);
+  color: var(--soft);
+  letter-spacing: .04em;
+  opacity: 0.8;
 }
 
 .notes-markdown-preview table {

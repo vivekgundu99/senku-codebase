@@ -263,7 +263,8 @@ export async function createNote(notesDir: string, name: string, bundle?: string
   const finalName = uniqueName(sanitized, existingInScope);
   const filePath = path.join(targetDir, `${finalName}.md`);
 
-  await writeFileAtomic(filePath, '');
+  const initialContent = `<!-- ${finalName} -->\n\n`;
+  await writeFileAtomic(filePath, initialContent);
   const stat = await fs.stat(filePath);
   const id = cleanBundle ? `${cleanBundle}/${finalName}` : finalName;
 
@@ -271,7 +272,7 @@ export async function createNote(notesDir: string, name: string, bundle?: string
     id,
     name: finalName,
     bundle: cleanBundle,
-    content: '',
+    content: initialContent,
     createdAt: stat.birthtimeMs,
     updatedAt: stat.mtimeMs,
   };

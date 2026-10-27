@@ -14,7 +14,7 @@ import {
   isGlobalNotesMode,
   setGlobalNotesMode,
 } from '../state';
-import { parseNotePages, joinNotePages } from '../utils';
+import { parseNotePages, joinNotePages, PAGE_SEPARATOR } from '../utils';
 import { toast } from '../toast';
 import type { LoadFn, RenderFn } from './types';
 
@@ -137,9 +137,17 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     try {
       const note = await window.senku.createFileNote(folder);
       setActiveMarkdownFile(note);
+      setActiveNotePageIndex(0);
+      setIsNoteAllPagesView(false);
+      setIsNotePreviewMode(false);
       setHomeCenterMode('notes');
       toast(`Created ${note.name}`);
       await load(folder);
+      const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+      if (editor) {
+        editor.focus();
+        editor.setSelectionRange(editor.value.length, editor.value.length);
+      }
     } catch {
       toast('Could not create note.');
     }
@@ -154,10 +162,19 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
   });
 
   // Notes Window: Toggle preview / edit mode
-  document.querySelector('#toggle-note-preview-mode')?.addEventListener('click', () => {
+  const togglePreview = () => {
     setIsNotePreviewMode(!isNotePreviewMode);
     render();
-  });
+    if (!isNotePreviewMode) {
+      const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+      if (editor) {
+        editor.focus();
+        editor.setSelectionRange(editor.value.length, editor.value.length);
+      }
+    }
+  };
+  document.querySelector('#toggle-note-preview-mode')?.addEventListener('click', togglePreview);
+  document.querySelector('#notes-preview-empty-click')?.addEventListener('click', togglePreview);
 
   // Notes Window: Editor input, multipage & saving
   const fileEditor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
@@ -267,14 +284,20 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
   document.querySelector('#notes-page-add, #notes-add-page-btn')?.addEventListener('click', async () => {
     await saveNoteFile();
     if (!activeMarkdownFile) return;
-    const separator = '\n\n<!-- page -->\n\n';
-    const updated = activeMarkdownFile.content ? `${activeMarkdownFile.content.trimEnd()}${separator}` : '';
+    const current = (activeMarkdownFile.content || '').trimEnd();
+    const updated = current ? `${current}${PAGE_SEPARATOR}` : `<!-- page -->\n\n`;
     activeMarkdownFile.content = updated;
     await window.senku.saveTextFile(activeMarkdownFile.path, updated);
     const pages = parseNotePages(updated);
-    setActiveNotePageIndex(pages.length - 1);
+    setActiveNotePageIndex(Math.max(0, pages.length - 1));
     setIsNoteAllPagesView(false);
+    setIsNotePreviewMode(false);
     render();
+    const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+    if (editor) {
+      editor.focus();
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+    }
   });
 
   document.querySelector('#notes-page-delete')?.addEventListener('click', async () => {
@@ -282,11 +305,16 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     const pages = parseNotePages(activeMarkdownFile.content || '');
     if (pages.length <= 1) return;
     pages.splice(activeNotePageIndex, 1);
-    const updated = pages.join('\n\n<!-- page -->\n\n');
+    const updated = joinNotePages(pages);
     activeMarkdownFile.content = updated;
     await window.senku.saveTextFile(activeMarkdownFile.path, updated);
     setActiveNotePageIndex(Math.max(0, activeNotePageIndex - 1));
     setIsNoteAllPagesView(false);
     render();
+    const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+    if (editor && !isNotePreviewMode) {
+      editor.focus();
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+    }
   });
 }

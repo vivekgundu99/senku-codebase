@@ -47,8 +47,8 @@ export function setActiveMarkdownFile(file: MarkdownFileState | null): void {
 
 export let activeNoteId: string | null = null;
 export let activeNotePageIndex = 0;
-export let isNoteAllPagesView = false;
-export let isNotePreviewMode = false;
+export let isNoteAllPagesView = true;
+export let isNotePreviewMode = true;
 
 export function setActiveNotePageIndex(idx: number): void {
   activeNotePageIndex = Math.max(0, idx);
@@ -169,8 +169,8 @@ export function setQuickLogText(value: string): void {
 export function setActiveNoteId(id: string | null): void {
   if (activeNoteId !== id) {
     activeNotePageIndex = 0;
-    isNoteAllPagesView = false;
-    isNotePreviewMode = false;
+    isNoteAllPagesView = true;
+    isNotePreviewMode = true;
   }
   activeNoteId = id;
   packInactiveBundles();

@@ -1041,7 +1041,8 @@ ipcMain.handle('file:create-note', async (_event, folderPath: string, name?: str
     targetPath = path.join(folderPath, `${base} (${counter}).md`);
     counter++;
   }
-  const defaultContent = `# ${path.basename(targetPath, '.md')}\n\n`;
+  const cleanTitle = path.basename(targetPath, '.md');
+  const defaultContent = `<!-- ${cleanTitle} -->\n\n`;
   await fs.writeFile(targetPath, defaultContent, 'utf-8');
   return {
     path: targetPath,
@@ -1211,7 +1212,7 @@ ipcMain.handle('notes:get-or-create-quicknote', async () => {
     const content = await fs.readFile(qPath, 'utf8');
     return { path: qPath, name: 'QuickNote.md', content };
   } catch {
-    const initialContent = '# Quick Note\n\nCaptured thoughts and ideas.\n';
+    const initialContent = '<!-- QuickNote -->\n\n';
     await fs.writeFile(qPath, initialContent, 'utf8');
     return { path: qPath, name: 'QuickNote.md', content: initialContent };
   }
@@ -1523,12 +1524,12 @@ handleLocked('notes:append-active', async (_event, snippet: string) => {
   try {
     existing = await fs.readFile(qPath, 'utf8');
   } catch {
-    existing = '# Quick Note\n\nCaptured thoughts and ideas.\n';
+    existing = '<!-- QuickNote -->\n\n';
   }
 
   const updated = existing.trim()
     ? `${existing.trimEnd()}\n\n${trimmed}\n`
-    : `# Quick Note\n\n${trimmed}\n`;
+    : `<!-- QuickNote -->\n\n${trimmed}\n`;
   await fs.writeFile(qPath, updated, 'utf8');
   mainWindow?.webContents.send('snapshot:updated');
 

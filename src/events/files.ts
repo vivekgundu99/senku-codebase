@@ -7,6 +7,9 @@ import {
   isFilePaneCompact,
   setView,
   setActiveMarkdownFile,
+  setActiveNotePageIndex,
+  setIsNoteAllPagesView,
+  setIsNotePreviewMode,
   setHomeCenterMode,
   isGlobalNotesMode,
 } from '../state';
@@ -85,6 +88,9 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
           const content = await window.senku.readTextFile(p);
           const name = p.split(/[\\/]/).pop() || 'Note.md';
           setActiveMarkdownFile({ path: p, name, content });
+          setActiveNotePageIndex(0);
+          setIsNoteAllPagesView(true);
+          setIsNotePreviewMode(true);
           setHomeCenterMode('notes');
           if (!isFilePaneCompact) toggleFilePaneCompact();
           setView('Home');
