@@ -20,9 +20,10 @@ import { openCreateNoteModal, openCreateBundleModal } from '../modals';
 import type { LoadFn, RenderFn } from './types';
 
 let noteSaveTimer: ReturnType<typeof setTimeout> | undefined;
+let isNoteDirty = false;
 
 export function isNoteEditorPendingSave(): boolean {
-  return noteSaveTimer !== undefined;
+  return isNoteDirty || noteSaveTimer !== undefined;
 }
 
 export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
@@ -221,16 +222,17 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
       clearTimeout(noteSaveTimer);
       noteSaveTimer = undefined;
     }
-    if (textarea) {
+    if (textarea && isNoteDirty) {
       const noteId = textarea.dataset.noteId;
       if (noteId) {
         const full = getFullNoteContent(textarea.value);
         try {
           const snap = await window.senku.updateNote(noteId, full);
           setState(snap);
+          isNoteDirty = false;
           if (statusEl) {
             statusEl.textContent = 'saved';
-            setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 1500);
+            setTimeout(() => { if (statusEl && !isNoteDirty) statusEl.textContent = ''; }, 1500);
           }
         } catch {}
       }
@@ -313,33 +315,28 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     });
   }
 
-  // Editor autosave (relaxed 4s debounce + save immediately on blur)
+  // Editor save on blur, window switch, or Ctrl+S (no active timer while typing)
   if (textarea) {
     textarea.addEventListener('input', () => {
-      const noteId = textarea.dataset.noteId!;
-      const full = getFullNoteContent(textarea.value);
-      if (statusEl) { statusEl.textContent = 'saving…'; }
-      clearTimeout(noteSaveTimer);
-      noteSaveTimer = setTimeout(async () => {
-        noteSaveTimer = undefined;
-        try {
-          const snap = await window.senku.updateNote(noteId, full);
-          setState(snap);
-          if (statusEl && textarea && (isNoteAllPagesView ? textarea.value === full : true)) {
-            statusEl.textContent = 'saved';
-            setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
-          }
-        } catch {
-          // 'Note not found.' swallowed silently
-        }
-      }, 4000);
+      isNoteDirty = true;
+      if (statusEl) { statusEl.textContent = 'unsaved'; }
     });
 
     textarea.addEventListener('blur', () => {
       void flushNoteSave();
     });
 
+    const onWindowBlur = () => {
+      if (isNoteDirty) void flushNoteSave();
+    };
+    window.addEventListener('blur', onWindowBlur);
+
     textarea.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void flushNoteSave();
+        return;
+      }
       if ((e.altKey && e.key === 'ArrowLeft') || e.key === 'PageUp') {
         e.preventDefault();
         void goToPrevPage();
@@ -379,7 +376,7 @@ export function bindNotesPanel(load: LoadFn, render: RenderFn): void {
     }
     if (document.querySelector('.modal-backdrop, .palette-backdrop')) return;
 
-    if ((e.ctrlKey || e.metaKey) && (e.key === '\\' || e.key === 'b')) {
+    if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
       e.preventDefault();
       toggleNotesSidebarCollapsed();
       render();
