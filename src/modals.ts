@@ -1,4 +1,3 @@
-import type { Launchpad } from '../electron/types';
 import { setState, state, setActiveNoteId, setView, activeNoteId } from './state';
 import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
 import { uiIcon } from './markup';
@@ -306,99 +305,6 @@ export function openWorkspaceSettingsModal(load: (path?: string) => Promise<void
       render();
     } catch (err) {
       showFormError(overlay, '#workspace-settings-error', err instanceof Error ? err.message : 'Could not save Space settings.');
-    }
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Launchpad form modal (V3)
-// ---------------------------------------------------------------------------
-
-export function openLaunchpadFormModal(load: (path?: string) => Promise<void>, existing?: Launchpad): void {
-  const currentPath = state.currentPath || state.workspace?.masterFolder || '';
-  const isEditing = Boolean(existing);
-  const heading = isEditing ? 'Edit Launchpad' : 'New Launchpad';
-  const defaultPaths = existing ? existing.paths.join('\n') : '';
-  const defaultName = existing ? existing.name : '';
-  const submitText = isEditing ? 'Save' : 'Create';
-
-  const overlay = createOverlay(`
-    <form class="modal-card space-dialog-card">
-      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
-      <h2 class="dialog-title">${heading}</h2>
-
-      <div class="dialog-field">
-        <label for="lp-name-input">Name</label>
-        <input name="name" id="lp-name-input" required value="${escapeHtml(defaultName)}" placeholder="e.g. DSA Practice, Project Lab" autocomplete="off" />
-      </div>
-
-      <div class="dialog-field">
-        <div class="dialog-field-header">
-          <label for="lp-paths-input">Paths & URLs (one per line)</label>
-          <div class="lp-quick-actions">
-            <button type="button" id="lp-browse" class="lp-pill-btn">+ Browse</button>
-          </div>
-        </div>
-        <textarea
-          name="paths"
-          id="lp-paths-input"
-          rows="4"
-          placeholder="https://example.com&#10;C:\\projects\\app"
-          spellcheck="false"
-        >${escapeHtml(defaultPaths)}</textarea>
-      </div>
-
-      <p class="form-error" id="lp-error"></p>
-      <div class="dialog-actions-row">
-        <button class="primary-button mini" type="submit">${submitText}</button>
-        ${isEditing ? '<button type="button" class="danger-text-btn" id="lp-delete-btn">Delete</button>' : ''}
-      </div>
-    </form>`);
-
-  const textarea = overlay.querySelector<HTMLTextAreaElement>('#lp-paths-input')!;
-
-  overlay.querySelector('#lp-browse')?.addEventListener('click', async () => {
-    const filePaths = await window.senku.chooseFiles(currentPath);
-    if (filePaths && filePaths.length > 0) {
-      const added = filePaths.join('\n');
-      const current = textarea.value.trim();
-      textarea.value = current ? `${current}\n${added}` : added;
-    }
-  });
-
-  if (isEditing && existing) {
-    overlay.querySelector('#lp-delete-btn')?.addEventListener('click', async () => {
-      if (!confirm(`Delete launchpad "${existing.name}"?`)) return;
-      await window.senku.deleteLaunchpad(existing.id);
-      overlay.remove();
-      await load(state.currentPath);
-    });
-  }
-
-  overlay.querySelector('form')!.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget as HTMLFormElement);
-    const name = String(data.get('name') ?? '').trim();
-    if (!name) {
-      showFormError(overlay, '#lp-error', 'Launchpad name is required.');
-      return;
-    }
-    const paths = String(data.get('paths') ?? '')
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    try {
-      if (existing) {
-        await window.senku.updateLaunchpad(existing.id, name, paths);
-      } else {
-        const spaceId = state.workspace?.id ?? '';
-        await window.senku.createLaunchpad(name, spaceId, paths);
-      }
-      overlay.remove();
-      await load(state.currentPath);
-    } catch (err) {
-      showFormError(overlay, '#lp-error', err instanceof Error ? err.message : 'Could not save launchpad.');
     }
   });
 }

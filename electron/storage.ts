@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Launchpad, LogEntry, NoteFile, Workspace } from './types';
+import type { LogEntry, NoteFile, Workspace } from './types';
 
 // ---------------------------------------------------------------------------
 // Atomic file writes
@@ -182,6 +182,70 @@ export async function listNotes(notesDir: string): Promise<NoteFile[]> {
       return [];
     }
     throw error;
+  }
+}
+
+/**
+ * Single-pass replacement for the listNotes() + listBundles() combo used in snapshot().
+ * Reads the directory once, collects bundle names and note metadata (NO file content).
+ * Content is loaded on demand via a separate handler when the user opens a note.
+ */
+export async function listNotesAndBundles(notesDir: string): Promise<{ notes: NoteFile[]; bundles: string[] }> {
+  try {
+    await fs.mkdir(notesDir, { recursive: true });
+    const items = await fs.readdir(notesDir, { withFileTypes: true });
+    const notes: NoteFile[] = [];
+    const bundles: string[] = [];
+
+    const processFile = async (filePath: string, id: string, name: string, bundle?: string): Promise<void> => {
+      try {
+        const stat = await fs.stat(filePath);
+        notes.push({
+          id,
+          name,
+          bundle,
+          content: '', // intentionally empty — load on demand
+          createdAt: stat.birthtimeMs,
+          updatedAt: stat.mtimeMs,
+          filePath,
+        });
+      } catch {
+        // Skip unreadable files
+      }
+    };
+
+    const tasks: Promise<void>[] = [];
+
+    for (const item of items) {
+      if (item.isFile() && item.name.endsWith('.md') && !item.name.endsWith('.tmp')) {
+        const filePath = path.join(notesDir, item.name);
+        const baseName = item.name.slice(0, -3);
+        tasks.push(processFile(filePath, baseName, baseName, undefined));
+      } else if (item.isDirectory()) {
+        bundles.push(item.name);
+        // Process bundled note files
+        try {
+          const subItems = await fs.readdir(path.join(notesDir, item.name), { withFileTypes: true });
+          for (const sub of subItems) {
+            if (sub.isFile() && sub.name.endsWith('.md') && !sub.name.endsWith('.tmp')) {
+              const filePath = path.join(notesDir, item.name, sub.name);
+              const baseName = sub.name.slice(0, -3);
+              tasks.push(processFile(filePath, `${item.name}/${baseName}`, baseName, item.name));
+            }
+          }
+        } catch {
+          // Skip unreadable subdirectories
+        }
+      }
+    }
+
+    await Promise.all(tasks);
+    return {
+      notes: notes.sort((a, b) => b.updatedAt - a.updatedAt),
+      bundles: bundles.sort(),
+    };
+  } catch {
+    return { notes: [], bundles: [] };
   }
 }
 
@@ -842,32 +906,6 @@ export async function deleteFromGlobalAndSpace(
 }
 
 // ---------------------------------------------------------------------------
-// Launchpads
-// ---------------------------------------------------------------------------
-
-export function orderLaunchpads(pads: Launchpad[]): Launchpad[] {
-  const pinned = pads.filter((p) => p.pinned);
-  const unpinned = pads.filter((p) => !p.pinned);
-  pinned.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  unpinned.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  return [...pinned, ...unpinned];
-}
-
-export async function readLaunchpads(file: string): Promise<Launchpad[]> {
-  try {
-    const raw = await fs.readFile(file, 'utf8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-export async function writeLaunchpads(file: string, pads: Launchpad[]): Promise<void> {
-  await writeFileAtomic(file, JSON.stringify(pads, null, 2));
-}
-
-// ---------------------------------------------------------------------------
 // Space Metadata (meta.json)
 // ---------------------------------------------------------------------------
 
@@ -896,7 +934,6 @@ export async function writeSpaceMeta(file: string, meta: SpaceMeta): Promise<voi
 export interface LegacyData {
   notes?: NoteFile[];
   logEntries?: LogEntry[];
-  launchpads?: Launchpad[];
   legacyActiveNoteId?: string;
 }
 
@@ -1006,23 +1043,6 @@ export async function migrateLegacy(
     }
   }
 
-  // 5. Migrate Launchpads into appropriate Space
-  for (const pad of legacy.launchpads || []) {
-    const targetSpace = pad.spaceId && spaceIds.has(pad.spaceId) ? pad.spaceId : targetActiveSpaceId;
-    const launchpadsFile = path.join(userDataDir, 'spaces', targetSpace, 'launchpads.json');
-    const existingPads = await readLaunchpads(launchpadsFile);
-
-    // Idempotency: skip if pad with same id or name+paths already exists
-    const alreadyExists = existingPads.some(
-      (p) => p.id === pad.id || (p.name === pad.name && JSON.stringify(p.paths) === JSON.stringify(pad.paths)),
-    );
-
-    if (!alreadyExists) {
-      existingPads.push({ ...pad, spaceId: targetSpace });
-      await writeLaunchpads(launchpadsFile, existingPads);
-    }
-  }
-
-  // 6. Write storage-version.json marker only after all steps succeed
+  // 5. Write storage-version.json marker only after all steps succeed
   await writeFileAtomic(markerFile, JSON.stringify({ version: 2 }, null, 2));
 }

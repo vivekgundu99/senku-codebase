@@ -49,10 +49,6 @@ export function sidebarMarkup(): string {
           <span class="nav-icon">${uiIcon('home', 15)}</span>
           <span class="nav-label">Home</span>
         </button>
-        <button class="nav-item ${currentView === 'Launchpads' ? 'selected' : ''}" data-view="Launchpads" title="Launchpads">
-          <span class="nav-icon">${uiIcon('play', 15)}</span>
-          <span class="nav-label">Launchpads</span>
-        </button>
         <button class="nav-item ${currentView === 'Log' || currentView === 'AllLog' ? 'selected' : ''}" data-view="AllLog" title="Logs">
           <span class="nav-icon">${uiIcon('list', 15)}</span>
           <span class="nav-label">Logs</span>

@@ -3,8 +3,6 @@ import {
   setState,
   currentView,
   setAllLog,
-  isPathAvailabilityCacheStale,
-  setCachedPathAvailability,
   isFilePaneCompact,
 } from './state';
 import {
@@ -14,7 +12,6 @@ import {
   overviewPanelMarkup,
   homePanelMarkup,
   logPanelMarkup,
-  launchpadsPanelMarkup,
   notesWindowMarkup,
 } from './markup';
 import { bindAll, initGlobalListeners, isNoteEditorPendingSave } from './events';
@@ -41,7 +38,6 @@ function render(): void {
   if (currentView === 'Notes') leftPanel = notesWindowMarkup();
   else if (currentView === 'Log') leftPanel = logPanelMarkup('space');
   else if (currentView === 'AllLog') leftPanel = logPanelMarkup('all');
-  else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
   else leftPanel = overviewPanelMarkup();
 
   // The files panel shows for Home, Overview, and Notes.
@@ -66,34 +62,6 @@ function render(): void {
     </div>`;
 
   bindAll(load, render);
-
-  // Check existence of local paths in Launchpads panel (cached for 10 s)
-  if (currentView === 'Launchpads' && isPathAvailabilityCacheStale()) {
-    const localPaths: string[] = [];
-    for (const lp of (state.launchpads ?? [])) {
-      for (const p of lp.paths || []) {
-        const trimmed = p.trim();
-        if (trimmed && !/^https?:\/\//i.test(trimmed)) {
-          localPaths.push(trimmed);
-        }
-      }
-    }
-    if (localPaths.length > 0) {
-      void window.senku.checkPathsExist(localPaths).then((results) => {
-        setCachedPathAvailability(results);
-        if (currentView === 'Launchpads') {
-          const chips = appRoot.querySelectorAll<HTMLElement>('.lp-path-chip[data-open-item]');
-          chips.forEach((chip) => {
-            const item = chip.dataset.openItem;
-            if (item && results[item] === 'missing') {
-              chip.classList.add('missing');
-              chip.title = 'Missing';
-            }
-          });
-        }
-      });
-    }
-  }
 
   // Restore scroll
   if (notesScroll !== undefined) {

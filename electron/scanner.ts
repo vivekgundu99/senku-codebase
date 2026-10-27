@@ -81,7 +81,7 @@ export async function readFolderEntries(dir: string): Promise<FileEntry[]> {
     (item) => !isIgnoredEntry(item.name),
   );
 
-  const found = await mapLimit(items, 48, async (item): Promise<FileEntry | null> => {
+  const found = await mapLimit(items, 8, async (item): Promise<FileEntry | null> => {
     const itemPath = path.join(dir, item.name);
     try {
       const stats = await fs.stat(itemPath);

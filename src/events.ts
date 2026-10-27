@@ -7,7 +7,6 @@ import { bindNavigation, bindSidebarButtons, bindTopbarButtons } from './events/
 import { bindFileActions } from './events/files';
 import { bindHomeActions } from './events/home';
 import { bindLogPanel } from './events/logs';
-import { bindLaunchpadActions } from './events/launchpads';
 
 // ---------------------------------------------------------------------------
 // Main event binding (runs after each render)
@@ -20,5 +19,4 @@ export function bindAll(load: LoadFn, render: RenderFn): void {
   bindFileActions(load, render);
   bindHomeActions(load, render);
   bindLogPanel(load, render);
-  bindLaunchpadActions(load);
 }

@@ -25,7 +25,6 @@ export interface Workspace {
   lastSubfolder?: string;
   createdAt: string;
   pinnedPaths: string[];
-  isNotesSpace?: boolean;
 }
 
 export interface FileEntry {
@@ -48,20 +47,8 @@ export interface LogEntry {
   refId?: string;
 }
 
-export interface Launchpad {
-  id: string;
-  name: string;
-  spaceId: string;
-  spaceName?: string;
-  paths: string[];
-  createdAt: number;
-  pinned?: boolean;
-  lastLaunchedAt?: number;
-}
-
 export interface HomeData {
   log: LogEntry[];
-  launchpads: Launchpad[];
 }
 
 export interface NoteFile {
@@ -78,7 +65,6 @@ export interface TrashWorkspace {
   id: string;
   name: string;
   masterFolder: string;
-  dailyNote?: string;
   deletedAt: number;
 }
 
@@ -90,7 +76,6 @@ export interface AppSnapshot {
   entries: FileEntry[];
   currentPath: string;
   logEntries: LogEntry[];
-  launchpads: Launchpad[];
   trashWorkspaces: TrashWorkspace[];
   notes: NoteFile[];
   bundles: string[];

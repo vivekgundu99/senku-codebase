@@ -16,7 +16,6 @@ import {
 } from '../state';
 import { parseNotePages, joinNotePages } from '../utils';
 import { toast } from '../toast';
-import { openLaunchpadFormModal } from '../modals';
 import type { LoadFn, RenderFn } from './types';
 
 /** Chat-style send key: Enter sends, Shift+Enter inserts a new line. */
@@ -89,28 +88,7 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
 
   btn?.addEventListener('click', () => void submit());
 
-  document.querySelector('#home-add-launchpad')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openLaunchpadFormModal(load);
-  });
 
-  document.querySelectorAll<HTMLElement>('[data-launch-home-id]').forEach((launchBtn) => {
-    launchBtn.addEventListener('click', async () => {
-      const id = launchBtn.dataset.launchHomeId!;
-      const spaceId = launchBtn.dataset.spaceId;
-      const pad = state.home?.launchpads?.find((p) => p.id === id);
-      const name = pad?.name ?? 'Launchpad';
-      launchBtn.textContent = 'Launching…';
-      const res = await window.senku.launchLaunchpad(id, spaceId);
-      if (res.ok) {
-        toast(`Launched ${name}`);
-      } else {
-        const count = res.errors.length;
-        toast(`Launched ${name} · ${count} failed`);
-      }
-      await load();
-    });
-  });
 
   // Home dual-pill mode toggle: Overview vs Notes
   document.querySelectorAll<HTMLElement>('[data-home-mode]').forEach((pillBtn) => {

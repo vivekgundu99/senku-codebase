@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Launchpad, LogEntry, NoteFile, Settings, Workspace } from './types';
+import type { LogEntry, NoteFile, Settings, Workspace } from './types';
 import { migrateLegacy } from './storage';
 
 export async function migrateLegacyData(
@@ -55,7 +55,6 @@ export async function migrateLegacyData(
   // Read legacy data
   let legacyNotes: NoteFile[] = [];
   let legacyLogs: LogEntry[] = [];
-  let legacyPads: Launchpad[] = [];
 
   for (const dir of candidateDirs) {
     if (legacyNotes.length === 0) {
@@ -64,9 +63,6 @@ export async function migrateLegacyData(
     if (legacyLogs.length === 0) {
       legacyLogs = await readJson<LogEntry[]>(path.join(dir, 'log.json'), []);
     }
-    if (legacyPads.length === 0) {
-      legacyPads = await readJson<Launchpad[]>(path.join(dir, 'launchpads.json'), []);
-    }
   }
 
   await migrateLegacy(
@@ -74,7 +70,6 @@ export async function migrateLegacyData(
     {
       notes: legacyNotes,
       logEntries: legacyLogs,
-      launchpads: legacyPads,
       legacyActiveNoteId: settings.activeNoteId,
     },
     workspaces,

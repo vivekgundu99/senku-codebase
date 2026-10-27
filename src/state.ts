@@ -1,4 +1,4 @@
-import type { AppSnapshot, FileEntry, LogEntry, Launchpad } from '../electron/types';
+import type { AppSnapshot, FileEntry, LogEntry } from '../electron/types';
 
 // ---------------------------------------------------------------------------
 // Central app state
@@ -275,28 +275,4 @@ export function visibleLogEntries(scope: 'space' | 'all' = 'space'): { items: Lo
   return { items: matched.slice(0, logLimit), matched: matched.length, total: all.length };
 }
 
-// ---------------------------------------------------------------------------
-// Path availability cache (10 s TTL)
-// ---------------------------------------------------------------------------
 
-export type PathStatus = 'file' | 'folder' | 'missing';
-
-let pathAvailabilityCache: { timestamp: number; data: Record<string, PathStatus> } | null = null;
-
-export function getCachedPathAvailability(): Record<string, PathStatus> {
-  if (pathAvailabilityCache && Date.now() - pathAvailabilityCache.timestamp < 10000) {
-    return pathAvailabilityCache.data;
-  }
-  return pathAvailabilityCache?.data ?? {};
-}
-
-export function setCachedPathAvailability(data: Record<string, PathStatus>): void {
-  pathAvailabilityCache = {
-    timestamp: Date.now(),
-    data: { ...(pathAvailabilityCache?.data ?? {}), ...data },
-  };
-}
-
-export function isPathAvailabilityCacheStale(): boolean {
-  return !pathAvailabilityCache || Date.now() - pathAvailabilityCache.timestamp >= 10000;
-}

@@ -2,7 +2,6 @@ import { state, setView, currentView } from './state';
 import { fuzzyMatch } from './utils';
 import { toast } from './toast';
 import {
-  openLaunchpadFormModal,
   openWorkspaceFormModal,
   openAppSettingsModal,
 } from './modals';
@@ -12,7 +11,7 @@ type RenderFn = () => void;
 
 interface PaletteItem {
   id: string;
-  type: 'View' | 'Space' | 'Launchpad' | 'Action';
+  type: 'View' | 'Space' | 'Action';
   typeOrder: number;
   text: string;
   run: () => Promise<void> | void;
@@ -73,7 +72,6 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
     // 1. Views
     items.push(
       { id: 'view-home', type: 'View', typeOrder: 0, text: 'Home', run: () => { setView('Home'); render(); } },
-      { id: 'view-launchpads', type: 'View', typeOrder: 0, text: 'Launchpads', run: () => { setView('Launchpads'); render(); } },
       { id: 'view-notes', type: 'View', typeOrder: 0, text: 'Notes', run: () => { setView('Notes'); render(); } },
       { id: 'view-all-logs', type: 'View', typeOrder: 0, text: 'Logs', run: () => { setView('AllLog'); render(); } },
     );
@@ -96,25 +94,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
       });
     });
 
-    // 3. Launchpads
-    (state.launchpads || []).forEach((lp) => {
-      items.push({
-        id: `lp-${lp.id}`,
-        type: 'Launchpad',
-        typeOrder: 2,
-        text: `Launch: ${lp.name}`,
-        run: async () => {
-          const res = await window.senku.launchLaunchpad(lp.id);
-          if (res.ok) {
-            toast(`Launched ${lp.name}`);
-          } else {
-            toast(`Launched ${lp.name} · ${res.errors.length} failed`);
-          }
-        },
-      });
-    });
-
-    // 4. Actions
+    // 3. Actions
     items.push(
       {
         id: 'action-quick-note',
@@ -131,11 +111,14 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         run: () => { openWorkspaceFormModal(load); },
       },
       {
-        id: 'action-new-launchpad',
+        id: 'action-refresh',
         type: 'Action',
         typeOrder: 4,
-        text: 'New Launchpad',
-        run: () => { openLaunchpadFormModal(load); },
+        text: 'Refresh',
+        run: async () => {
+          await load(state.currentPath);
+          toast('Refreshed');
+        },
       },
       {
         id: 'action-app-settings',
@@ -176,12 +159,11 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
     const q = rawQuery.trim();
 
     if (!q) {
-      // Empty query: show Views first, then Launchpads, then Spaces, then Actions
+      // Empty query: show Views first, then Spaces, then Actions
       const views = allItems.filter((it) => it.type === 'View');
-      const lps = allItems.filter((it) => it.type === 'Launchpad');
       const spaces = allItems.filter((it) => it.type === 'Space');
       const actions = allItems.filter((it) => it.type === 'Action');
-      const combined = [...views, ...lps, ...spaces, ...actions].slice(0, 8);
+      const combined = [...views, ...spaces, ...actions].slice(0, 8);
       currentRows = combined.map((item) => ({ item, highlightedHtml: escapeHtmlText(item.text) }));
     } else {
       const scored: Array<{ item: PaletteItem; score: number; indices: number[] }> = [];

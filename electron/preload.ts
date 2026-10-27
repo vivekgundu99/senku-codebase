@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
-import type { AppSnapshot, Settings, LogEntry, Launchpad, NoteFile, FileEntry } from './types';
+import type { AppSnapshot, Settings, LogEntry, NoteFile, FileEntry } from './types';
 
 const api = {
   zoomIn: () => {
@@ -97,25 +97,6 @@ const api = {
 
   listAllLogs: () =>
     ipcRenderer.invoke('log:list-all') as Promise<LogEntry[]>,
-
-  // --- V3: Launchpads ---
-  createLaunchpad: (name: string, spaceId: string, paths: string[]) =>
-    ipcRenderer.invoke('launchpad:create', name, spaceId, paths) as Promise<AppSnapshot>,
-
-  updateLaunchpad: (id: string, name: string, paths: string[]) =>
-    ipcRenderer.invoke('launchpad:update', id, name, paths) as Promise<AppSnapshot>,
-
-  deleteLaunchpad: (id: string) =>
-    ipcRenderer.invoke('launchpad:delete', id) as Promise<AppSnapshot>,
-
-  restoreLaunchpad: (pad: Launchpad) =>
-    ipcRenderer.invoke('launchpad:restore', pad) as Promise<AppSnapshot>,
-
-  setLaunchpadPinned: (id: string, pinned: boolean) =>
-    ipcRenderer.invoke('launchpad:set-pinned', id, pinned) as Promise<AppSnapshot>,
-
-  launchLaunchpad: (id: string, spaceId?: string) =>
-    ipcRenderer.invoke('launchpad:launch', id, spaceId) as Promise<{ ok: boolean; errors: string[] }>,
 
   openItem: (target: string) =>
     ipcRenderer.invoke('path:open-item', target) as Promise<{ ok: boolean; error?: string }>,

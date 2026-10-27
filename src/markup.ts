@@ -15,7 +15,6 @@ export {
 export {
   overviewPanelMarkup,
   notesWindowMarkup,
-  homeLaunchpadRowMarkup,
   homePanelV3Markup,
   homePanelMarkup,
 } from './markup/home';
@@ -25,8 +24,4 @@ export {
   formatDayHeader,
   formatLogTimeOnly,
 } from './markup/logs';
-export {
-  launchpadCardMarkup,
-  launchpadsPanelMarkup,
-} from './markup/launchpads';
 export { notesPanelMarkup } from './markup/notes';

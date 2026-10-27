@@ -20,7 +20,6 @@ import type {
   AppSnapshot,
   FileEntry,
   HomeData,
-  Launchpad,
   LogEntry,
   NoteFile,
   Settings,
@@ -33,7 +32,7 @@ import {
   sanitizeFileName,
   uniqueName,
   listNotes,
-  listBundles,
+  listNotesAndBundles,
   createBundle,
   renameBundle,
   deleteBundle,
@@ -54,9 +53,6 @@ import {
   deleteGlobalLogRef,
   deleteFromGlobalAndSpace,
   renumberLog,
-  readLaunchpads,
-  writeLaunchpads,
-  orderLaunchpads,
   readSpaceMeta,
   writeSpaceMeta,
   buildBookMarkdown,
@@ -165,21 +161,37 @@ function handleLocked(channel: string, listener: (event: IpcMainInvokeEvent, ...
 // Data accessors
 // ---------------------------------------------------------------------------
 
+let cachedSettings: Settings | null = null;
+let cachedWorkspaces: Workspace[] | null = null;
+
 async function getSettings(): Promise<Settings> {
+  if (cachedSettings) return cachedSettings;
   const current = await readJson<Settings | null>(settingsFile(), null);
-  if (current) return current;
+  if (current) {
+    cachedSettings = current;
+    return current;
+  }
   const legacy = await readJson<Settings | null>(path.join(baseDir(), 'data', 'settings.json'), null);
-  return legacy ?? defaultSettings;
+  cachedSettings = legacy ?? defaultSettings;
+  return cachedSettings;
 }
 
 async function saveSettings(settings: Settings): Promise<void> {
+  cachedSettings = settings;
   await writeJson(settingsFile(), settings);
 }
 
 async function getWorkspaces(): Promise<Workspace[]> {
+  if (cachedWorkspaces) return cachedWorkspaces;
   const current = await readJson<Workspace[] | null>(workspacesFile(), null);
   const workspaces = current ?? (await readJson<Workspace[]>(path.join(baseDir(), 'data', 'workspaces.json'), []));
-  return workspaces.map((ws) => ({ ...ws, pinnedPaths: ws.pinnedPaths ?? [] }));
+  cachedWorkspaces = workspaces.map((ws) => ({ ...ws, pinnedPaths: ws.pinnedPaths ?? [] }));
+  return cachedWorkspaces;
+}
+
+async function saveWorkspaces(workspaces: Workspace[]): Promise<void> {
+  cachedWorkspaces = workspaces.map((ws) => ({ ...ws, pinnedPaths: ws.pinnedPaths ?? [] }));
+  await writeJson(workspacesFile(), cachedWorkspaces);
 }
 
 async function getTrashWorkspaces(): Promise<TrashWorkspace[]> {
@@ -232,52 +244,37 @@ function getWorkspace(workspaces: Workspace[], id: string): Workspace | null {
 async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   const settings = await getSettings();
   const workspaces = await getWorkspaces();
-  const workspaceFolderAvailability = Object.fromEntries(
-    await Promise.all(
-      workspaces.map(async (workspace) => {
-        return [workspace.id, await isDirectoryCached(workspace.id, workspace.masterFolder)] as const;
-      }),
-    ),
-  );
-  const spaceId = await activeSpaceId();
-  const workspace = spaceId ? getWorkspace(workspaces, spaceId) : null;
-  const trashWorkspaces = await getTrashWorkspaces();
 
-  // Build Home data across all workspaces from single master log
-  const masterLogPath = masterLogFile();
-  const allLogs = await listLog(masterLogPath);
-  const homeLog = allLogs.slice(0, 8);
-
-  const allPads: Launchpad[] = [];
-  for (const ws of workspaces) {
-    const sPadsFile = path.join(spaceDir(ws.id), 'launchpads.json');
-    const sPads = await readLaunchpads(sPadsFile);
-    for (const p of sPads) {
-      allPads.push({ ...p, spaceId: ws.id, spaceName: ws.name });
+  // Inline activeSpaceId — avoids re-reading settings.json and workspaces.json again
+  const spaceId = (() => {
+    if (workspaces.length === 0) return null;
+    if (settings.activeWorkspaceId && workspaces.some((ws) => ws.id === settings.activeWorkspaceId)) {
+      return settings.activeWorkspaceId;
     }
-  }
+    return workspaces[0].id;
+  })();
 
-  const pinnedPads = allPads.filter((p) => p.pinned);
-  pinnedPads.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const workspace = spaceId ? getWorkspace(workspaces, spaceId) : null;
 
-  const unpinnedLaunched = allPads.filter(
-    (p) => !p.pinned && typeof p.lastLaunchedAt === 'number' && p.lastLaunchedAt > 0,
-  );
-  unpinnedLaunched.sort((a, b) => (b.lastLaunchedAt || 0) - (a.lastLaunchedAt || 0));
-  const top5Unpinned = unpinnedLaunched.slice(0, 5);
+  // Parallel: workspace availability checks + trash + logs + notes metadata
+  const [workspaceFolderAvailabilityEntries, trashWorkspaces, allLogs, notesAndBundles] =
+    await Promise.all([
+      Promise.all(
+        workspaces.map(async (ws) =>
+          [ws.id, await isDirectoryCached(ws.id, ws.masterFolder)] as const,
+        ),
+      ),
+      getTrashWorkspaces(),
+      listLog(masterLogFile()),
+      // Single-pass: one readdir, stat-only (no file content reads)
+      listNotesAndBundles(globalNotesDir()),
+    ]);
 
-  const home: HomeData = {
-    log: homeLog,
-    launchpads: [...pinnedPads, ...top5Unpinned],
-  };
+  const workspaceFolderAvailability = Object.fromEntries(workspaceFolderAvailabilityEntries);
+  const { notes, bundles } = notesAndBundles;
 
-  const gNotesDir = globalNotesDir();
-  const [globalNotesList, globalBundlesList] = await Promise.all([
-    listNotes(gNotesDir),
-    listBundles(gNotesDir),
-  ]);
-  const notes = globalNotesList;
-  const bundles = globalBundlesList;
+  // Build Home data
+  const home: HomeData = { log: allLogs.slice(0, 8) };
 
   let activeNoteId: string | undefined = undefined;
   if (settings.activeNoteId && notes.some((n) => n.id === settings.activeNoteId)) {
@@ -287,14 +284,8 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   }
 
   let logEntries: LogEntry[] = [];
-  let launchpads: Launchpad[] = [];
-
   if (spaceId) {
-    const spaceLaunchpadsFile = path.join(spaceDir(spaceId), 'launchpads.json');
-    const lPads = await readLaunchpads(spaceLaunchpadsFile);
-
     logEntries = allLogs.filter((e) => e.spaceId === spaceId || (workspace?.name && e.spaceName === workspace.name));
-    launchpads = orderLaunchpads(lPads.map((p) => ({ ...p, spaceId, spaceName: workspace?.name })));
   }
 
   if (!workspace) {
@@ -306,7 +297,6 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       entries: [],
       currentPath: '',
       logEntries,
-      launchpads,
       trashWorkspaces,
       notes,
       bundles,
@@ -329,7 +319,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
 
   if (!isNotes && workspace.lastSubfolder !== currentPath) {
     workspace.lastSubfolder = currentPath;
-    await writeJson(workspacesFile(), workspaces);
+    await saveWorkspaces(workspaces);
   }
 
   const rootFolder = isNotes ? notesDir : workspace.masterFolder;
@@ -343,7 +333,6 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     entries,
     currentPath,
     logEntries,
-    launchpads,
     trashWorkspaces,
     notes,
     bundles,
@@ -724,7 +713,7 @@ ipcMain.handle('files:choose', async (_event, defaultDir?: string) => {
     } catch {}
   }
   const result = await dialog.showOpenDialog({
-    title: 'Select Files for Launchpad',
+    title: 'Select Files',
     defaultPath,
     properties: ['openFile', 'multiSelections'],
   });
@@ -763,13 +752,13 @@ handleLocked('workspace:create', async (_event, name: string, masterFolder: stri
     createdAt: new Date().toISOString(),
   };
 
-  await writeJson(workspacesFile(), [...(await getWorkspaces()), workspace]);
-  await writeJson(settingsFile(), { ...(await getSettings()), activeWorkspaceId: workspace.id });
+  await saveWorkspaces([...(await getWorkspaces()), workspace]);
+  await saveSettings({ ...(await getSettings()), activeWorkspaceId: workspace.id });
   return snapshot();
 });
 
 handleLocked('workspace:switch', async (_event, id: string) => {
-  await writeJson(settingsFile(), { ...(await getSettings()), activeWorkspaceId: id });
+  await saveSettings({ ...(await getSettings()), activeWorkspaceId: id });
   return snapshot();
 });
 
@@ -778,7 +767,7 @@ handleLocked('workspace:rename', async (_event, id: string, name: string) => {
   const workspace = getWorkspace(workspaces, id);
   if (!workspace || !name.trim()) throw new Error('Space name is required.');
   workspace.name = name.trim();
-  await writeJson(workspacesFile(), workspaces);
+  await saveWorkspaces(workspaces);
   return snapshot();
 });
 
@@ -793,7 +782,7 @@ handleLocked('workspace:set-master-folder', async (_event, id: string, folder: s
   if (!workspace) throw new Error('Space not found.');
   workspace.masterFolder = path.resolve(folder);
   workspace.lastSubfolder = workspace.masterFolder;
-  await writeJson(workspacesFile(), workspaces);
+  await saveWorkspaces(workspaces);
   return snapshot(workspace.masterFolder);
 });
 
@@ -803,7 +792,7 @@ handleLocked('workspace:delete', async (_event, id: string) => {
   if (!target) return { ok: false, error: 'Space not found.' };
 
   const next = workspaces.filter((ws) => ws.id !== id);
-  await writeJson(workspacesFile(), next);
+  await saveWorkspaces(next);
 
   // Move spaces/<id> -> trash/<id>
   await moveFolder(spaceDir(id), trashSpaceDir(id));
@@ -819,7 +808,7 @@ handleLocked('workspace:delete', async (_event, id: string) => {
 
   const settings = await getSettings();
   if (settings.activeWorkspaceId === id) {
-    await writeJson(settingsFile(), { ...settings, activeWorkspaceId: next[0]?.id ?? '' });
+    await saveSettings({ ...settings, activeWorkspaceId: next[0]?.id ?? '' });
   }
 
   return { ok: true };
@@ -844,10 +833,10 @@ handleLocked('workspace:restore', async (_event, id: string) => {
     pinnedPaths: [],
     createdAt: new Date().toISOString(),
   };
-  await writeJson(workspacesFile(), [...workspaces, restored]);
+  await saveWorkspaces([...workspaces, restored]);
 
   const settings = await getSettings();
-  await writeJson(settingsFile(), { ...settings, activeWorkspaceId: restored.id });
+  await saveSettings({ ...settings, activeWorkspaceId: restored.id });
 
   return snapshot();
 });
@@ -938,7 +927,7 @@ handleLocked('path:pin', async (_event, target: string) => {
   const resolved = path.resolve(target);
   if (!workspace.pinnedPaths.includes(resolved)) {
     workspace.pinnedPaths.push(resolved);
-    await writeJson(workspacesFile(), workspaces);
+    await saveWorkspaces(workspaces);
   }
   return snapshot();
 });
@@ -950,7 +939,7 @@ handleLocked('path:unpin', async (_event, target: string) => {
   if (!workspace) return snapshot();
   const resolved = path.resolve(target);
   workspace.pinnedPaths = workspace.pinnedPaths.filter((p) => p !== resolved);
-  await writeJson(workspacesFile(), workspaces);
+  await saveWorkspaces(workspaces);
   return snapshot();
 });
 
@@ -1084,107 +1073,7 @@ async function openSingleItem(target: string): Promise<{ ok: boolean; error?: st
   return { ok: !err, error: err || undefined };
 }
 
-// ---------------------------------------------------------------------------
-// V3: Launchpad Handlers
-// ---------------------------------------------------------------------------
 
-handleLocked('launchpad:create', async (_event, name: string, spaceId: string, paths: string[]) => {
-  const workspaces = await getWorkspaces();
-  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
-  if (!targetSpaceId) throw new Error('Create a Space first.');
-
-  const trimmedName = (name || '').trim();
-  if (!trimmedName) throw new Error('Launchpad name is required.');
-
-  const padFile = path.join(spaceDir(targetSpaceId), 'launchpads.json');
-  const pads = await readLaunchpads(padFile);
-  const pad: Launchpad = {
-    id: randomUUID(),
-    name: trimmedName,
-    spaceId: targetSpaceId,
-    paths: paths.map((p) => p.trim()).filter(Boolean),
-    createdAt: Date.now(),
-  };
-  await writeLaunchpads(padFile, orderLaunchpads([pad, ...pads]));
-  return snapshot();
-});
-
-handleLocked('launchpad:update', async (_event, id: string, name: string, paths: string[]) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) throw new Error('Create a Space first.');
-
-  const trimmedName = (name || '').trim();
-  if (!trimmedName) throw new Error('Launchpad name is required.');
-
-  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
-  const pads = await readLaunchpads(padFile);
-  const index = pads.findIndex((p) => p.id === id);
-  if (index < 0) throw new Error('Launchpad not found.');
-  pads[index] = {
-    ...pads[index],
-    name: trimmedName,
-    paths: paths.map((p) => p.trim()).filter(Boolean),
-  };
-  await writeLaunchpads(padFile, orderLaunchpads(pads));
-  return snapshot();
-});
-
-handleLocked('launchpad:delete', async (_event, id: string) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return snapshot();
-  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
-  const pads = await readLaunchpads(padFile);
-  await writeLaunchpads(padFile, pads.filter((p) => p.id !== id));
-  return snapshot();
-});
-
-handleLocked('launchpad:restore', async (_event, pad: Launchpad) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId || !pad || !pad.id) return snapshot();
-  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
-  const pads = await readLaunchpads(padFile);
-  if (pads.some((p) => p.id === pad.id)) return snapshot();
-  await writeLaunchpads(padFile, orderLaunchpads([...pads, pad]));
-  return snapshot();
-});
-
-handleLocked('launchpad:set-pinned', async (_event, id: string, pinned: boolean) => {
-  const spaceId = await activeSpaceId();
-  if (!spaceId) return snapshot();
-  const padFile = path.join(spaceDir(spaceId), 'launchpads.json');
-  const pads = await readLaunchpads(padFile);
-  const idx = pads.findIndex((p) => p.id === id);
-  if (idx >= 0) {
-    pads[idx].pinned = Boolean(pinned);
-    await writeLaunchpads(padFile, orderLaunchpads(pads));
-  }
-  return snapshot();
-});
-
-ipcMain.handle('launchpad:launch', async (_event, id: string, spaceId?: string) => {
-  const workspaces = await getWorkspaces();
-  const targetSpaceId = spaceId && workspaces.some((w) => w.id === spaceId) ? spaceId : await activeSpaceId();
-  if (!targetSpaceId) return { ok: false, errors: ['Launchpad not found'] };
-  const padFile = path.join(spaceDir(targetSpaceId), 'launchpads.json');
-  const pads = await readLaunchpads(padFile);
-  const pad = pads.find((p) => p.id === id);
-  if (!pad) return { ok: false, errors: ['Launchpad not found'] };
-
-  pad.lastLaunchedAt = Date.now();
-  await writeLaunchpads(padFile, orderLaunchpads(pads)).catch(() => undefined);
-
-  const validPaths = (pad.paths || []).map((p) => p.trim()).filter(Boolean);
-  const errors: string[] = [];
-  for (let i = 0; i < validPaths.length; i++) {
-    const target = validPaths[i];
-    const res = await openSingleItem(target);
-    if (!res.ok && res.error) errors.push(`${target}: ${res.error}`);
-    if (i < validPaths.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
-  }
-  return { ok: errors.length === 0, errors };
-});
 
 ipcMain.handle('path:open-item', async (_event, target: string) => {
   return openSingleItem(target);
@@ -1303,7 +1192,7 @@ async function cleanupNotesSpaceFromWorkspaces(): Promise<void> {
   const workspaces = await getWorkspaces();
   const filtered = workspaces.filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace);
   if (filtered.length !== workspaces.length) {
-    await writeJson(workspacesFile(), filtered);
+    await saveWorkspaces(filtered);
     const settings = await getSettings();
     if (settings.activeWorkspaceId === '__senku_notes__') {
       settings.activeWorkspaceId = filtered[0]?.id ?? '';

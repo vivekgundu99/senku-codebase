@@ -11,8 +11,7 @@ export function topbarMarkup(): string {
   }).format(new Date());
 
   let pageTitle = 'Home';
-  if (currentView === 'Launchpads') pageTitle = 'Launchpads';
-  else if (currentView === 'Log' || currentView === 'AllLog') pageTitle = 'Logs';
+  if (currentView === 'Log' || currentView === 'AllLog') pageTitle = 'Logs';
   else if (isGlobalNotesMode || currentView === 'Notes' || (currentView === 'Home' && homeCenterMode === 'notes')) pageTitle = 'Notes';
 
   const spacePill = (!isGlobalNotesMode && ws)

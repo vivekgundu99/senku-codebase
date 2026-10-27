@@ -1,5 +1,6 @@
 import { state, isGlobalNotesMode } from './state';
 import { isSamePath, parentOf } from './utils';
+import { toast } from './toast';
 
 type ShortcutContext = {
   load: (path?: string) => Promise<void>;
@@ -11,6 +12,12 @@ const shortcuts = [
     key: 'p',
     run: ({ load, render }: ShortcutContext) => {
       void import('./palette').then((m) => m.openPalette(load, render));
+    },
+  },
+  {
+    key: 'r',
+    run: ({ load }: ShortcutContext) => {
+      void load(state.currentPath).then(() => toast('Refreshed'));
     },
   },
   {
