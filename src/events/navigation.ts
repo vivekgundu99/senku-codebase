@@ -1,8 +1,8 @@
-import { state, setView, setAllLog } from '../state';
+import { state, setView, setAllLog, toggleAppSidebarCollapsed } from '../state';
 import { uiIcon } from '../markup';
 import { toast } from '../toast';
 import { openPalette } from '../palette';
-import { openProfileModal, openTrashModal } from '../modals';
+import { openProfileModal } from '../modals';
 import type { LoadFn, RenderFn } from './types';
 
 export function bindNavigation(load: LoadFn, render: RenderFn): void {
@@ -19,8 +19,11 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
   );
 }
 
-export function bindSidebarButtons(load: LoadFn, _render: RenderFn): void {
-  document.querySelector('#open-trash')?.addEventListener('click', () => openTrashModal(load));
+export function bindSidebarButtons(_load: LoadFn, render: RenderFn): void {
+  document.querySelector('#toggle-sidebar')?.addEventListener('click', () => {
+    toggleAppSidebarCollapsed();
+    render();
+  });
 }
 
 export function bindTopbarButtons(load: LoadFn, render: RenderFn): void {

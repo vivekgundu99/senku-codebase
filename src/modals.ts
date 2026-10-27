@@ -79,15 +79,17 @@ function showFormError(overlay: HTMLElement, selector: string, message: string):
 // Profile & Settings modal
 // ---------------------------------------------------------------------------
 
-export function openProfileModal(render: () => void): void {
-  openAppSettingsModal(render);
+export function openProfileModal(render: () => void, load?: () => Promise<void>): void {
+  openAppSettingsModal(render, load);
 }
 
-export function openAppSettingsModal(render: () => void): void {
+export function openAppSettingsModal(render: () => void, load?: () => Promise<void>): void {
   if (!state) return;
 
+  const trashCount = state.trashWorkspaces?.length ?? 0;
+
   const overlay = createOverlay(`
-    <form class="modal-card settings-dialog-card">
+    <div class="modal-card settings-dialog-card">
       <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
 
       <span class="settings-kicker">SETTINGS</span>
@@ -102,6 +104,17 @@ export function openAppSettingsModal(render: () => void): void {
               <small>Open Senku automatically when Windows boots</small>
             </div>
             <button type="button" id="app-startup-toggle" class="toggle ${state.settings.launchAtStartup ? 'on' : ''}" aria-label="Toggle launch at startup"><span></span></button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <span class="settings-group-label">STORAGE &amp; TRASH</span>
+          <div class="settings-action-row">
+            <div class="toggle-text">
+              <strong>Trash</strong>
+              <small>${trashCount > 0 ? `${trashCount} deleted space(s) can be restored` : 'No deleted spaces'}</small>
+            </div>
+            <button type="button" class="settings-action-btn" id="open-trash-btn">View Trash (${trashCount})</button>
           </div>
         </div>
 
@@ -126,13 +139,34 @@ export function openAppSettingsModal(render: () => void): void {
 
       <div class="settings-dialog-footer">
         <span class="settings-version-tag">Senku v${pkg.version} · Offline &amp; Local</span>
-        <button class="primary-button mini" type="submit">Done</button>
       </div>
-    </form>`);
+    </div>`);
 
-  // Windows startup toggle
+  // Windows startup toggle - auto-save immediately
   const toggle = overlay.querySelector('#app-startup-toggle');
-  toggle?.addEventListener('click', () => toggle?.classList.toggle('on'));
+  toggle?.addEventListener('click', async () => {
+    toggle.classList.toggle('on');
+    const launchAtStartup = toggle.classList.contains('on');
+    try {
+      const snapshot = await window.senku.saveSettings({
+        ...state.settings,
+        launchAtStartup,
+      });
+      setState(snapshot);
+      toast('Setting saved');
+    } catch {
+      toast('Could not save setting');
+    }
+  });
+
+  // Open trash modal from settings
+  overlay.querySelector('#open-trash-btn')?.addEventListener('click', () => {
+    overlay.remove();
+    openTrashModal(async () => {
+      if (load) await load();
+      render();
+    });
+  });
 
   // User guide
   overlay.querySelector('#open-user-guide-btn')?.addEventListener('click', async () => {
@@ -148,20 +182,6 @@ export function openAppSettingsModal(render: () => void): void {
     } else if (!res.empty) {
       toast(res.error || 'Could not export notes.');
     }
-  });
-
-  // Form submit
-  overlay.querySelector('form')!.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const launchAtStartup = overlay.querySelector('#app-startup-toggle')?.classList.contains('on') ?? state.settings.launchAtStartup;
-
-    const snapshot = await window.senku.saveSettings({
-      ...state.settings,
-      launchAtStartup,
-    });
-    setState(snapshot);
-    overlay.remove();
-    render();
   });
 }
 

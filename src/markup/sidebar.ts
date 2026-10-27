@@ -1,9 +1,10 @@
-import { state, currentView } from '../state';
+import { state, currentView, isAppSidebarCollapsed } from '../state';
 import { escapeHtml } from '../utils';
 import { uiIcon } from './icons';
 
 export function sidebarMarkup(): string {
   const ws = state.workspace;
+  const isCollapsed = isAppSidebarCollapsed;
 
   // Spaces arranged in alphabetical order
   const sortedWorkspaces = [...(state.workspaces ?? [])].sort((a, b) =>
@@ -32,10 +33,15 @@ export function sidebarMarkup(): string {
        </div>`;
 
   return `
-    <aside class="sidebar">
+    <aside class="sidebar ${isCollapsed ? 'collapsed' : ''}">
       <div class="brand">
-        <span class="brand-mark">S</span>
-        <span class="brand-text">senku</span>
+        <div class="brand-left">
+          <span class="brand-mark" title="Senku">S</span>
+          <span class="brand-text">senku</span>
+        </div>
+        <button class="sidebar-toggle-btn" id="toggle-sidebar" title="${isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}" aria-label="Toggle sidebar">
+          ${uiIcon('sidebar', 14)}
+        </button>
       </div>
 
       <div class="nav-list">
@@ -66,12 +72,5 @@ export function sidebarMarkup(): string {
         <button class="mini-button" id="add-space" title="Add a Space" aria-label="Add a Space">${uiIcon('plus', 13)}</button>
       </div>
       <div class="space-list">${spacesContent}</div>
-      ${state.trashWorkspaces && state.trashWorkspaces.length > 0 ? `
-        <div class="space-trash-wrap">
-          <button class="space-trash-btn" id="open-trash" title="Trash (${state.trashWorkspaces.length} deleted spaces)">
-            <span>Trash</span>
-            <span class="trash-count">${state.trashWorkspaces.length}</span>
-          </button>
-        </div>` : ''}
     </aside>`;
 }

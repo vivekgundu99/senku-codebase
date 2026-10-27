@@ -47,6 +47,12 @@ export function toggleNotesSidebarCollapsed(): void {
   localStorage.setItem('senku:notesSidebarCollapsed', String(isNotesSidebarCollapsed));
 }
 
+export let isAppSidebarCollapsed = localStorage.getItem('senku:appSidebarCollapsed') === 'true';
+export function toggleAppSidebarCollapsed(): void {
+  isAppSidebarCollapsed = !isAppSidebarCollapsed;
+  localStorage.setItem('senku:appSidebarCollapsed', String(isAppSidebarCollapsed));
+}
+
 export let noteFilter = '';
 export function setNoteFilter(text: string): void {
   noteFilter = text;

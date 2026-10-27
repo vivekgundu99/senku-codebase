@@ -1,4 +1,4 @@
-import { state, currentView, setView } from '../state';
+import { state, currentView, setView, toggleAppSidebarCollapsed } from '../state';
 import { registerShortcuts } from '../shortcuts';
 import { openPalette } from '../palette';
 import {
@@ -18,6 +18,15 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       openPalette(load, render);
     }
   }, { capture: true });
+
+  // Global Ctrl+B toggles collapsible sidebar
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+      e.preventDefault();
+      toggleAppSidebarCollapsed();
+      render();
+    }
+  });
 
   // Global Zoom: Ctrl+=, Ctrl++, Ctrl+-, Ctrl+0
   document.addEventListener('keydown', (e) => {
@@ -78,7 +87,7 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
 
     if (target.closest('#settings-button, .avatar-button, #profile-avatar-button')) {
       e.preventDefault();
-      openProfileModal(render);
+      openProfileModal(render, load);
       return;
     }
 

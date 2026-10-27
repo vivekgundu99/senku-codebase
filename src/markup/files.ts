@@ -80,7 +80,6 @@ export function fileEntryMarkup(entry: FileEntry): string {
       <span class="file-actions">
         <button data-path="${escapeHtml(entry.path)}" ${pinAction}
           class="pin-button ${entry.pinned ? 'active' : ''}" aria-label="${entry.pinned ? 'Unpin' : 'Pin'}">${uiIcon('star', 12)}</button>
-        <button data-file-action="copy" data-path="${escapeHtml(entry.path)}" class="quick-copy-btn" title="Copy path">${uiIcon('copy', 11)} <span>Copy</span></button>
       </span>
     </div>`;
 }

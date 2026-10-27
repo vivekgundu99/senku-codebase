@@ -175,7 +175,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         type: 'Action',
         typeOrder: 4,
         text: 'App Settings',
-        run: () => { openAppSettingsModal(render); },
+        run: () => { openAppSettingsModal(render, load); },
       },
       {
         id: 'action-guide',
