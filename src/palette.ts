@@ -1,5 +1,19 @@
-import { state, setView, currentView } from './state';
-import { fuzzyMatch } from './utils';
+import {
+  state,
+  setView,
+  isGlobalNotesMode,
+  setGlobalNotesMode,
+  homeCenterMode,
+  setHomeCenterMode,
+  activeMarkdownFile,
+  setActiveMarkdownFile,
+  isNotePreviewMode,
+  setIsNotePreviewMode,
+  setActiveNotePageIndex,
+  setIsNoteAllPagesView,
+  setCurrentFolder,
+} from './state';
+import { fuzzyMatch, escapeHtml, parseNotePages, PAGE_SEPARATOR } from './utils';
 import { toast } from './toast';
 import {
   openWorkspaceFormModal,
@@ -11,7 +25,7 @@ type RenderFn = () => void;
 
 interface PaletteItem {
   id: string;
-  type: 'View' | 'Space' | 'Action';
+  type: 'View' | 'Space' | 'Note' | 'Action';
   typeOrder: number;
   text: string;
   run: () => Promise<void> | void;
@@ -20,6 +34,12 @@ interface PaletteItem {
 let activePaletteOverlay: HTMLDivElement | null = null;
 
 export function openPalette(load: LoadFn, render: RenderFn): void {
+  // Flush any pending note edits before opening palette
+  const fileEditor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+  if (fileEditor && document.activeElement === fileEditor) {
+    fileEditor.blur();
+  }
+
   if (activePaletteOverlay) {
     activePaletteOverlay.remove();
     activePaletteOverlay = null;
@@ -35,7 +55,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         <input
           class="palette-input"
           type="text"
-          placeholder="Search commands, spaces, or type to log…"
+          placeholder="Search commands, notes, spaces, or type to log…"
           autocomplete="off"
           spellcheck="false"
         />
@@ -69,11 +89,59 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
   const buildItems = (): PaletteItem[] => {
     const items: PaletteItem[] = [];
 
-    // 1. Views
+    // 1. Core Views
     items.push(
-      { id: 'view-home', type: 'View', typeOrder: 0, text: 'Home', run: () => { setView('Home'); render(); } },
-      { id: 'view-notes', type: 'View', typeOrder: 0, text: 'Notes', run: () => { setView('Notes'); render(); } },
-      { id: 'view-all-logs', type: 'View', typeOrder: 0, text: 'Logs', run: () => { setView('AllLog'); render(); } },
+      {
+        id: 'view-home',
+        type: 'View',
+        typeOrder: 0,
+        text: 'Home Overview',
+        run: async () => {
+          const wasGlobal = isGlobalNotesMode;
+          setGlobalNotesMode(false);
+          setHomeCenterMode('overview');
+          setView('Home');
+          setActiveMarkdownFile(null);
+          if (wasGlobal && state.workspace?.masterFolder) {
+            await load(state.workspace.masterFolder);
+          } else {
+            render();
+          }
+        },
+      },
+      {
+        id: 'view-notes',
+        type: 'View',
+        typeOrder: 0,
+        text: 'Notes (Quick Note)',
+        run: async () => {
+          setGlobalNotesMode(true);
+          const notesPath = await window.senku.getNotesPath();
+          const res = await window.senku.readFolder(notesPath);
+          setCurrentFolder(res.entries, res.currentPath);
+
+          const qNote = await window.senku.getOrCreateQuickNote();
+          setActiveMarkdownFile(qNote);
+          setActiveNotePageIndex(0);
+          setIsNoteAllPagesView(true);
+          setIsNotePreviewMode(true);
+
+          setView('Home');
+          setHomeCenterMode('notes');
+          render();
+        },
+      },
+      {
+        id: 'view-all-logs',
+        type: 'View',
+        typeOrder: 0,
+        text: 'Logs',
+        run: () => {
+          setGlobalNotesMode(false);
+          setView('AllLog');
+          render();
+        },
+      },
     );
 
     // 2. Spaces
@@ -86,6 +154,8 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         text: `Space: ${ws.name}${isCurrent ? ' (active)' : ''}`,
         run: async () => {
           if (!isCurrent) {
+            setGlobalNotesMode(false);
+            setHomeCenterMode('overview');
             await window.senku.switchWorkspace(ws.id);
             setView('Home');
             await load();
@@ -94,26 +164,88 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
       });
     });
 
-    // 3. Actions
+    // 3. Notes in active folder
+    const mdEntries = (state.entries || []).filter((e) => e.kind === 'file' && e.name.toLowerCase().endsWith('.md'));
+    mdEntries.forEach((entry) => {
+      items.push({
+        id: `open-note-${entry.name}`,
+        type: 'Note',
+        typeOrder: 2,
+        text: `Open Note: ${entry.name}`,
+        run: async () => {
+          const folder = state.currentPath || state.workspace?.masterFolder;
+          if (!folder) return;
+          const p = `${folder}/${entry.name}`.replace(/\\/g, '/');
+          try {
+            const content = await window.senku.readTextFile(p);
+            setActiveMarkdownFile({ path: p, name: entry.name, content });
+            setActiveNotePageIndex(0);
+            setIsNoteAllPagesView(true);
+            setIsNotePreviewMode(true);
+            setView('Home');
+            setHomeCenterMode('notes');
+            render();
+          } catch {
+            toast('Could not open note.');
+          }
+        },
+      });
+    });
+
+    // 4. Actions
     items.push(
+      {
+        id: 'action-new-note',
+        type: 'Action',
+        typeOrder: 3,
+        text: 'New Note in Folder',
+        run: async () => {
+          let folder = state.currentPath || state.workspace?.masterFolder;
+          if (isGlobalNotesMode && !folder) {
+            folder = await window.senku.getNotesPath();
+          }
+          if (!folder) {
+            toast('No active folder linked.');
+            return;
+          }
+          try {
+            const note = await window.senku.createFileNote(folder);
+            setActiveMarkdownFile(note);
+            setActiveNotePageIndex(0);
+            setIsNoteAllPagesView(false);
+            setIsNotePreviewMode(false);
+            setView('Home');
+            setHomeCenterMode('notes');
+            toast(`Created ${note.name}`);
+            await load(folder);
+            const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+            if (editor) {
+              editor.focus();
+              editor.setSelectionRange(editor.value.length, editor.value.length);
+            }
+          } catch {
+            toast('Could not create note.');
+          }
+        },
+      },
       {
         id: 'action-quick-note',
         type: 'Action',
-        typeOrder: 4,
+        typeOrder: 3,
         text: 'Quick Note Overlay',
         run: () => { void window.senku.showOverlay(); },
       },
       {
         id: 'action-new-space',
         type: 'Action',
-        typeOrder: 4,
+        typeOrder: 3,
         text: 'New Space',
         run: () => { openWorkspaceFormModal(load); },
       },
       {
         id: 'action-refresh',
         type: 'Action',
-        typeOrder: 4,
+        typeOrder: 3,
         text: 'Refresh',
         run: async () => {
           await load(state.currentPath);
@@ -123,11 +255,57 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
       {
         id: 'action-app-settings',
         type: 'Action',
-        typeOrder: 4,
+        typeOrder: 3,
         text: 'App Settings',
         run: () => { openAppSettingsModal(render, load); },
       },
     );
+
+    // Contextual Note Actions
+    const currentNote = activeMarkdownFile;
+    if (currentNote && homeCenterMode === 'notes') {
+      items.push({
+        id: 'action-toggle-preview',
+        type: 'Action',
+        typeOrder: 3,
+        text: isNotePreviewMode ? 'Edit Active Note' : 'Preview Active Note',
+        run: () => {
+          setIsNotePreviewMode(!isNotePreviewMode);
+          render();
+          if (!isNotePreviewMode) {
+            const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+            if (editor) {
+              editor.focus();
+              editor.setSelectionRange(editor.value.length, editor.value.length);
+            }
+          }
+        },
+      });
+      items.push({
+        id: 'action-add-page',
+        type: 'Action',
+        typeOrder: 3,
+        text: 'Add Page to Active Note',
+        run: async () => {
+          const current = (currentNote.content || '').trimEnd();
+          const updated = current ? `${current}${PAGE_SEPARATOR}` : `<!-- page -->\n\n`;
+          currentNote.content = updated;
+          await window.senku.saveTextFile(currentNote.path, updated);
+          const pages = parseNotePages(updated);
+          setActiveNotePageIndex(Math.max(0, pages.length - 1));
+          setIsNoteAllPagesView(false);
+          setIsNotePreviewMode(false);
+          setView('Home');
+          setHomeCenterMode('notes');
+          render();
+          const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+          if (editor) {
+            editor.focus();
+            editor.setSelectionRange(editor.value.length, editor.value.length);
+          }
+        },
+      });
+    }
 
     return items;
   };
@@ -136,15 +314,12 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
   let currentRows: Array<{ item: PaletteItem; highlightedHtml: string }> = [];
   let selectedIndex = 0;
 
-  const escapeHtmlText = (str: string): string =>
-    str.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
-
   const highlight = (text: string, indices: number[]): string => {
-    if (!indices.length) return escapeHtmlText(text);
+    if (!indices.length) return escapeHtml(text);
     const set = new Set(indices);
     let html = '';
     for (let i = 0; i < text.length; i++) {
-      const c = escapeHtmlText(text[i]);
+      const c = escapeHtml(text[i]);
       if (set.has(i)) {
         html += `<mark>${c}</mark>`;
       } else {
@@ -159,12 +334,13 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
     const q = rawQuery.trim();
 
     if (!q) {
-      // Empty query: show Views first, then Spaces, then Actions
+      // Empty query: show Views first, then Spaces, then Notes, then Actions
       const views = allItems.filter((it) => it.type === 'View');
       const spaces = allItems.filter((it) => it.type === 'Space');
+      const notes = allItems.filter((it) => it.type === 'Note');
       const actions = allItems.filter((it) => it.type === 'Action');
-      const combined = [...views, ...spaces, ...actions].slice(0, 8);
-      currentRows = combined.map((item) => ({ item, highlightedHtml: escapeHtmlText(item.text) }));
+      const combined = [...views, ...spaces, ...notes, ...actions].slice(0, 8);
+      currentRows = combined.map((item) => ({ item, highlightedHtml: escapeHtml(item.text) }));
     } else {
       const scored: Array<{ item: PaletteItem; score: number; indices: number[] }> = [];
       for (const item of allItems) {
@@ -197,7 +373,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         },
       };
 
-      currentRows = [...topScored, { item: dynamicItem, highlightedHtml: escapeHtmlText(dynamicItem.text) }];
+      currentRows = [...topScored, { item: dynamicItem, highlightedHtml: escapeHtml(dynamicItem.text) }];
     }
 
     if (selectedIndex >= currentRows.length) {

@@ -144,11 +144,12 @@ export function setCurrentFolder(entries: FileEntry[], folderPath: string): void
 }
 
 export function setView(view: string): void {
+  if (view === 'Notes') {
+    view = 'Home';
+    homeCenterMode = 'notes';
+  }
   if ((currentView === 'Log' && view === 'AllLog') || (currentView === 'AllLog' && view === 'Log')) {
     resetLogDates();
-  }
-  if (view === 'Notes') {
-    packInactiveBundles();
   }
   currentView = view;
 }
