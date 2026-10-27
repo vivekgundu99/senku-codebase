@@ -1,4 +1,4 @@
-import { state, currentView } from '../state';
+import { state, currentView, homeCenterMode } from '../state';
 import { escapeHtml } from '../utils';
 import { uiIcon } from './icons';
 
@@ -13,7 +13,7 @@ export function topbarMarkup(): string {
   let pageTitle = 'Home';
   if (currentView === 'Launchpads') pageTitle = 'Launchpads';
   else if (currentView === 'Log' || currentView === 'AllLog') pageTitle = 'Logs';
-  else if (currentView === 'Notes') pageTitle = 'Notes';
+  else if (currentView === 'Notes' || (currentView === 'Home' && homeCenterMode === 'notes')) pageTitle = 'Notes';
 
   const spacePill = ws
     ? `<button class="topbar-space-pill" id="topbar-space-pill" data-action="workspace-settings" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">

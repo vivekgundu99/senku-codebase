@@ -15,9 +15,9 @@ import {
   homePanelMarkup,
   logPanelMarkup,
   launchpadsPanelMarkup,
-  notesPanelMarkup,
+  notesWindowMarkup,
 } from './markup';
-import { bindAll, initGlobalListeners, bindNotesPanel, isNoteEditorPendingSave } from './events';
+import { bindAll, initGlobalListeners, isNoteEditorPendingSave } from './events';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -38,14 +38,14 @@ function render(): void {
   const logEntriesScroll = appRoot.querySelector<HTMLElement>('.log-entries')?.scrollTop;
 
   let leftPanel = '';
-  if (currentView === 'Notes') leftPanel = notesPanelMarkup();
+  if (currentView === 'Notes') leftPanel = notesWindowMarkup();
   else if (currentView === 'Log') leftPanel = logPanelMarkup('space');
   else if (currentView === 'AllLog') leftPanel = logPanelMarkup('all');
   else if (currentView === 'Launchpads') leftPanel = launchpadsPanelMarkup();
   else leftPanel = overviewPanelMarkup();
 
-  // The files panel shows for Home and Overview. Launchpads, Log, Notes, AllLog are single-column full views.
-  const showFiles = currentView === 'Home' || currentView === 'Overview';
+  // The files panel shows for Home, Overview, and Notes.
+  const showFiles = currentView === 'Home' || currentView === 'Overview' || currentView === 'Notes';
 
   const mainContent = showFiles
     ? `<div class="content-grid ${isFilePaneCompact ? 'compact-files' : ''}">
@@ -66,7 +66,6 @@ function render(): void {
     </div>`;
 
   bindAll(load, render);
-  if (currentView === 'Notes') bindNotesPanel(load, render);
 
   // Check existence of local paths in Launchpads panel (cached for 10 s)
   if (currentView === 'Launchpads' && isPathAvailabilityCacheStale()) {

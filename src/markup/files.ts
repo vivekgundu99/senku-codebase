@@ -1,6 +1,6 @@
 import type { FileEntry } from '../../electron/types';
 import { state, fileFilter, visibleEntries, isFilePaneCompact } from '../state';
-import { escapeHtml, folderName, isSamePath, pathCrumbs } from '../utils';
+import { escapeHtml, folderName, isInside, isSamePath, pathCrumbs } from '../utils';
 import { uiIcon } from './icons';
 
 const ICONS: Record<string, string> = {
@@ -143,8 +143,20 @@ export function filePanelMarkup(): string {
       </section>`;
   }
 
-  const atRoot = isSamePath(state.currentPath, ws.masterFolder);
-  const crumbs = pathCrumbs(ws.masterFolder, state.currentPath);
+  let rootFolder = ws ? ws.masterFolder : state.currentPath;
+  let rootName = ws ? ws.name : folderName(state.currentPath);
+
+  const senkuNotesIdx = state.currentPath.toLowerCase().indexOf('senku notes');
+  if (senkuNotesIdx !== -1) {
+    rootFolder = state.currentPath.slice(0, senkuNotesIdx + 'senku notes'.length);
+    rootName = 'Senku Notes';
+  } else if (!ws || !isInside(ws.masterFolder, state.currentPath)) {
+    rootFolder = state.currentPath;
+    rootName = folderName(state.currentPath);
+  }
+
+  const atRoot = isSamePath(state.currentPath, rootFolder);
+  const crumbs = pathCrumbs(rootFolder, state.currentPath);
   const shown = crumbs.length > 2 ? crumbs.slice(-2) : crumbs;
   const breadcrumb =
     (crumbs.length > 2 ? `<span class="crumb-sep">›</span><span class="crumb-gap">…</span>` : '') +
@@ -155,24 +167,29 @@ export function filePanelMarkup(): string {
       <div class="file-top-bar">
         <div class="folder-path">
           <div class="breadcrumbs-scroll">
-            <button id="go-root" class="crumb-btn root-crumb" title="Go to ${escapeHtml(ws.name)} folder">
+            <button id="go-root" class="crumb-btn root-crumb" data-root-target="${escapeHtml(rootFolder)}" title="Go to ${escapeHtml(rootName)} folder">
               <span class="crumb-icon">${uiIcon('folder', 13)}</span>
-              <span class="crumb-name">${escapeHtml(folderName(ws.masterFolder))}</span>
+              <span class="crumb-name">${escapeHtml(rootName)}</span>
             </button>
             ${breadcrumb}
           </div>
         </div>
         <div class="file-panel-actions">
-          <div class="file-action-group">
-            <button class="file-action-group-btn" id="open-folder" title="Open in File Explorer">
+          <div class="file-action-split-wrap">
+            <button class="file-action-btn primary file-action-split-main" id="open-folder" title="Open in File Explorer">
               ${uiIcon('folder', 13)}
             </button>
-            <button class="file-action-group-btn" id="open-in-vscode" title="Open in VS Code">
-              ${uiIcon('code', 13)}
+            <button class="file-action-btn file-action-split-trigger" id="open-tools-dropdown" title="More tools (VS Code, Terminal)" type="button">
+              ${uiIcon('chevronDown', 9)}
             </button>
-            <button class="file-action-group-btn" id="open-in-terminal" title="Open in Terminal">
-              ${uiIcon('terminal', 13)}
-            </button>
+            <div class="file-tools-dropdown-menu" id="file-tools-dropdown-menu">
+              <button class="file-dropdown-item" id="open-in-vscode" type="button">
+                ${uiIcon('code', 13)} <span>Open in VS Code</span>
+              </button>
+              <button class="file-dropdown-item" id="open-in-terminal" type="button">
+                ${uiIcon('terminal', 13)} <span>Open in Terminal</span>
+              </button>
+            </div>
           </div>
           <button class="file-action-btn ${isFilePaneCompact ? 'active' : ''}" id="toggle-file-pane-size" title="${isFilePaneCompact ? 'Expand file pane' : 'Compact file pane'}">
             ${uiIcon('sidebar', 13)}

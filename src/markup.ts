@@ -14,6 +14,7 @@ export {
 } from './markup/files';
 export {
   overviewPanelMarkup,
+  notesWindowMarkup,
   homeLaunchpadRowMarkup,
   homePanelV3Markup,
   homePanelMarkup,

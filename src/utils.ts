@@ -109,6 +109,12 @@ export function pathCrumbs(root: string, current: string): { name: string; path:
 export const isSamePath = (a: string, b: string): boolean =>
   trimSep(a).toLowerCase() === trimSep(b).toLowerCase();
 
+export const isInside = (parent: string, child: string): boolean => {
+  const p = trimSep(parent).toLowerCase();
+  const c = trimSep(child).toLowerCase();
+  return c === p || c.startsWith(p + '\\') || c.startsWith(p + '/');
+};
+
 /** Last segment of a path, or the path itself for a drive root. */
 export const folderName = (path: string): string =>
   trimSep(path).split(/[\\/]/).pop() || path;

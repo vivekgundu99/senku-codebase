@@ -62,13 +62,15 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+  height: 28px;
 }
 
 .crumb-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 6px;
+  padding: 0 6px;
+  height: 28px;
   border-radius: 6px;
   background: transparent;
   border: none;
@@ -79,6 +81,7 @@
   overflow: hidden;
   white-space: nowrap;
   transition: all .12s ease;
+  line-height: 1;
 }
 
 .crumb-btn:hover {
@@ -102,6 +105,8 @@
 }
 
 .crumb-sep {
+  display: inline-flex;
+  align-items: center;
   color: var(--soft);
   font-size: 13px;
   font-weight: 600;
@@ -110,6 +115,8 @@
 }
 
 .crumb-gap {
+  display: inline-flex;
+  align-items: center;
   color: var(--soft);
   font-size: 11px;
 }
@@ -121,37 +128,67 @@
   flex: 0 0 auto;
 }
 
-.file-action-group {
+.file-action-split-wrap {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface);
-  overflow: hidden;
   height: 28px;
 }
 
-.file-action-group-btn {
-  display: inline-flex;
+.file-action-split-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  padding: 0 8px;
+  height: 28px;
+}
+
+.file-action-split-trigger {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: none;
+  padding: 0 5px;
+  height: 28px;
+}
+
+.file-tools-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  z-index: 50;
+  min-width: 146px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-tools-dropdown-menu.open {
+  display: flex;
+}
+
+.file-dropdown-item {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 27px;
-  height: 100%;
+  gap: 7px;
+  padding: 6px 9px;
   border: none;
   background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0;
-  transition: all .12s ease;
-}
-
-.file-action-group-btn:not(:last-child) {
-  border-right: 1px solid var(--line);
-}
-
-.file-action-group-btn:hover {
-  background: var(--hover);
   color: var(--ink);
+  font: 500 12px var(--sans);
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  transition: all .12s ease;
+  width: 100%;
+}
+
+.file-dropdown-item:hover {
+  background: var(--hover);
+  color: var(--green);
 }
 
 .file-action-btn {

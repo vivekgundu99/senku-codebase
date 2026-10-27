@@ -293,25 +293,28 @@ export function notesWindowMarkup(): string {
           >${escapeHtml(currentContent)}</textarea>
         `}
 
-        <div class="notes-window-pages-bar">
-          <div class="notes-window-pages-nav">
-            <button type="button" class="notes-page-nav-btn" id="notes-prev-page" title="Previous page (Alt+←)" ${currentPageIndex <= 0 || isNoteAllPagesView ? 'disabled' : ''}>
-              ‹
+        <div class="notes-pages-bar">
+          <div class="notes-pages-actions">
+            <button type="button" class="notes-pages-mode-btn ${isNoteAllPagesView ? 'active' : ''}" id="notes-toggle-all-view" title="${isNoteAllPagesView ? 'Switch to single page view' : 'View full note (all pages)'}">
+              ${isNoteAllPagesView ? 'Page view' : 'All'}
             </button>
-            <span class="notes-page-counter" id="notes-page-counter-label">
-              ${isNoteAllPagesView ? `All Pages (${totalPages})` : `Page ${currentPageIndex + 1} of ${totalPages}`}
-            </span>
-            <button type="button" class="notes-page-nav-btn" id="notes-next-page" title="Next page (Alt+→)" ${currentPageIndex >= totalPages - 1 || isNoteAllPagesView ? 'disabled' : ''}>
-              ›
-            </button>
+            <button type="button" class="notes-page-add-btn" id="notes-page-add" title="Add clean page">+ Page</button>
+            ${pages.length > 1 && !isNoteAllPagesView ? `
+              <button type="button" class="notes-page-delete-btn" id="notes-page-delete" title="Delete current page">
+                ${uiIcon('trash', 12)}
+              </button>
+            ` : ''}
           </div>
-          <div class="notes-window-pages-actions">
-            <button type="button" class="notes-page-action-btn ${isNoteAllPagesView ? 'active' : ''}" id="notes-toggle-all-pages" title="Toggle single-page / all-pages">
-              ${isNoteAllPagesView ? 'Single Page' : 'All Pages'}
-            </button>
-            <button type="button" class="notes-page-action-btn" id="notes-add-page-btn" title="Add page break (<!-- page -->)">
-              + Page
-            </button>
+          <div class="notes-pages-nav">
+            <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page (Alt+←)" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
+            <div class="notes-pages-list">
+              ${pages.map((_, i) => `
+                <button type="button" class="notes-page-circle ${!isNoteAllPagesView && i === currentPageIndex ? 'active' : ''}" data-page-index="${i}" title="Page ${i + 1}">
+                  ${i + 1}
+                </button>
+              `).join('')}
+            </div>
+            <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page (Alt+→)" ${currentPageIndex >= pages.length - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
           </div>
         </div>
       </div>

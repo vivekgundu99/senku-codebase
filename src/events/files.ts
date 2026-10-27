@@ -101,17 +101,36 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
       if (root && !isSamePath(state.currentPath, root)) await navigateToFolder(parentOf(state.currentPath));
       return;
     }
-    if (target.closest('#go-root')) { await navigateToFolder(state.workspace?.masterFolder); return; }
-    if (target.closest('#open-folder')) { await window.senku.openPath(state.currentPath); return; }
+    const goRoot = target.closest<HTMLElement>('#go-root');
+    if (goRoot) {
+      const rootTarget = goRoot.dataset.rootTarget || state.workspace?.masterFolder;
+      if (rootTarget) await navigateToFolder(rootTarget);
+      return;
+    }
+    if (target.closest('#open-folder')) {
+      panel.querySelector('#file-tools-dropdown-menu')?.classList.remove('open');
+      await window.senku.openPath(state.currentPath);
+      return;
+    }
+    if (target.closest('#open-tools-dropdown')) {
+      panel.querySelector('#file-tools-dropdown-menu')?.classList.toggle('open');
+      return;
+    }
     if (target.closest('#open-in-vscode')) {
+      panel.querySelector('#file-tools-dropdown-menu')?.classList.remove('open');
       const res = await window.senku.openInVSCode(state.currentPath);
       if (!res.ok) toast(res.error ?? 'Could not open VS Code.');
       return;
     }
     if (target.closest('#open-in-terminal')) {
+      panel.querySelector('#file-tools-dropdown-menu')?.classList.remove('open');
       const res = await window.senku.openInTerminal(state.currentPath);
       if (!res.ok) toast(res.error ?? 'Could not open terminal.');
       return;
+    }
+
+    if (!target.closest('.file-action-split-wrap')) {
+      panel.querySelector('#file-tools-dropdown-menu')?.classList.remove('open');
     }
 
     const crumb = target.closest<HTMLElement>('[data-breadcrumb]');

@@ -11,7 +11,25 @@ const shortcuts = [
   { key: 's', run: ({ render }: ShortcutContext) => { setView('Overview'); render(); } },
   { key: 'l', run: ({ render }: ShortcutContext) => { setView('Launchpads'); render(); } },
   { key: 'g', run: ({ render }: ShortcutContext) => { setView('AllLog'); render(); } },
-  { key: 'n', run: ({ render }: ShortcutContext) => { setView('Notes'); render(); } },
+  {
+    key: 'n',
+    run: ({ render }: ShortcutContext) => {
+      void (async () => {
+        const { setCurrentFolder, setActiveMarkdownFile, setHomeCenterMode, toggleFilePaneCompact, isFilePaneCompact } = await import('./state');
+        const notesPath = await window.senku.getNotesPath();
+        const res = await window.senku.readFolder(notesPath);
+        setCurrentFolder(res.entries, res.currentPath);
+
+        const qNote = await window.senku.getOrCreateQuickNote();
+        setActiveMarkdownFile(qNote);
+
+        setView('Home');
+        setHomeCenterMode('notes');
+        if (!isFilePaneCompact) toggleFilePaneCompact();
+        render();
+      })();
+    },
+  },
   { key: 'o', run: () => { void window.senku.showOverlay(); } },
   { key: 'p', run: ({ load, render }: ShortcutContext) => { void import('./palette').then(m => m.openPalette(load, render)); } },
   { key: '?', run: () => { void window.senku.openUserGuide(); } },

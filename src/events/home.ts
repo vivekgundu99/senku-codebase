@@ -223,7 +223,17 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
   }
 
   // Multipage Page Bar Controls
-  document.querySelector('#notes-prev-page')?.addEventListener('click', async () => {
+  document.querySelectorAll<HTMLElement>('.notes-page-circle').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await saveNoteFile();
+      const idx = parseInt(btn.dataset.pageIndex ?? '0', 10);
+      setActiveNotePageIndex(idx);
+      setIsNoteAllPagesView(false);
+      render();
+    });
+  });
+
+  document.querySelector('#notes-page-prev, #notes-prev-page')?.addEventListener('click', async () => {
     await saveNoteFile();
     if (activeNotePageIndex > 0) {
       setActiveNotePageIndex(activeNotePageIndex - 1);
@@ -232,7 +242,7 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     }
   });
 
-  document.querySelector('#notes-next-page')?.addEventListener('click', async () => {
+  document.querySelector('#notes-page-next, #notes-next-page')?.addEventListener('click', async () => {
     await saveNoteFile();
     const pages = parseNotePages(activeMarkdownFile?.content || '');
     if (activeNotePageIndex < pages.length - 1) {
@@ -242,13 +252,13 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     }
   });
 
-  document.querySelector('#notes-toggle-all-pages')?.addEventListener('click', async () => {
+  document.querySelector('#notes-toggle-all-view, #notes-toggle-all-pages')?.addEventListener('click', async () => {
     await saveNoteFile();
     setIsNoteAllPagesView(!isNoteAllPagesView);
     render();
   });
 
-  document.querySelector('#notes-add-page-btn')?.addEventListener('click', async () => {
+  document.querySelector('#notes-page-add, #notes-add-page-btn')?.addEventListener('click', async () => {
     await saveNoteFile();
     if (!activeMarkdownFile) return;
     const separator = '\n\n<!-- page -->\n\n';
@@ -257,6 +267,19 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     await window.senku.saveTextFile(activeMarkdownFile.path, updated);
     const pages = parseNotePages(updated);
     setActiveNotePageIndex(pages.length - 1);
+    setIsNoteAllPagesView(false);
+    render();
+  });
+
+  document.querySelector('#notes-page-delete')?.addEventListener('click', async () => {
+    if (!activeMarkdownFile) return;
+    const pages = parseNotePages(activeMarkdownFile.content || '');
+    if (pages.length <= 1) return;
+    pages.splice(activeNotePageIndex, 1);
+    const updated = pages.join('\n\n<!-- page -->\n\n');
+    activeMarkdownFile.content = updated;
+    await window.senku.saveTextFile(activeMarkdownFile.path, updated);
+    setActiveNotePageIndex(Math.max(0, activeNotePageIndex - 1));
     setIsNoteAllPagesView(false);
     render();
   });
