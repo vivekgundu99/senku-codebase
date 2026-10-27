@@ -121,6 +121,7 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
           // The Exit Handshake: exit Global Notes, restore active workspace, and refresh FM
           setGlobalNotesMode(false);
           setHomeCenterMode('overview');
+          setActiveMarkdownFile(null);
           if (state.workspace?.masterFolder) {
             await load(state.workspace.masterFolder);
           } else {
@@ -133,6 +134,12 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
         return;
       }
       if (mode === 'notes') {
+        if (!isGlobalNotesMode && activeMarkdownFile) {
+          const wsFolder = state.workspace?.masterFolder;
+          if (!wsFolder || !activeMarkdownFile.path.toLowerCase().startsWith(wsFolder.toLowerCase())) {
+            setActiveMarkdownFile(null);
+          }
+        }
         setHomeCenterMode('notes');
         render();
       }
@@ -141,7 +148,10 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
 
   // Notes Window: Create new note in current folder
   document.querySelector('#new-note-in-folder')?.addEventListener('click', async () => {
-    const folder = state.currentPath || state.workspace?.masterFolder;
+    let folder = state.currentPath || state.workspace?.masterFolder;
+    if (isGlobalNotesMode && !folder) {
+      folder = await window.senku.getNotesPath();
+    }
     if (!folder) {
       toast('No active folder linked.');
       return;

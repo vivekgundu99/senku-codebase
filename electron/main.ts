@@ -315,21 +315,25 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     };
   }
 
+  const notesDir = globalNotesDir();
+  const isNotes = requestedPath ? isInside(notesDir, requestedPath) : false;
+
   let currentPath =
-    requestedPath && isInside(workspace.masterFolder, requestedPath)
+    requestedPath && (isInside(workspace.masterFolder, requestedPath) || isNotes)
       ? path.resolve(requestedPath)
       : workspace.lastSubfolder || workspace.masterFolder;
 
-  if (currentPath !== workspace.masterFolder && !(await isDirectory(currentPath))) {
-    currentPath = workspace.masterFolder;
+  if (currentPath !== workspace.masterFolder && currentPath !== notesDir && !(await isDirectory(currentPath))) {
+    currentPath = isNotes ? notesDir : workspace.masterFolder;
   }
 
-  if (workspace.lastSubfolder !== currentPath) {
+  if (!isNotes && workspace.lastSubfolder !== currentPath) {
     workspace.lastSubfolder = currentPath;
     await writeJson(workspacesFile(), workspaces);
   }
 
-  const entries = await listFolder(workspace.masterFolder, currentPath, workspace.pinnedPaths);
+  const rootFolder = isNotes ? notesDir : workspace.masterFolder;
+  const entries = await listFolder(rootFolder, currentPath, isNotes ? [] : workspace.pinnedPaths);
 
   return {
     settings,
@@ -1007,11 +1011,15 @@ ipcMain.handle('folder:read', async (_event, targetPath: string) => {
   if (!workspace || !workspace.masterFolder) return { entries: [], currentPath: '' };
 
   const resolved = path.resolve(targetPath);
-  if (!isInside(workspace.masterFolder, resolved)) {
+  const notesDir = globalNotesDir();
+  const isNotes = isInside(notesDir, resolved);
+
+  if (!isInside(workspace.masterFolder, resolved) && !isNotes) {
     return { entries: [], currentPath: workspace.masterFolder };
   }
 
-  const entries = await listFolder(workspace.masterFolder, resolved, workspace.pinnedPaths || []);
+  const rootFolder = isNotes ? notesDir : workspace.masterFolder;
+  const entries = await listFolder(rootFolder, resolved, isNotes ? [] : (workspace.pinnedPaths || []));
   return { entries, currentPath: resolved };
 });
 

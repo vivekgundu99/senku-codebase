@@ -1,4 +1,4 @@
-import { state } from './state';
+import { state, isGlobalNotesMode } from './state';
 import { isSamePath, parentOf } from './utils';
 
 type ShortcutContext = {
@@ -16,7 +16,9 @@ const shortcuts = [
   {
     key: 'b',
     run: ({ load }: ShortcutContext) => {
-      const root = state.workspace?.masterFolder;
+      const root = isGlobalNotesMode
+        ? document.querySelector<HTMLElement>('#go-root')?.dataset.rootTarget
+        : state.workspace?.masterFolder;
       const current = state.currentPath;
       if (!root || !current || isSamePath(current, root)) return;
       const parent = parentOf(current);

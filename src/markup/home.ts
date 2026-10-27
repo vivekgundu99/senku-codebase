@@ -8,6 +8,7 @@ import {
   isNotePreviewMode,
   activeNotePageIndex,
   isNoteAllPagesView,
+  isGlobalNotesMode,
 } from '../state';
 import { escapeHtml, renderGreeting, parseNotePages } from '../utils';
 import { uiIcon } from './icons';
@@ -221,7 +222,13 @@ export function homePanelMarkup(): string {
 }
 
 export function notesWindowMarkup(): string {
-  const file = activeMarkdownFile;
+  let file = activeMarkdownFile;
+  if (!isGlobalNotesMode && file) {
+    const wsFolder = state.workspace?.masterFolder;
+    if (!wsFolder || !file.path.toLowerCase().startsWith(wsFolder.toLowerCase())) {
+      file = null;
+    }
+  }
   const isPreview = isNotePreviewMode;
 
   const headerPill = `

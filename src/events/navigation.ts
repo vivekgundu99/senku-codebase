@@ -42,6 +42,7 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
         setGlobalNotesMode(false);
         setView('Home');
         setHomeCenterMode('overview');
+        setActiveMarkdownFile(null);
         if (wasGlobal && state.workspace?.masterFolder) {
           await load(state.workspace.masterFolder);
         } else {

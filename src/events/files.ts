@@ -8,6 +8,7 @@ import {
   setView,
   setActiveMarkdownFile,
   setHomeCenterMode,
+  isGlobalNotesMode,
 } from '../state';
 import { fileCountLabel, fileListMarkup, filePanelMarkup } from '../markup';
 import { isSamePath, parentOf } from '../utils';
@@ -97,13 +98,15 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
 
     if (target.closest('#show-more-files')) { showMoreFiles(); refreshList(); return; }
     if (target.closest('#go-up')) {
-      const root = state.workspace?.masterFolder;
+      const root = isGlobalNotesMode
+        ? document.querySelector<HTMLElement>('#go-root')?.dataset.rootTarget
+        : state.workspace?.masterFolder;
       if (root && !isSamePath(state.currentPath, root)) await navigateToFolder(parentOf(state.currentPath));
       return;
     }
     const goRoot = target.closest<HTMLElement>('#go-root');
     if (goRoot) {
-      const rootTarget = goRoot.dataset.rootTarget || state.workspace?.masterFolder;
+      const rootTarget = goRoot.dataset.rootTarget || (isGlobalNotesMode ? await window.senku.getNotesPath() : state.workspace?.masterFolder);
       if (rootTarget) await navigateToFolder(rootTarget);
       return;
     }
