@@ -127,7 +127,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
           const pages = parseNotePages(qNote.content || '');
           setActiveNotePageIndex(Math.max(0, pages.length - 1));
           setIsNoteAllPagesView(false);
-          setIsNotePreviewMode(true);
+          setIsNotePreviewMode(false);
 
           setView('Home');
           setHomeCenterMode('notes');

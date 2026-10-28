@@ -93,9 +93,15 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
           if (isGlobalNotesMode) {
             setHomeCenterMode('notes');
             const pages = parseNotePages(content || '');
-            setActiveNotePageIndex(Math.max(0, pages.length - 1));
+            const isSenku = name.toLowerCase() === 'senku.md';
+            if (isSenku) {
+              setActiveNotePageIndex(Math.max(0, pages.length - 1));
+              setIsNotePreviewMode(false);
+            } else {
+              setActiveNotePageIndex(0);
+              setIsNotePreviewMode(true);
+            }
             setIsNoteAllPagesView(false);
-            setIsNotePreviewMode(false);
           } else {
             setHomeCenterMode('preview');
           }

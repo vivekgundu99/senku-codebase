@@ -95,7 +95,10 @@ To eliminate confusion between the global catalog of spaces, the open sidebar ta
 
 - **Purpose:** Dedicated markdown scratchpad and multipage personal notebook living in `Documents/Senku Notes/`.
 - **Trigger:** Clicking **"Notes"** in the Sidebar.
-- **Default Note:** Loads `Documents/Senku Notes/senku.md` on first entry.
+- **Default Note & View Modes:**
+  - `senku.md` always opens in **Edit mode** (`isNotePreviewMode = false`), in **Page mode** (`isNoteAllPagesView = false`), viewing the **last page** (`pages.length - 1`), directly ready for typing where floating captures land.
+  - Other notes in `Documents/Senku Notes/` open in **Preview mode** (`isNotePreviewMode = true`) by default.
+  - Newly created notes (`+` button) open in **Edit mode** on page 1.
 - **File Manager in Notes Mode:**
   - Automatically compressed to compact mode, displaying the contents of `Documents/Senku Notes/`.
   - Shows a dedicated **`+` (New Note)** button in the toolbar (hidden in regular workspace mode).
