@@ -56,7 +56,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         <input
           class="palette-input"
           type="text"
-          placeholder="Search commands, notes, spaces, or type to log…"
+          placeholder="Search commands, spaces, notes…"
           autocomplete="off"
           spellcheck="false"
         />
@@ -364,25 +364,10 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         return a.item.typeOrder - b.item.typeOrder;
       });
 
-      const topScored = scored.slice(0, 7).map((s) => ({
+      currentRows = scored.slice(0, 8).map((s) => ({
         item: s.item,
         highlightedHtml: highlight(s.item.text, s.indices),
       }));
-
-      const dynamicItem: PaletteItem = {
-        id: 'dynamic-log',
-        type: 'Action',
-        typeOrder: 5,
-        text: `Log: “${rawQuery}”`,
-        run: async () => {
-          const spaceId = state.workspace?.id;
-          await window.senku.addLogEntry(rawQuery, spaceId);
-          await load(state.currentPath);
-          toast('Logged');
-        },
-      };
-
-      currentRows = [...topScored, { item: dynamicItem, highlightedHtml: escapeHtml(dynamicItem.text) }];
     }
 
     if (selectedIndex >= currentRows.length) {
@@ -393,6 +378,11 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
   };
 
   const renderList = () => {
+    if (currentRows.length === 0) {
+      list.innerHTML = `<div class="palette-empty">No commands found</div>`;
+      return;
+    }
+
     list.innerHTML = currentRows
       .map(
         (row, idx) => `

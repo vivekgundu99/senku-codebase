@@ -156,3 +156,10 @@
   font: 700 9.5px var(--mono);
   color: var(--ink);
 }
+
+.palette-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font: 500 13px var(--sans);
+  color: var(--soft);
+}

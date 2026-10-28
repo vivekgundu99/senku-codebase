@@ -1004,6 +1004,12 @@
   transition: all 0.12s ease;
 }
 
+.notes-window-action-btn.icon-only {
+  width: 24px;
+  padding: 0;
+  justify-content: center;
+}
+
 .notes-window-action-btn:hover {
   background: var(--bg-hover);
   color: var(--ink);

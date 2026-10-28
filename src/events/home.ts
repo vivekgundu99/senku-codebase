@@ -117,6 +117,36 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     }
   });
 
+  // Notes Window: Copy pagebreak tag
+  document.querySelector('#copy-pagebreak-tag')?.addEventListener('click', async () => {
+    await window.senku.copyPath('<!-- pagebreak -->');
+    toast('Copied: <!-- pagebreak -->');
+  });
+
+  // Notes Window: Local refresh note and folder (reflects overlay changes instantly)
+  document.querySelector('#refresh-notes-file')?.addEventListener('click', async () => {
+    if (!activeMarkdownFile) return;
+    try {
+      const content = await window.senku.readTextFile(activeMarkdownFile.path);
+      activeMarkdownFile.content = content;
+      const pages = parseNotePages(content || '');
+      if (activeMarkdownFile.name.toLowerCase() === 'senku.md') {
+        setActiveNotePageIndex(Math.max(0, pages.length - 1));
+      } else {
+        setActiveNotePageIndex(Math.min(activeNotePageIndex, Math.max(0, pages.length - 1)));
+      }
+      let folder = state.currentPath;
+      if (isGlobalNotesMode && !folder) {
+        folder = await window.senku.getNotesPath();
+      }
+      if (folder) await load(folder);
+      render();
+      toast('Note refreshed');
+    } catch {
+      toast('Could not refresh note.');
+    }
+  });
+
   // Notes Window: Create new note in current folder
   document.querySelector('#new-note-in-folder')?.addEventListener('click', async () => {
     let folder = state.currentPath || state.workspace?.masterFolder;
