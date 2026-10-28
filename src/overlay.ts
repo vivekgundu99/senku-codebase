@@ -36,14 +36,7 @@ async function doSubmit(): Promise<void> {
     if (res.ok) {
       clearInput();
       document.body.classList.add('saved-flash');
-      const defaultPlaceholder = inputEl.placeholder;
-      inputEl.placeholder = '✓ Saved to Notes (senku.md)';
-      inputEl.classList.add('saved-text');
-      setTimeout(() => {
-        document.body.classList.remove('saved-flash');
-        inputEl.placeholder = defaultPlaceholder;
-        inputEl.classList.remove('saved-text');
-      }, 1400);
+      setTimeout(() => document.body.classList.remove('saved-flash'), 300);
       inputEl.focus();
     } else {
       inputEl.focus();

@@ -67,7 +67,7 @@ To eliminate confusion between the global catalog of spaces, the open sidebar ta
   - `[✕]` (Close button on right)
 - **Save Behavior:**
   - Pressing <kbd>Enter</kbd> (or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>) appends text to `Documents/Senku Notes/senku.md`.
-  - Delimiter prepended: `\n\n<!-- pagebreak -->\n\n`.
+  - Delimiter: `\n\n` (clean append to end of file without inserting pagebreaks).
   - If `senku.md` does not exist, it creates the file with the text.
   - Brief green border flash indicates save confirmation.
   - **Zero IPC Broadcast:** Does **NOT** broadcast `snapshot:updated` or trigger a file tree re-scan in the main window.

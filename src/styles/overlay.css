@@ -86,12 +86,6 @@ textarea.overlay-mini-input {
 textarea.overlay-mini-input::placeholder {
   color: var(--soft);
   font-size: 12.5px;
-  transition: color .2s ease;
-}
-
-textarea.overlay-mini-input.saved-text::placeholder {
-  color: var(--green) !important;
-  font-weight: 600;
 }
 
 .overlay-mini-close {

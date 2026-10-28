@@ -1612,7 +1612,7 @@ handleLocked('notes:append-active', async (_event, snippet: string) => {
   }
 
   const updated = existing.trim()
-    ? `${existing.trimEnd()}\n\n<!-- pagebreak -->\n\n${trimmed}\n`
+    ? `${existing.trimEnd()}\n\n${trimmed}\n`
     : `# Senku\n\n${trimmed}\n`;
   await fs.writeFile(sPath, updated, 'utf8');
   // NOTE: Zero IPC broadcast (no snapshot:updated) - prevents any main window UI thrashing
