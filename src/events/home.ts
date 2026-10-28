@@ -14,8 +14,10 @@ import {
   isGlobalNotesMode,
   setGlobalNotesMode,
   setView,
+  setFilePaneCompact,
 } from '../state';
 import { parseNotePages, joinNotePages, PAGE_SEPARATOR } from '../utils';
+import { openNewNoteModal } from '../modals';
 import { toast } from '../toast';
 import type { LoadFn, RenderFn } from './types';
 
@@ -37,14 +39,14 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
 
   const adjustHomeHeight = () => {
     if (!textarea) return;
-    textarea.style.height = '22px';
+    textarea.style.height = '20px';
     const scrollH = textarea.scrollHeight;
-    if (scrollH > 26) {
+    if (scrollH > 24) {
       const targetH = Math.min(180, scrollH);
       textarea.style.height = `${targetH}px`;
       textarea.style.overflowY = scrollH > 180 ? 'auto' : 'hidden';
     } else {
-      textarea.style.height = '22px';
+      textarea.style.height = '20px';
       textarea.style.overflowY = 'hidden';
     }
   };
@@ -70,7 +72,7 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     setHomeLogDraft('');
     if (textarea) {
       textarea.value = '';
-      textarea.style.height = '22px';
+      textarea.style.height = '20px';
       textarea.style.overflowY = 'hidden';
     }
     const spaceId = state.workspace?.id;
@@ -81,7 +83,7 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
       const el = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
       if (el) {
         el.focus();
-        el.style.height = '22px';
+        el.style.height = '20px';
         el.style.overflowY = 'hidden';
       }
     });
@@ -91,38 +93,28 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
 
 
 
-  // Home dual-pill mode toggle: Overview vs Notes
-  document.querySelectorAll<HTMLElement>('[data-home-mode]').forEach((pillBtn) => {
-    pillBtn.addEventListener('click', async () => {
-      const mode = pillBtn.dataset.homeMode as 'overview' | 'notes';
-      if (mode === 'overview') {
-        if (isGlobalNotesMode) {
-          // The Exit Handshake: exit Global Notes, restore active workspace, and refresh FM
-          setGlobalNotesMode(false);
-          setHomeCenterMode('overview');
-          setActiveMarkdownFile(null);
-          if (state.workspace?.masterFolder) {
-            await load(state.workspace.masterFolder);
-          } else {
-            render();
-          }
-          return;
-        }
-        setHomeCenterMode('overview');
-        render();
-        return;
-      }
-      if (mode === 'notes') {
-        if (!isGlobalNotesMode && activeMarkdownFile) {
-          const wsFolder = state.workspace?.masterFolder;
-          if (!wsFolder || !activeMarkdownFile.path.toLowerCase().startsWith(wsFolder.toLowerCase())) {
-            setActiveMarkdownFile(null);
-          }
-        }
-        setHomeCenterMode('notes');
-        render();
-      }
-    });
+  // Simple MD Preview: Open in Default Application
+  document.querySelector('#simple-md-open-default')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLElement;
+    const p = btn.dataset.filePath || activeMarkdownFile?.path;
+    if (p) {
+      await window.senku.openPath(p);
+    }
+  });
+
+  // Simple MD Preview: Close preview and return to overview
+  document.querySelector('#simple-md-close-preview')?.addEventListener('click', () => {
+    setActiveMarkdownFile(null);
+    setHomeCenterMode('overview');
+    setFilePaneCompact(false);
+    render();
+  });
+
+  // Notes Window: Open in Default Application
+  document.querySelector('#open-note-in-default')?.addEventListener('click', async () => {
+    if (activeMarkdownFile?.path) {
+      await window.senku.openPath(activeMarkdownFile.path);
+    }
   });
 
   // Notes Window: Create new note in current folder
@@ -135,23 +127,7 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
       toast('No active folder linked.');
       return;
     }
-    try {
-      const note = await window.senku.createFileNote(folder);
-      setActiveMarkdownFile(note);
-      setActiveNotePageIndex(0);
-      setIsNoteAllPagesView(false);
-      setIsNotePreviewMode(false);
-      setHomeCenterMode('notes');
-      toast(`Created ${note.name}`);
-      await load(folder);
-      const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
-      if (editor) {
-        editor.focus();
-        editor.setSelectionRange(editor.value.length, editor.value.length);
-      }
-    } catch {
-      toast('Could not create note.');
-    }
+    openNewNoteModal(folder, load, render);
   });
 
   // Notes Window: Open active note in VS Code
@@ -303,7 +279,7 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     await saveNoteFile();
     if (!activeMarkdownFile) return;
     const current = (activeMarkdownFile.content || '').trimEnd();
-    const updated = current ? `${current}${PAGE_SEPARATOR}` : `<!-- page -->\n\n`;
+    const updated = current ? `${current}${PAGE_SEPARATOR}` : `<!-- pagebreak -->\n\n`;
     activeMarkdownFile.content = updated;
     await window.senku.saveTextFile(activeMarkdownFile.path, updated);
     const pages = parseNotePages(updated);

@@ -4,6 +4,7 @@ import {
   showMoreFiles,
   setCurrentFolder,
   toggleFilePaneCompact,
+  setFilePaneCompact,
   isFilePaneCompact,
   setView,
   setActiveMarkdownFile,
@@ -14,7 +15,8 @@ import {
   isGlobalNotesMode,
 } from '../state';
 import { fileCountLabel, fileListMarkup, filePanelMarkup } from '../markup';
-import { isSamePath, parentOf } from '../utils';
+import { isSamePath, parentOf, parseNotePages } from '../utils';
+import { openNewNoteModal } from '../modals';
 import { toast } from '../toast';
 import type { LoadFn, RenderFn } from './types';
 
@@ -88,17 +90,28 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
           const content = await window.senku.readTextFile(p);
           const name = p.split(/[\\/]/).pop() || 'Note.md';
           setActiveMarkdownFile({ path: p, name, content });
-          setActiveNotePageIndex(0);
-          setIsNoteAllPagesView(true);
-          setIsNotePreviewMode(true);
-          setHomeCenterMode('notes');
-          if (!isFilePaneCompact) toggleFilePaneCompact();
+          if (isGlobalNotesMode) {
+            setHomeCenterMode('notes');
+            const pages = parseNotePages(content || '');
+            setActiveNotePageIndex(Math.max(0, pages.length - 1));
+            setIsNoteAllPagesView(false);
+            setIsNotePreviewMode(false);
+          } else {
+            setHomeCenterMode('preview');
+          }
+          setFilePaneCompact(true);
           setView('Home');
           if (render) render();
           return;
         } catch {}
       }
       await window.senku.openPath(p);
+      return;
+    }
+
+    if (target.closest('#create-note-file')) {
+      const notesPath = await window.senku.getNotesPath();
+      openNewNoteModal(state.currentPath || notesPath, load, render);
       return;
     }
 

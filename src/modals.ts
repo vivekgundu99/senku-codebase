@@ -1,5 +1,16 @@
-import { setState, state, setActiveNoteId, setView, activeNoteId } from './state';
-import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
+import {
+  setState,
+  state,
+  setActiveNoteId,
+  setView,
+  activeNoteId,
+  setActiveMarkdownFile,
+  setHomeCenterMode,
+  setActiveNotePageIndex,
+  setIsNoteAllPagesView,
+  setIsNotePreviewMode,
+} from './state';
+import { checkMainFolder, escapeHtml, DEFAULT_GREETING, parseNotePages } from './utils';
 import { uiIcon } from './markup';
 import { toast } from './toast';
 import pkg from '../package.json';
@@ -397,5 +408,63 @@ export function openTrashModal(load: () => Promise<void>): void {
     await load();
   });
 }
+
+// ---------------------------------------------------------------------------
+// New Note Dialog (Senku Notes / Folder creation)
+// ---------------------------------------------------------------------------
+
+export function openNewNoteModal(
+  notesFolder: string,
+  load: (path?: string) => Promise<void>,
+  render?: () => void,
+): void {
+  const overlay = createOverlay(`
+    <form class="modal-card note-dialog-card">
+      <button type="button" class="modal-close" id="close-modal" aria-label="Close">${uiIcon('x', 14)}</button>
+      <h2 class="dialog-title" style="margin: 0 0 10px;">New markdown file</h2>
+      <div class="dialog-field" style="margin-bottom: 8px;">
+        <input name="name" id="new-note-name-input" placeholder="File name (e.g. ideas, weekly-log)" autocomplete="off" autofocus />
+      </div>
+      <p class="form-error" id="note-error"></p>
+      <button class="primary-button mini" type="submit" style="width: 100%; margin-top: 6px;">Create</button>
+    </form>`);
+
+  overlay.querySelector('form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget as HTMLFormElement);
+    const rawName = String(data.get('name') || '').trim();
+
+    try {
+      const created = await window.senku.createFileNote(notesFolder, rawName || undefined);
+      overlay.remove();
+
+      setActiveMarkdownFile({ path: created.path, name: created.name, content: created.content });
+      setHomeCenterMode('notes');
+      const pages = parseNotePages(created.content || '');
+      setActiveNotePageIndex(Math.max(0, pages.length - 1));
+      setIsNoteAllPagesView(false);
+      setIsNotePreviewMode(false);
+
+      await load(notesFolder);
+      if (render) render();
+      toast(`Created note: ${created.name}`);
+
+      requestAnimationFrame(() => {
+        const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+        if (editor) {
+          editor.focus();
+          editor.setSelectionRange(editor.value.length, editor.value.length);
+        }
+      });
+    } catch (err) {
+      showFormError(
+        overlay,
+        '#note-error',
+        err instanceof Error ? err.message : 'Could not create note.',
+      );
+    }
+  });
+}
+
 
 

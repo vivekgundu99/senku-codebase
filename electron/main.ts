@@ -254,6 +254,21 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     return workspaces[0].id;
   })();
 
+  // Synchronize and validate openSpaceIds (sidebar tabs)
+  let openSpaceIds: string[] = Array.isArray(settings.openSpaceIds)
+    ? settings.openSpaceIds.filter((id) => workspaces.some((ws) => ws.id === id))
+    : [];
+  if (openSpaceIds.length === 0 && workspaces.length > 0) {
+    openSpaceIds = [spaceId || workspaces[0].id];
+  }
+  if (spaceId && !openSpaceIds.includes(spaceId)) {
+    openSpaceIds.push(spaceId);
+  }
+  if (!settings.openSpaceIds || settings.openSpaceIds.length !== openSpaceIds.length || !settings.openSpaceIds.every((v, i) => v === openSpaceIds[i])) {
+    settings.openSpaceIds = openSpaceIds;
+    await saveSettings(settings);
+  }
+
   const workspace = spaceId ? getWorkspace(workspaces, spaceId) : null;
 
   // Parallel: workspace availability checks + trash + logs + notes metadata
@@ -292,6 +307,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     return {
       settings,
       workspaces,
+      openSpaceIds,
       workspaceFolderAvailability,
       workspace: null,
       entries: [],
@@ -328,6 +344,7 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
   return {
     settings,
     workspaces,
+    openSpaceIds,
     workspaceFolderAvailability,
     workspace,
     entries,
@@ -632,13 +649,14 @@ app.whenReady().then(async () => {
     });
   }
 
-  try {
-    await migrateLegacyData(baseDir(), await getWorkspaces(), await getSettings(), await activeSpaceId(), readJson);
-    await migrateNotesToGlobal();
-    await cleanupNotesSpaceFromWorkspaces();
-  } catch (err) {
-    console.error('Migration failed:', err);
-  }
+  // Legacy data migrations skipped for v3.3 (internal single-user dogfooding)
+  // try {
+  //   await migrateLegacyData(baseDir(), await getWorkspaces(), await getSettings(), await activeSpaceId(), readJson);
+  //   await migrateNotesToGlobal();
+  //   await cleanupNotesSpaceFromWorkspaces();
+  // } catch (err) {
+  //   console.error('Migration failed:', err);
+  // }
 
   try {
     await withLock(async () => {
@@ -752,14 +770,54 @@ handleLocked('workspace:create', async (_event, name: string, masterFolder: stri
     createdAt: new Date().toISOString(),
   };
 
+  const settings = await getSettings();
+  const openSpaceIds = Array.isArray(settings.openSpaceIds) ? [...settings.openSpaceIds] : [];
+  if (!openSpaceIds.includes(workspace.id)) {
+    openSpaceIds.push(workspace.id);
+  }
+
   await saveWorkspaces([...(await getWorkspaces()), workspace]);
-  await saveSettings({ ...(await getSettings()), activeWorkspaceId: workspace.id });
+  await saveSettings({ ...settings, activeWorkspaceId: workspace.id, openSpaceIds });
   return snapshot();
 });
 
 handleLocked('workspace:switch', async (_event, id: string) => {
-  await saveSettings({ ...(await getSettings()), activeWorkspaceId: id });
+  const settings = await getSettings();
+  const workspaces = await getWorkspaces();
+  if (workspaces.some((ws) => ws.id === id)) {
+    const openSpaceIds = Array.isArray(settings.openSpaceIds) ? [...settings.openSpaceIds] : [];
+    if (!openSpaceIds.includes(id)) {
+      openSpaceIds.push(id);
+    }
+    await saveSettings({ ...settings, activeWorkspaceId: id, openSpaceIds });
+  }
   return snapshot();
+});
+
+handleLocked('workspace:close-tab', async (_event, id: string) => {
+  const settings = await getSettings();
+  const workspaces = await getWorkspaces();
+  let openSpaceIds = Array.isArray(settings.openSpaceIds)
+    ? settings.openSpaceIds.filter((sId) => workspaces.some((ws) => ws.id === sId))
+    : [];
+
+  if (openSpaceIds.length <= 1) {
+    return { ok: false, error: 'Cannot remove the last space from sidebar.' };
+  }
+
+  const idx = openSpaceIds.indexOf(id);
+  if (idx !== -1) {
+    openSpaceIds.splice(idx, 1);
+    let nextActiveId = settings.activeWorkspaceId;
+    if (settings.activeWorkspaceId === id) {
+      const nextIdx = Math.min(idx, openSpaceIds.length - 1);
+      nextActiveId = openSpaceIds[nextIdx];
+    }
+    await saveSettings({ ...settings, activeWorkspaceId: nextActiveId, openSpaceIds });
+  }
+
+  const snap = await snapshot();
+  return { ok: true, snapshot: snap };
 });
 
 handleLocked('workspace:rename', async (_event, id: string, name: string) => {
@@ -807,9 +865,15 @@ handleLocked('workspace:delete', async (_event, id: string) => {
   await saveTrashWorkspaces([item, ...trash.filter((t) => t.id !== id)]);
 
   const settings = await getSettings();
-  if (settings.activeWorkspaceId === id) {
-    await saveSettings({ ...settings, activeWorkspaceId: next[0]?.id ?? '' });
+  let openSpaceIds = Array.isArray(settings.openSpaceIds) ? settings.openSpaceIds.filter((sId) => sId !== id) : [];
+  if (openSpaceIds.length === 0 && next.length > 0) {
+    openSpaceIds = [next[0].id];
   }
+  let activeWorkspaceId = settings.activeWorkspaceId;
+  if (activeWorkspaceId === id) {
+    activeWorkspaceId = openSpaceIds[0] ?? next[0]?.id ?? '';
+  }
+  await saveSettings({ ...settings, activeWorkspaceId, openSpaceIds });
 
   return { ok: true };
 });
@@ -864,6 +928,16 @@ ipcMain.handle('path:open', async (_event, target: string) => {
     } catch (error) {
       return { ok: false, error: String(error) };
     }
+  }
+  if (process.platform === 'win32') {
+    try {
+      const st = await fs.stat(trimmed);
+      if (st.isDirectory()) {
+        const winPath = path.resolve(trimmed).replace(/\//g, '\\');
+        cp.exec(`start "" /max explorer.exe "${winPath}"`, { shell: 'cmd.exe' });
+        return { ok: true };
+      }
+    } catch {}
   }
   const error = await shell.openPath(trimmed);
   return { ok: !error, error: error || undefined };
@@ -1070,6 +1144,16 @@ async function openSingleItem(target: string): Promise<{ ok: boolean; error?: st
   }
 
   // 2. Local folder or file: open with default OS application / File Explorer
+  if (process.platform === 'win32') {
+    try {
+      const st = await fs.stat(trimmed);
+      if (st.isDirectory()) {
+        const winPath = path.resolve(trimmed).replace(/\//g, '\\');
+        cp.exec(`start "" /max explorer.exe "${winPath}"`, { shell: 'cmd.exe' });
+        return { ok: true };
+      }
+    } catch {}
+  }
   const err = await shell.openPath(trimmed);
   return { ok: !err, error: err || undefined };
 }
@@ -1207,14 +1291,14 @@ ipcMain.handle('notes:get-path', () => globalNotesDir());
 ipcMain.handle('notes:get-or-create-quicknote', async () => {
   const nDir = globalNotesDir();
   await fs.mkdir(nDir, { recursive: true });
-  const qPath = path.join(nDir, 'QuickNote.md');
+  const sPath = path.join(nDir, 'senku.md');
   try {
-    const content = await fs.readFile(qPath, 'utf8');
-    return { path: qPath, name: 'QuickNote.md', content };
+    const content = await fs.readFile(sPath, 'utf8');
+    return { path: sPath, name: 'senku.md', content };
   } catch {
-    const initialContent = '<!-- QuickNote -->\n\n';
-    await fs.writeFile(qPath, initialContent, 'utf8');
-    return { path: qPath, name: 'QuickNote.md', content: initialContent };
+    const initialContent = '# Senku\n\n';
+    await fs.writeFile(sPath, initialContent, 'utf8');
+    return { path: sPath, name: 'senku.md', content: initialContent };
   }
 });
 
@@ -1518,21 +1602,20 @@ handleLocked('notes:append-active', async (_event, snippet: string) => {
 
   const nDir = globalNotesDir();
   await fs.mkdir(nDir, { recursive: true });
-  const qPath = path.join(nDir, 'QuickNote.md');
+  const sPath = path.join(nDir, 'senku.md');
 
   let existing = '';
   try {
-    existing = await fs.readFile(qPath, 'utf8');
+    existing = await fs.readFile(sPath, 'utf8');
   } catch {
-    existing = '<!-- QuickNote -->\n\n';
+    existing = '';
   }
 
   const updated = existing.trim()
-    ? `${existing.trimEnd()}\n\n${trimmed}\n`
-    : `<!-- QuickNote -->\n\n${trimmed}\n`;
-  await fs.writeFile(qPath, updated, 'utf8');
-  mainWindow?.webContents.send('snapshot:updated');
-
-  return { ok: true, noteName: 'QuickNote.md' };
+    ? `${existing.trimEnd()}\n\n<!-- pagebreak -->\n\n${trimmed}\n`
+    : `# Senku\n\n${trimmed}\n`;
+  await fs.writeFile(sPath, updated, 'utf8');
+  // NOTE: Zero IPC broadcast (no snapshot:updated) - prevents any main window UI thrashing
+  return { ok: true, noteName: 'senku.md' };
 });
 

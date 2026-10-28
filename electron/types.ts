@@ -1,6 +1,7 @@
 export interface Settings {
   userName: string;
   activeWorkspaceId: string;
+  openSpaceIds?: string[];
   activeNoteId?: string;
   launchAtStartup: boolean;
   greeting: string;
@@ -71,6 +72,7 @@ export interface TrashWorkspace {
 export interface AppSnapshot {
   settings: Settings;
   workspaces: Workspace[];
+  openSpaceIds: string[];
   workspaceFolderAvailability: Record<string, boolean>;
   workspace: Workspace | null;
   entries: FileEntry[];
@@ -82,4 +84,3 @@ export interface AppSnapshot {
   activeNoteId?: string;
   home: HomeData;
 }
-

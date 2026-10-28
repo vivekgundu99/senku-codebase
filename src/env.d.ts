@@ -11,6 +11,7 @@ declare global {
       saveSettings(settings: Settings): Promise<AppSnapshot>;
       createWorkspace(name: string, masterFolder: string): Promise<AppSnapshot>;
       switchWorkspace(id: string): Promise<AppSnapshot>;
+      closeWorkspaceTab(id: string): Promise<{ ok: boolean; error?: string; snapshot?: AppSnapshot }>;
       deleteWorkspace(id: string): Promise<{ ok: boolean; error?: string }>;
       restoreWorkspace(id: string): Promise<AppSnapshot>;
       purgeTrash(id?: string): Promise<AppSnapshot>;

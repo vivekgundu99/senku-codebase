@@ -39,6 +39,9 @@ const api = {
   switchWorkspace: (id: string) =>
     ipcRenderer.invoke('workspace:switch', id) as Promise<AppSnapshot>,
 
+  closeWorkspaceTab: (id: string) =>
+    ipcRenderer.invoke('workspace:close-tab', id) as Promise<{ ok: boolean; error?: string; snapshot?: AppSnapshot }>,
+
   deleteWorkspace: (id: string) =>
     ipcRenderer.invoke('workspace:delete', id) as Promise<{ ok: boolean; error?: string }>,
 

@@ -39,7 +39,7 @@ export function pathKind(filePath: string): string {
   return Object.keys(EXT_GROUPS).find((group) => EXT_GROUPS[group].includes(ext)) ?? 'file';
 }
 
-export const iconSvg = (kind: string, size = 17): string =>
+export const iconSvg = (kind: string, size = 14): string =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind === 'pdf' ? 'doc' : kind] ?? ICONS.file}</svg>`;
 
 export function formatRelativeTime(ts: number): string {
@@ -177,9 +177,8 @@ export function filePanelMarkup(): string {
       <div class="file-top-bar">
         <div class="folder-path">
           <div class="breadcrumbs-scroll">
-            <button id="go-root" class="crumb-btn root-crumb" data-root-target="${escapeHtml(rootFolder)}" title="Go to ${escapeHtml(rootName)} folder">
+            <button id="go-root" class="crumb-btn root-crumb" data-root-target="${escapeHtml(rootFolder)}" title="Go to root folder">
               <span class="crumb-icon">${uiIcon('folder', 13)}</span>
-              <span class="crumb-name">${escapeHtml(rootName)}</span>
             </button>
             ${breadcrumb}
           </div>
@@ -201,9 +200,11 @@ export function filePanelMarkup(): string {
               </button>
             </div>
           </div>
-          <button class="file-action-btn ${isFilePaneCompact ? 'active' : ''}" id="toggle-file-pane-size" title="${isFilePaneCompact ? 'Expand file pane' : 'Compact file pane'}">
-            ${uiIcon('sidebar', 13)}
-          </button>
+          ${isGlobalNotesMode ? `
+            <button class="file-action-btn" id="create-note-file" title="New markdown file" aria-label="New markdown file">
+              ${uiIcon('plus', 13)}
+            </button>
+          ` : ''}
           <div class="file-search-expandable ${fileFilter ? 'open' : ''}" id="file-search-expandable">
             <button type="button" class="file-action-btn search-trigger-btn" id="file-search-trigger" title="Search files">
               ${uiIcon('search', 13)}
@@ -213,6 +214,9 @@ export function filePanelMarkup(): string {
               <button type="button" id="file-search-clear" class="file-search-clear" title="Clear (Esc)">✕</button>
             </div>
           </div>
+          <button class="file-action-btn ${isFilePaneCompact ? 'active' : ''}" id="toggle-file-pane-size" title="${isFilePaneCompact ? 'Expand file pane' : 'Compact file pane'}">
+            ${uiIcon('sidebar', 13)}
+          </button>
         </div>
       </div>
       <div class="file-list">${fileListMarkup()}</div>

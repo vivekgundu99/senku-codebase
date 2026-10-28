@@ -12,6 +12,7 @@ import {
   setActiveNotePageIndex,
   setIsNoteAllPagesView,
   setCurrentFolder,
+  setFilePaneCompact,
 } from './state';
 import { fuzzyMatch, escapeHtml, parseNotePages, PAGE_SEPARATOR } from './utils';
 import { toast } from './toast';
@@ -100,8 +101,9 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
           const wasGlobal = isGlobalNotesMode;
           setGlobalNotesMode(false);
           setHomeCenterMode('overview');
-          setView('Home');
           setActiveMarkdownFile(null);
+          setFilePaneCompact(false);
+          setView('Home');
           if (wasGlobal && state.workspace?.masterFolder) {
             await load(state.workspace.masterFolder);
           } else {
@@ -113,7 +115,7 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         id: 'view-notes',
         type: 'View',
         typeOrder: 0,
-        text: 'Notes (Quick Note)',
+        text: 'Senku Notes',
         run: async () => {
           setGlobalNotesMode(true);
           const notesPath = await window.senku.getNotesPath();
@@ -122,12 +124,14 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
 
           const qNote = await window.senku.getOrCreateQuickNote();
           setActiveMarkdownFile(qNote);
-          setActiveNotePageIndex(0);
-          setIsNoteAllPagesView(true);
+          const pages = parseNotePages(qNote.content || '');
+          setActiveNotePageIndex(Math.max(0, pages.length - 1));
+          setIsNoteAllPagesView(false);
           setIsNotePreviewMode(true);
 
           setView('Home');
           setHomeCenterMode('notes');
+          setFilePaneCompact(true);
           render();
         },
       },
@@ -156,6 +160,8 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
           if (!isCurrent) {
             setGlobalNotesMode(false);
             setHomeCenterMode('overview');
+            setActiveMarkdownFile(null);
+            setFilePaneCompact(false);
             await window.senku.switchWorkspace(ws.id);
             setView('Home');
             await load();
@@ -164,14 +170,14 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
       });
     });
 
-    // 3. Notes in active folder
+    // 3. Notes in active folder (Simple MD Preview)
     const mdEntries = (state.entries || []).filter((e) => e.kind === 'file' && e.name.toLowerCase().endsWith('.md'));
     mdEntries.forEach((entry) => {
       items.push({
         id: `open-note-${entry.name}`,
         type: 'Note',
         typeOrder: 2,
-        text: `Open Note: ${entry.name}`,
+        text: `Preview: ${entry.name}`,
         run: async () => {
           const folder = state.currentPath || state.workspace?.masterFolder;
           if (!folder) return;
@@ -179,14 +185,12 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
           try {
             const content = await window.senku.readTextFile(p);
             setActiveMarkdownFile({ path: p, name: entry.name, content });
-            setActiveNotePageIndex(0);
-            setIsNoteAllPagesView(true);
-            setIsNotePreviewMode(true);
+            setHomeCenterMode('preview');
+            setFilePaneCompact(true);
             setView('Home');
-            setHomeCenterMode('notes');
             render();
           } catch {
-            toast('Could not open note.');
+            toast('Could not open preview.');
           }
         },
       });
@@ -246,10 +250,15 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         id: 'action-refresh',
         type: 'Action',
         typeOrder: 3,
-        text: 'Refresh',
+        text: 'Refresh (Soft Restart)',
         run: async () => {
-          await load(state.currentPath);
-          toast('Refreshed');
+          setGlobalNotesMode(false);
+          setHomeCenterMode('overview');
+          setActiveMarkdownFile(null);
+          setFilePaneCompact(false);
+          setView('Home');
+          await load(state.workspace?.masterFolder);
+          toast('Restarted to Home');
         },
       },
       {

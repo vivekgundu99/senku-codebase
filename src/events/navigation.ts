@@ -7,6 +7,7 @@ import {
   setHomeCenterMode,
   isFilePaneCompact,
   toggleFilePaneCompact,
+  setFilePaneCompact,
   setCurrentFolder,
   setActiveMarkdownFile,
   setActiveNotePageIndex,
@@ -15,6 +16,7 @@ import {
   isGlobalNotesMode,
   setGlobalNotesMode,
 } from '../state';
+import { parseNotePages } from '../utils';
 import { uiIcon } from '../markup';
 import { toast } from '../toast';
 import { openPalette } from '../palette';
@@ -33,13 +35,14 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
 
         const qNote = await window.senku.getOrCreateQuickNote();
         setActiveMarkdownFile(qNote);
-        setActiveNotePageIndex(0);
-        setIsNoteAllPagesView(true);
+        const pages = parseNotePages(qNote.content || '');
+        setActiveNotePageIndex(Math.max(0, pages.length - 1));
+        setIsNoteAllPagesView(false);
         setIsNotePreviewMode(true);
 
         setView('Home');
         setHomeCenterMode('notes');
-        if (!isFilePaneCompact) toggleFilePaneCompact();
+        setFilePaneCompact(true);
         render();
         return;
       }
@@ -49,6 +52,7 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
         setView('Home');
         setHomeCenterMode('overview');
         setActiveMarkdownFile(null);
+        setFilePaneCompact(false);
         if (wasGlobal && state.workspace?.masterFolder) {
           await load(state.workspace.masterFolder);
         } else {
@@ -80,7 +84,14 @@ export function bindSidebarButtons(_load: LoadFn, render: RenderFn): void {
 }
 
 export function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
-  document.querySelector('#refresh-button')?.addEventListener('click', () => void load(state.currentPath));
+  document.querySelector('#refresh-button')?.addEventListener('click', () => {
+    setGlobalNotesMode(false);
+    setHomeCenterMode('overview');
+    setActiveMarkdownFile(null);
+    setFilePaneCompact(false);
+    setView('Home');
+    void load(state.workspace?.masterFolder).then(() => toast('Restarted to Home'));
+  });
 
   // Tools dropdown menu
   document.querySelector('#topbar-tools-btn')?.addEventListener('click', (e) => {

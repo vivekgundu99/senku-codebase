@@ -1,4 +1,4 @@
-import { state, currentView, setView, toggleAppSidebarCollapsed, setGlobalNotesMode, isGlobalNotesMode, setHomeCenterMode, homeCenterMode } from '../state';
+import { state, setState, currentView, setView, toggleAppSidebarCollapsed, setGlobalNotesMode, isGlobalNotesMode, setHomeCenterMode, homeCenterMode, setActiveMarkdownFile, setFilePaneCompact } from '../state';
 import { registerShortcuts } from '../shortcuts';
 import { openPalette } from '../palette';
 import {
@@ -6,6 +6,9 @@ import {
   openWorkspaceFormModal,
   openWorkspaceSettingsModal,
 } from '../modals';
+import { toast } from '../toast';
+import { uiIcon } from '../markup';
+import { escapeHtml } from '../utils';
 import type { LoadFn, RenderFn } from './types';
 
 export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
@@ -85,6 +88,8 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
         e.preventDefault();
         setGlobalNotesMode(false);
         setHomeCenterMode('overview');
+        setActiveMarkdownFile(null);
+        setFilePaneCompact(false);
         setView('Home');
         if (state.workspace?.masterFolder) {
           void load(state.workspace.masterFolder);
@@ -101,6 +106,27 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
     if (target.closest('#settings-button, .avatar-button, #profile-avatar-button')) {
       e.preventDefault();
       openProfileModal(render, load);
+      return;
+    }
+
+    // Close space tab from sidebar
+    const closeTabBtn = target.closest<HTMLElement>('[data-close-space-tab]');
+    if (closeTabBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const spaceId = closeTabBtn.dataset.closeSpaceTab;
+      if (!spaceId) return;
+      const res = await window.senku.closeWorkspaceTab(spaceId);
+      if (!res.ok) {
+        toast(res.error || 'Cannot remove space tab from sidebar.');
+        return;
+      }
+      if (res.snapshot) {
+        setState(res.snapshot);
+        await load(res.snapshot.workspace?.masterFolder);
+      } else {
+        await load();
+      }
       return;
     }
 
@@ -128,16 +154,217 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       return;
     }
 
-    if (target.closest('#add-space, #add-space-empty, #topbar-create-space, #create-space-files, #home-add-space')) {
+    // Sidebar All Spaces button (GUI list)
+    const allSpacesBtn = target.closest<HTMLElement>('#all-spaces-btn');
+    if (allSpacesBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openAllSpacesMenu(allSpacesBtn, load);
+      return;
+    }
+
+    // Sidebar Search Spaces button (Filterable box)
+    const searchSpacesBtn = target.closest<HTMLElement>('#search-spaces-btn');
+    if (searchSpacesBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openSearchSpacesMenu(searchSpacesBtn, load);
+      return;
+    }
+
+    if (target.closest('#add-space-empty, #create-space-files, #home-add-space')) {
       e.preventDefault();
       openWorkspaceFormModal(load);
       return;
     }
 
-    if (target.closest('#workspace-settings, #topbar-space-pill, [data-action="workspace-settings"]')) {
+    if (target.closest('#workspace-settings')) {
       e.preventDefault();
       openWorkspaceSettingsModal(load, render);
       return;
     }
   }, true);
+}
+
+function openAllSpacesMenu(anchorBtn: HTMLElement, load: LoadFn): void {
+  document.querySelectorAll('.topbar-spaces-popover').forEach((p) => p.remove());
+
+  const allWorkspaces = [...(state.workspaces ?? [])]
+    .filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+  const currentWsId = state.workspace?.id;
+
+  const itemsHtml = allWorkspaces.map((ws) => {
+    const isCurrent = ws.id === currentWsId;
+    return `
+      <button type="button" class="spaces-popover-item ${isCurrent ? 'active' : ''}" data-select-space="${ws.id}">
+        <span class="spaces-popover-badge">${escapeHtml(ws.name.charAt(0).toUpperCase() || '?')}</span>
+        <span class="spaces-popover-name">${escapeHtml(ws.name)}</span>
+        ${isCurrent ? `<span class="spaces-popover-check">✓</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  const popover = document.createElement('div');
+  popover.className = 'topbar-spaces-popover';
+  popover.innerHTML = `
+    <div class="spaces-popover-header">ALL SPACES</div>
+    <div class="spaces-popover-list">
+      ${itemsHtml || '<div class="spaces-popover-empty" style="padding: 8px; font-size: 11px; color: var(--muted);">No spaces yet</div>'}
+    </div>
+  `;
+
+  const rect = anchorBtn.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + 4}px`;
+  popover.style.left = `${rect.left}px`;
+
+  document.body.appendChild(popover);
+
+  const closePopover = () => {
+    popover.remove();
+    document.removeEventListener('click', onDocClick);
+    document.removeEventListener('keydown', onDocKey);
+  };
+
+  const onDocClick = (evt: MouseEvent) => {
+    if (!popover.contains(evt.target as Node) && evt.target !== anchorBtn) {
+      closePopover();
+    }
+  };
+
+  const onDocKey = (evt: KeyboardEvent) => {
+    if (evt.key === 'Escape') closePopover();
+  };
+
+  setTimeout(() => {
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onDocKey);
+  }, 0);
+
+  popover.querySelectorAll<HTMLElement>('[data-select-space]').forEach((item) => {
+    item.addEventListener('click', async () => {
+      const targetId = item.dataset.selectSpace;
+      closePopover();
+      if (targetId && targetId !== currentWsId) {
+        if (isGlobalNotesMode) {
+          setGlobalNotesMode(false);
+          setHomeCenterMode('overview');
+        }
+        await window.senku.switchWorkspace(targetId);
+        setView('Home');
+        await load();
+      }
+    });
+  });
+}
+
+function openSearchSpacesMenu(anchorBtn: HTMLElement, load: LoadFn): void {
+  document.querySelectorAll('.topbar-spaces-popover').forEach((p) => p.remove());
+
+  const allWorkspaces = [...(state.workspaces ?? [])]
+    .filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+  const currentWsId = state.workspace?.id;
+
+  const renderList = (filter = ''): string => {
+    const q = filter.trim().toLowerCase();
+    const matched = q
+      ? allWorkspaces.filter((w) => w.name.toLowerCase().includes(q))
+      : allWorkspaces;
+
+    if (matched.length === 0) {
+      return '<div style="padding: 8px; font-size: 11px; color: var(--muted);">No matching space</div>';
+    }
+
+    return matched.map((ws) => {
+      const isCurrent = ws.id === currentWsId;
+      return `
+        <button type="button" class="spaces-popover-item ${isCurrent ? 'active' : ''}" data-select-space="${ws.id}">
+          <span class="spaces-popover-badge">${escapeHtml(ws.name.charAt(0).toUpperCase() || '?')}</span>
+          <span class="spaces-popover-name">${escapeHtml(ws.name)}</span>
+          ${isCurrent ? `<span class="spaces-popover-check">✓</span>` : ''}
+        </button>
+      `;
+    }).join('');
+  };
+
+  const popover = document.createElement('div');
+  popover.className = 'topbar-spaces-popover';
+  popover.innerHTML = `
+    <div class="spaces-popover-search-wrap">
+      <span class="spaces-popover-search-icon">${uiIcon('search', 12)}</span>
+      <input type="text" id="spaces-popover-filter" class="spaces-popover-search-input" placeholder="Find space…" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="spaces-popover-list" id="spaces-popover-list">
+      ${renderList()}
+    </div>
+  `;
+
+  const rect = anchorBtn.getBoundingClientRect();
+  popover.style.top = `${rect.bottom + 4}px`;
+  popover.style.left = `${rect.left}px`;
+
+  document.body.appendChild(popover);
+
+  const input = popover.querySelector<HTMLInputElement>('#spaces-popover-filter')!;
+  const listEl = popover.querySelector<HTMLElement>('#spaces-popover-list')!;
+
+  setTimeout(() => input.focus(), 10);
+
+  const closePopover = () => {
+    popover.remove();
+    document.removeEventListener('click', onDocClick);
+    document.removeEventListener('keydown', onDocKey);
+  };
+
+  const onDocClick = (evt: MouseEvent) => {
+    if (!popover.contains(evt.target as Node) && evt.target !== anchorBtn) {
+      closePopover();
+    }
+  };
+
+  const onDocKey = (evt: KeyboardEvent) => {
+    if (evt.key === 'Escape') closePopover();
+  };
+
+  setTimeout(() => {
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onDocKey);
+  }, 0);
+
+  const bindItemClicks = () => {
+    listEl.querySelectorAll<HTMLElement>('[data-select-space]').forEach((item) => {
+      item.addEventListener('click', async () => {
+        const targetId = item.dataset.selectSpace;
+        closePopover();
+        if (targetId && targetId !== currentWsId) {
+          if (isGlobalNotesMode) {
+            setGlobalNotesMode(false);
+            setHomeCenterMode('overview');
+          }
+          await window.senku.switchWorkspace(targetId);
+          setView('Home');
+          await load();
+        }
+      });
+    });
+  };
+
+  bindItemClicks();
+
+  input.addEventListener('input', () => {
+    listEl.innerHTML = renderList(input.value);
+    bindItemClicks();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const firstBtn = listEl.querySelector<HTMLElement>('[data-select-space]');
+      if (firstBtn) {
+        firstBtn.click();
+      }
+    }
+  });
 }

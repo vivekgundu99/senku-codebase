@@ -14,10 +14,10 @@ export function topbarMarkup(): string {
   if (currentView === 'Log' || currentView === 'AllLog') pageTitle = 'Logs';
   else if (isGlobalNotesMode || currentView === 'Notes' || (currentView === 'Home' && homeCenterMode === 'notes')) pageTitle = 'Notes';
 
-  const spacePill = (!isGlobalNotesMode && ws)
-    ? `<button class="topbar-space-pill" id="topbar-space-pill" data-action="workspace-settings" title="Active Space: ${escapeHtml(ws.name)} (${escapeHtml(ws.masterFolder)})">
-        <span class="topbar-space-name">${escapeHtml(ws.name)}</span>
-      </button>`
+  const spaceBadge = (!isGlobalNotesMode && ws)
+    ? `<div class="topbar-space-box" title="Current Space: ${escapeHtml(ws.name)}">
+        <span class="topbar-space-box-name">${escapeHtml(ws.name)}</span>
+      </div>`
     : '';
 
   return `
@@ -28,7 +28,7 @@ export function topbarMarkup(): string {
         <span class="date-line">${dateFormatted}</span>
       </div>
       <div class="top-actions">
-        ${spacePill}
+        ${spaceBadge}
         <button class="icon-button" id="topbar-tools-btn" title="Tools" aria-label="Tools">${uiIcon('tools', 14)}</button>
         <button class="icon-button" id="refresh-button" title="Refresh" aria-label="Refresh">${uiIcon('refresh', 14)}</button>
         <button class="icon-button" id="settings-button" title="Settings" aria-label="Settings">${uiIcon('gear', 14)}</button>

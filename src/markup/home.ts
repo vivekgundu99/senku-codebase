@@ -15,6 +15,9 @@ import { formatRelativeTime } from './files';
 import { marked } from 'marked';
 
 export function overviewPanelMarkup(): string {
+  if (homeCenterMode === 'preview') {
+    return simpleMdPreviewMarkup();
+  }
   if (homeCenterMode === 'notes') {
     return notesWindowMarkup();
   }
@@ -25,18 +28,6 @@ export function overviewPanelMarkup(): string {
   if (!ws) {
     return `
     <section class="home-panel-v3">
-      <div class="home-center-header">
-        <div class="notes-header-file-title"></div>
-        <div class="home-pill-toggle">
-          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Home Overview">
-            <span class="home-pill-icon">${uiIcon('home', 13)}</span>
-          </button>
-          <button type="button" class="home-pill-btn" data-home-mode="notes" title="Notes Window">
-            <span class="home-pill-icon">${uiIcon('note', 13)}</span>
-          </button>
-        </div>
-        <div class="notes-window-actions"></div>
-      </div>
       <div class="home-hero">
         <h1 class="home-greeting">${greeting}</h1>
         <p class="home-hero-subtitle">Link a project folder to log progress and track files.</p>
@@ -46,6 +37,42 @@ export function overviewPanelMarkup(): string {
   }
 
   return homePanelV3Markup();
+}
+
+export function simpleMdPreviewMarkup(): string {
+  const file = activeMarkdownFile;
+  if (!file) {
+    return homePanelV3Markup();
+  }
+
+  const previewHtml = file.content.trim()
+    ? (marked.parse(file.content, { gfm: true, breaks: true }) as string)
+    : '<p class="notes-preview-empty">Empty markdown file.</p>';
+
+  return `
+    <section class="simple-md-preview-panel">
+      <div class="simple-md-header">
+        <div class="simple-md-header-left">
+          <span class="simple-md-file-icon">${uiIcon('note', 14)}</span>
+          <span class="simple-md-file-name" title="${escapeHtml(file.path)}">${escapeHtml(file.name)}</span>
+        </div>
+        <div class="simple-md-header-right">
+          <button type="button" class="simple-md-open-btn" id="simple-md-open-default" title="Open in default app" data-file-path="${escapeHtml(file.path)}">
+            <span class="simple-md-btn-icon">${uiIcon('external', 12)}</span>
+            <span>Open</span>
+          </button>
+          <button type="button" class="simple-md-close-btn" id="simple-md-close-preview" title="Close preview (Esc)" aria-label="Close preview">
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="simple-md-body">
+        <div class="simple-md-scroll markdown-body">
+          ${previewHtml}
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 export function homePanelV3Markup(): string {
@@ -62,17 +89,8 @@ export function homePanelV3Markup(): string {
 
   return `
     <section class="home-panel-v3">
-      <div class="home-center-header">
-        <div class="notes-header-file-title"></div>
-        <div class="home-pill-toggle">
-          <button type="button" class="home-pill-btn active" data-home-mode="overview" title="Home Overview">
-            <span class="home-pill-icon">${uiIcon('home', 13)}</span>
-          </button>
-          <button type="button" class="home-pill-btn" data-home-mode="notes" title="Notes Window">
-            <span class="home-pill-icon">${uiIcon('note', 13)}</span>
-          </button>
-        </div>
-        <div class="notes-window-actions"></div>
+      <div class="home-top-bar">
+        <span class="home-top-bar-title">Overview</span>
       </div>
       <div class="home-decks-container">
         <!-- Log Station (Input + Feed) -->
@@ -176,22 +194,14 @@ export function notesWindowMarkup(): string {
           <span class="notes-window-file-name" title="${escapeHtml(file.path)}">${escapeHtml(file.name)}</span>
         ` : ''}
       </div>
-      <div class="home-pill-toggle">
-        <button type="button" class="home-pill-btn" data-home-mode="overview" title="Home Overview">
-          <span class="home-pill-icon">${uiIcon('home', 13)}</span>
-        </button>
-        <button type="button" class="home-pill-btn active" data-home-mode="notes" title="Notes Window">
-          <span class="home-pill-icon">${uiIcon('note', 13)}</span>
-        </button>
-      </div>
       <div class="notes-window-actions">
         ${file ? `
           <span class="notes-window-save-status" id="notes-file-save-status"></span>
-          <button type="button" class="notes-window-action-btn" id="new-note-in-folder" title="New Note in active folder">
-            ${uiIcon('plus', 11)} <span>Note</span>
-          </button>
           <button type="button" class="notes-window-action-btn ${isPreview ? 'active' : ''}" id="toggle-note-preview-mode" title="${isPreview ? 'Switch to Edit' : 'Switch to Preview'}">
             ${uiIcon(isPreview ? 'pen' : 'eye', 11)} <span>${isPreview ? 'Edit' : 'Preview'}</span>
+          </button>
+          <button type="button" class="notes-window-action-btn" id="open-note-in-default" title="Open in default application">
+            ${uiIcon('external', 11)} <span>Open</span>
           </button>
         ` : ''}
       </div>

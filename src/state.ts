@@ -24,8 +24,8 @@ export function setLogPageDraft(text: string): void {
   logPageDraft = text;
 }
 
-export let homeCenterMode: 'overview' | 'notes' = 'overview';
-export function setHomeCenterMode(mode: 'overview' | 'notes'): void {
+export let homeCenterMode: 'overview' | 'preview' | 'notes' = 'overview';
+export function setHomeCenterMode(mode: 'overview' | 'preview' | 'notes'): void {
   homeCenterMode = mode;
 }
 
@@ -77,6 +77,10 @@ export function toggleAppSidebarCollapsed(): void {
 export let isFilePaneCompact = localStorage.getItem('senku:filePaneCompact') === 'true';
 export function toggleFilePaneCompact(): void {
   isFilePaneCompact = !isFilePaneCompact;
+  localStorage.setItem('senku:filePaneCompact', String(isFilePaneCompact));
+}
+export function setFilePaneCompact(val: boolean): void {
+  isFilePaneCompact = val;
   localStorage.setItem('senku:filePaneCompact', String(isFilePaneCompact));
 }
 

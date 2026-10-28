@@ -6,10 +6,20 @@ export function sidebarMarkup(): string {
   const ws = state.workspace;
   const isCollapsed = isAppSidebarCollapsed;
 
-  // Spaces arranged in alphabetical order (excluding internal notes space)
-  const sortedWorkspaces = [...(state.workspaces ?? [])]
-    .filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace)
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  // Open spaces (sidebar tabs)
+  const openIds = state.openSpaceIds && state.openSpaceIds.length > 0
+    ? state.openSpaceIds
+    : (ws ? [ws.id] : []);
+
+  const openWorkspaces = openIds
+    .map((id) => (state.workspaces ?? []).find((w) => w.id === id))
+    .filter((w): w is (typeof state.workspaces)[number] => w !== undefined && w.id !== '__senku_notes__' && !(w as any).isNotesSpace);
+
+  const displaySpaces = openWorkspaces.length > 0
+    ? openWorkspaces
+    : (state.workspaces ?? []).filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace).slice(0, 1);
+
+  const canClose = displaySpaces.length > 1;
 
   const spaceRow = (space: (typeof state.workspaces)[number]) => {
     const isActive = !isGlobalNotesMode && (ws ? space.id === ws.id : false);
@@ -22,12 +32,15 @@ export function sidebarMarkup(): string {
           <span class="space-name">${escapeHtml(space.name)}</span>
           ${missing ? `<span class="space-missing-icon" title="Folder not found">${uiIcon('alert', 12)}</span>` : ''}
         </button>
-        ${isActive ? `<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">${uiIcon('gear', 13)}</button>` : ''}
+        <div class="space-actions">
+          ${isActive ? `<button class="space-gear" id="workspace-settings" title="Space settings" aria-label="Space settings">${uiIcon('gear', 13)}</button>` : ''}
+          ${canClose ? `<button class="space-close-tab" data-close-space-tab="${space.id}" title="Close space tab" aria-label="Close space tab">✕</button>` : ''}
+        </div>
       </div>`;
   };
 
-  const spacesContent = sortedWorkspaces.length > 0
-    ? sortedWorkspaces.map(spaceRow).join('')
+  const spacesContent = displaySpaces.length > 0
+    ? displaySpaces.map(spaceRow).join('')
     : `<div class="empty-spaces-box">
          <span class="empty-spaces-text">No Spaces yet</span>
        </div>`;
@@ -60,8 +73,15 @@ export function sidebarMarkup(): string {
       </div>
 
       <div class="spaces-head">
-        <span class="workspace-label">SPACES</span>
-        <button class="mini-button" id="add-space" title="Add a Space" aria-label="Add a Space">${uiIcon('plus', 13)}</button>
+        <span class="workspace-label">ACTIVE SPACES</span>
+        <div class="spaces-head-actions">
+          <button class="spaces-head-btn" id="all-spaces-btn" title="All Spaces" aria-label="All Spaces">
+            ${uiIcon('list', 15)}
+          </button>
+          <button class="spaces-head-btn" id="search-spaces-btn" title="Search Spaces" aria-label="Search Spaces">
+            ${uiIcon('search', 15)}
+          </button>
+        </div>
       </div>
       <div class="space-list">${spacesContent}</div>
     </aside>`;
