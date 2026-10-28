@@ -203,7 +203,7 @@ export function fuzzyScore(query: string, text: string): number | null {
 // ---------------------------------------------------------------------------
 
 export const PAGE_SEPARATOR = '\n\n<!-- pagebreak -->\n\n';
-export const PAGE_SPLIT_REGEX = /(?:^|\r?\n)\s*<!--\s*pagebreak\s*-->\s*(?:\r?\n|$)/;
+export const PAGE_SPLIT_REGEX = /\s*<!--\s*pagebreak\s*-->\s*/i;
 
 export function parseNotePages(content: string): string[] {
   if (!content) return [''];
