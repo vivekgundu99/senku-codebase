@@ -1143,6 +1143,33 @@ ipcMain.handle('file:delete-note', async (_event, filePath: string) => {
   }
 });
 
+ipcMain.handle('file:rename-note', async (_event, oldPath: string, newName: string) => {
+  try {
+    let clean = (newName || '').trim();
+    if (!clean) return { ok: false, error: 'Note name cannot be empty.' };
+    if (!clean.toLowerCase().endsWith('.md')) clean += '.md';
+    if (/[<>:"/\\|?*]/.test(clean.replace(/\.md$/i, ''))) {
+      return { ok: false, error: 'Note name contains invalid characters.' };
+    }
+    const dir = path.dirname(oldPath);
+    const newPath = path.join(dir, clean);
+    if (newPath.toLowerCase() === oldPath.toLowerCase()) {
+      if (newPath !== oldPath) {
+        await fs.rename(oldPath, newPath);
+      }
+      return { ok: true, path: newPath, name: clean };
+    }
+    const exists = await fs.access(newPath).then(() => true).catch(() => false);
+    if (exists) {
+      return { ok: false, error: `A note named "${clean}" already exists.` };
+    }
+    await fs.rename(oldPath, newPath);
+    return { ok: true, path: newPath, name: clean };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+});
+
 // ---------------------------------------------------------------------------
 // V3: Resource Opening (Web URL or default OS handler)
 // ---------------------------------------------------------------------------

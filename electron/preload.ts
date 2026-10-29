@@ -88,6 +88,9 @@ const api = {
   deleteFileNote: (filePath: string) =>
     ipcRenderer.invoke('file:delete-note', filePath) as Promise<{ ok: boolean; error?: string }>,
 
+  renameFileNote: (oldPath: string, newName: string) =>
+    ipcRenderer.invoke('file:rename-note', oldPath, newName) as Promise<{ ok: boolean; path?: string; name?: string; error?: string }>,
+
   // --- V3: Quiet Log ---
   addLogEntry: (text: string, spaceId?: string) =>
     ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,

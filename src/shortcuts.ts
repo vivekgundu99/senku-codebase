@@ -33,6 +33,24 @@ const shortcuts = [
       if (parent) void load(parent);
     },
   },
+  {
+    key: 'f2',
+    run: () => {
+      document.querySelector<HTMLElement>('#notes-file-title')?.dispatchEvent(new MouseEvent('dblclick'));
+    },
+  },
+  {
+    key: '/',
+    run: () => {
+      const searchExpandable = document.querySelector<HTMLElement>('#file-search-expandable');
+      const fileInput = document.querySelector<HTMLInputElement>('#file-filter');
+      if (fileInput) {
+        searchExpandable?.classList.add('open');
+        fileInput.focus();
+        fileInput.select();
+      }
+    },
+  },
 ];
 
 export function registerShortcuts(load: ShortcutContext['load'], render: ShortcutContext['render']): void {

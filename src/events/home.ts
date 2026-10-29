@@ -135,6 +135,67 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     });
   });
 
+  // Notes Window: Inline rename (Double-click title or F2)
+  const startInlineRename = () => {
+    if (!activeMarkdownFile) return;
+    const titleEl = document.querySelector<HTMLElement>('#notes-file-title');
+    if (!titleEl || titleEl.querySelector('input')) return;
+
+    const oldName = activeMarkdownFile.name;
+    const baseName = oldName.replace(/\.md$/i, '');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'notes-file-rename-input';
+    input.className = 'notes-file-rename-input';
+    input.value = baseName;
+    input.spellcheck = false;
+
+    titleEl.textContent = '';
+    titleEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let committed = false;
+    const commit = async () => {
+      if (committed) return;
+      committed = true;
+      const raw = input.value.trim();
+      if (!raw || raw === baseName) {
+        titleEl.textContent = oldName;
+        return;
+      }
+      const res = await window.senku.renameFileNote(activeMarkdownFile!.path, raw);
+      if (res.ok && res.path && res.name) {
+        activeMarkdownFile!.path = res.path;
+        activeMarkdownFile!.name = res.name;
+        toast(`Renamed to ${res.name}`);
+        let folder = state.currentPath;
+        if (isGlobalNotesMode && (!folder || !folder.toLowerCase().includes('notes'))) {
+          folder = await window.senku.getNotesPath();
+        }
+        if (folder) await load(folder);
+        render();
+      } else {
+        toast(res.error || 'Failed to rename note');
+        titleEl.textContent = oldName;
+      }
+    };
+
+    input.addEventListener('blur', () => void commit());
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        committed = true;
+        titleEl.textContent = oldName;
+      }
+    });
+  };
+
+  document.querySelector('#notes-file-title')?.addEventListener('dblclick', startInlineRename);
+
 
   // Notes Window: Create new note in current folder
   document.querySelector('#new-note-in-folder')?.addEventListener('click', async () => {
@@ -222,6 +283,11 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         void saveNoteFile();
+        return;
+      }
+      if (e.key === 'F2') {
+        e.preventDefault();
+        startInlineRename();
         return;
       }
     });

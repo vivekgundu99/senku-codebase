@@ -189,7 +189,7 @@ export function notesWindowMarkup(): string {
       <div class="notes-header-file-title">
         ${file ? `
           <span class="notes-window-file-icon">${uiIcon('note', 13)}</span>
-          <span class="notes-window-file-name" title="${escapeHtml(file.path)}">${escapeHtml(file.name)}</span>
+          <span class="notes-window-file-name" id="notes-file-title" title="Double-click or press F2 to rename (${escapeHtml(file.name)})">${escapeHtml(file.name)}</span>
         ` : ''}
       </div>
       <div class="notes-window-actions">

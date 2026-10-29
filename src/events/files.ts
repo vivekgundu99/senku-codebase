@@ -8,6 +8,7 @@ import {
   isFilePaneCompact,
   setView,
   setActiveMarkdownFile,
+  isNotePreviewMode,
   setIsNotePreviewMode,
   setHomeCenterMode,
   isGlobalNotesMode,
@@ -90,14 +91,26 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
           setActiveMarkdownFile({ path: p, name, content });
           if (isGlobalNotesMode) {
             setHomeCenterMode('notes');
-            const isSenku = name.toLowerCase() === 'senku.md';
-            setIsNotePreviewMode(!isSenku);
+            if (isNotePreviewMode) {
+              const isSenku = name.toLowerCase() === 'senku.md';
+              setIsNotePreviewMode(!isSenku);
+            }
           } else {
             setHomeCenterMode('preview');
           }
           setFilePaneCompact(true);
           setView('Home');
           if (render) render();
+
+          if (isGlobalNotesMode && !isNotePreviewMode) {
+            requestAnimationFrame(() => {
+              const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
+              if (editor) {
+                editor.focus();
+                editor.setSelectionRange(editor.value.length, editor.value.length);
+              }
+            });
+          }
           return;
         } catch {}
       }
@@ -181,10 +194,15 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
   });
 
   if (fileInput) {
+    fileInput.addEventListener('input', runFileSearch);
     fileInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         runFileSearch();
+        const firstItem = panel.querySelector<HTMLElement>('.file-item');
+        if (firstItem) {
+          firstItem.click();
+        }
       } else if (e.key === 'Escape') {
         fileInput.value = '';
         setFileFilter('');

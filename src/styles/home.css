@@ -812,6 +812,29 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: background 0.12s ease;
+}
+
+.notes-header-file-title .notes-window-file-name:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.notes-file-rename-input {
+  font: 700 13px var(--sans);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  padding: 1px 6px;
+  height: 22px;
+  line-height: 20px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--green-pale);
+  max-width: 240px;
 }
 
 .home-pill-toggle {
