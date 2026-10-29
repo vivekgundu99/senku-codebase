@@ -8,14 +8,12 @@ import {
   isFilePaneCompact,
   setView,
   setActiveMarkdownFile,
-  setActiveNotePageIndex,
-  setIsNoteAllPagesView,
   setIsNotePreviewMode,
   setHomeCenterMode,
   isGlobalNotesMode,
 } from '../state';
 import { fileCountLabel, fileListMarkup, filePanelMarkup } from '../markup';
-import { isSamePath, parentOf, parseNotePages } from '../utils';
+import { isSamePath, parentOf } from '../utils';
 import { openNewNoteModal } from '../modals';
 import { toast } from '../toast';
 import type { LoadFn, RenderFn } from './types';
@@ -92,16 +90,8 @@ export function bindFileActions(load: LoadFn, render?: RenderFn): void {
           setActiveMarkdownFile({ path: p, name, content });
           if (isGlobalNotesMode) {
             setHomeCenterMode('notes');
-            const pages = parseNotePages(content || '');
             const isSenku = name.toLowerCase() === 'senku.md';
-            if (isSenku) {
-              setActiveNotePageIndex(Math.max(0, pages.length - 1));
-              setIsNotePreviewMode(false);
-            } else {
-              setActiveNotePageIndex(0);
-              setIsNotePreviewMode(true);
-            }
-            setIsNoteAllPagesView(false);
+            setIsNotePreviewMode(!isSenku);
           } else {
             setHomeCenterMode('preview');
           }

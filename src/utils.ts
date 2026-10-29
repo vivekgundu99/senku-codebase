@@ -198,20 +198,4 @@ export function fuzzyScore(query: string, text: string): number | null {
   return match ? match.score : null;
 }
 
-// ---------------------------------------------------------------------------
-// Multi-page Markdown note helpers (un-numbered invisible comment delimiter)
-// ---------------------------------------------------------------------------
-
-export const PAGE_SEPARATOR = '\n\n<!-- pagebreak -->\n\n';
-export const PAGE_SPLIT_REGEX = /\s*<!--\s*pagebreak\s*-->\s*/i;
-
-export function parseNotePages(content: string): string[] {
-  if (!content) return [''];
-  const pages = content.split(PAGE_SPLIT_REGEX);
-  return pages.length > 0 ? pages : [''];
-}
-
-export function joinNotePages(pages: string[]): string {
-  return pages.join(PAGE_SEPARATOR);
-}
 

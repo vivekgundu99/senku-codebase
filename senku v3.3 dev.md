@@ -91,14 +91,18 @@ To eliminate confusion between the global catalog of spaces, the open sidebar ta
   - File Manager automatically re-expands to full 50/50 balance.
   - Center pane restores Space Overview (Recent Logs + Log Station).
 
-### 3.3. Senku Notes (Global Multipage Notebook)
+### 3.3. Senku Notes (Global Markdown Notebook)
 
-- **Purpose:** Dedicated markdown scratchpad and multipage personal notebook living in `Documents/Senku Notes/`.
+- **Purpose:** Dedicated markdown scratchpad and personal continuous notebook living in `Documents/Senku Notes/`.
 - **Trigger:** Clicking **"Notes"** in the Sidebar.
 - **Default Note & View Modes:**
-  - `senku.md` always opens in **Edit mode** (`isNotePreviewMode = false`), in **Page mode** (`isNoteAllPagesView = false`), viewing the **last page** (`pages.length - 1`), directly ready for typing where floating captures land.
+  - `senku.md` opens in **Edit mode** (`isNotePreviewMode = false`), directly ready for typing where floating captures land.
   - Other notes in `Documents/Senku Notes/` open in **Preview mode** (`isNotePreviewMode = true`) by default.
-  - Newly created notes (`+` button) open in **Edit mode** on page 1.
+  - Newly created notes (`+` button) open in **Edit mode**.
+- **Continuous Markdown Flow:**
+  - Standard, pure Markdown editing and viewing experience (matching VS Code, Obsidian, GitHub).
+  - No artificial pagebreak delimiters or pagination bars: smooth native scrolling throughout the document.
+  - Eliminates page-doubling bugs and avoids friction from extra clicks.
 - **File Manager in Notes Mode:**
   - Automatically compressed to compact mode, displaying the contents of `Documents/Senku Notes/`.
   - Shows a dedicated **`+` (New Note)** button in the toolbar (hidden in regular workspace mode).
@@ -107,21 +111,12 @@ To eliminate confusion between the global catalog of spaces, the open sidebar ta
 - **Notes Header:**
   - File name display.
   - Save status indicator (`saved` / `unsaved`).
+  - `[↻]` Local refresh button to instantly reload note and folder if updated externally or via overlay.
   - `[Edit / Preview]` toggle button.
-  - `[↗ Open]` button to open note in default OS application.
-- **Pagebreak Delimiter:**
-  - Separator: `\n\n<!-- pagebreak -->\n\n`
-  - Split Regex: `/(?:^|\r?\n)\s*<!--\s*pagebreak\s*-->\s*(?:\r?\n|$)/` (strictly line-isolated so occurrences of "pagebreak" inside prose or code blocks are never treated as page dividers).
-- **Default Page on Load:**
-  - Always defaults to the **last page** (`pages.length - 1`), where the newest entries and overlay captures land.
+  - `[↗ Open]` button to open note in default OS application (e.g., VS Code).
 - **Editor Typography:**
   - Modern neutral system font stack: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`.
   - Font size: `14px`, line-height: `1.7`.
-- **Bottom Pagination Bar:**
-  - `[Page view / All]` toggle.
-  - `[+ Page]` button (appends `<!-- pagebreak -->` and focuses the new blank page).
-  - Page navigation numbers (`1 2 3 ...`) with prev/next arrows.
-  - Delete page button (with confirmation).
 - **Exit Action:**
   - Clicking **Home** or any Space in the sidebar navigates back to the workspace and automatically re-expands the File Manager.
 
@@ -179,11 +174,11 @@ To eliminate confusion between the global catalog of spaces, the open sidebar ta
     - Point to `senku.md` instead of `QuickNote.md`.
   - Comment out/remove migration code in `migrateNotesToGlobal()`.
 
-### Phase 2: Delimiters & Typography (`src/utils.ts`, `src/styles/`)
-- [ ] **Task 2.1:** Update `src/utils.ts`:
-  - `PAGE_SEPARATOR = '\n\n<!-- pagebreak -->\n\n'`.
-  - `PAGE_SPLIT_REGEX = /(?:^|\r?\n)\s*<!--\s*pagebreak\s*-->\s*(?:\r?\n|$)/`.
-- [ ] **Task 2.2:** Update `src/styles/home.css`:
+### Phase 2: Continuous Notes & Typography (`src/utils.ts`, `src/styles/`)
+- [x] **Task 2.1:** Standard continuous Markdown flow:
+  - Clean `\n\n` append without pagebreaks or pagination friction.
+  - Native scrolling throughout documents.
+- [x] **Task 2.2:** Update `src/styles/home.css`:
   - Update `.notes-window-editor` font family to `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`.
   - Set font size to `14px` and line-height to `1.7`.
 
@@ -217,13 +212,12 @@ To eliminate confusion between the global catalog of spaces, the open sidebar ta
   - Clicking `[Open in Default App]` calls `window.senku.openPath(file.path)`.
   - Clicking `[✕]` or pressing <kbd>Esc</kbd> clears preview, restores `homeCenterMode = 'overview'`, and re-expands File Manager (`setFilesSplitCompressed(false)`).
 
-### Phase 5: Senku Notes (Global Multipage Canvas)
-- [ ] **Task 5.1:** In `src/renderer.ts` & `src/events/sidebar.ts`:
+### Phase 5: Senku Notes (Global Markdown Canvas)
+- [x] **Task 5.1:** In `src/renderer.ts` & `src/events/sidebar.ts`:
   - Clicking sidebar "Notes" loads `Documents/Senku Notes/senku.md`.
   - Auto-compresses File Manager to `Documents/Senku Notes`.
-  - If `senku.md` exists, parses pages and sets `activeNotePageIndex = pages.length - 1` (last page view).
-  - If not found, shows clean "+ Create senku.md" prompt.
-- [ ] **Task 5.2:** Exiting Notes (clicking Home or Space tab) restores workspace path and re-expands File Manager.
+  - Opens in clean Edit mode for immediate continuous writing.
+- [x] **Task 5.2:** Exiting Notes (clicking Home or Space tab) restores workspace path and re-expands File Manager.
 
 ### Phase 6: Spaces as Tabs in Sidebar & Topbar Switcher
 - [ ] **Task 6.1:** In `src/markup/sidebar.ts`:

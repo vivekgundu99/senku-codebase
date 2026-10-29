@@ -7,16 +7,11 @@ import {
   setActiveMarkdownFile,
   isNotePreviewMode,
   setIsNotePreviewMode,
-  activeNotePageIndex,
-  setActiveNotePageIndex,
-  isNoteAllPagesView,
-  setIsNoteAllPagesView,
   isGlobalNotesMode,
   setGlobalNotesMode,
   setView,
   setFilePaneCompact,
 } from '../state';
-import { parseNotePages, joinNotePages, PAGE_SEPARATOR } from '../utils';
 import { openNewNoteModal } from '../modals';
 import { toast } from '../toast';
 import type { LoadFn, RenderFn } from './types';
@@ -117,24 +112,12 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     }
   });
 
-  // Notes Window: Copy pagebreak tag
-  document.querySelector('#copy-pagebreak-tag')?.addEventListener('click', async () => {
-    await window.senku.copyPath('<!-- pagebreak -->');
-    toast('Copied: <!-- pagebreak -->');
-  });
-
   // Notes Window: Local refresh note and folder (reflects overlay changes instantly)
   document.querySelector('#refresh-notes-file')?.addEventListener('click', async () => {
     if (!activeMarkdownFile) return;
     try {
       const content = await window.senku.readTextFile(activeMarkdownFile.path);
       activeMarkdownFile.content = content;
-      const pages = parseNotePages(content || '');
-      if (activeMarkdownFile.name.toLowerCase() === 'senku.md') {
-        setActiveNotePageIndex(Math.max(0, pages.length - 1));
-      } else {
-        setActiveNotePageIndex(Math.min(activeNotePageIndex, Math.max(0, pages.length - 1)));
-      }
       let folder = state.currentPath;
       if (isGlobalNotesMode && !folder) {
         folder = await window.senku.getNotesPath();
@@ -183,25 +166,16 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
   document.querySelector('#toggle-note-preview-mode')?.addEventListener('click', togglePreview);
   document.querySelector('#notes-preview-empty-click')?.addEventListener('click', togglePreview);
 
-  // Notes Window: Editor input, multipage & saving
+  // Notes Window: Editor input & saving
   const fileEditor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
   const saveStatus = document.querySelector<HTMLElement>('#notes-file-save-status');
 
-  const getFullNoteContent = (val: string): string => {
-    if (isNoteAllPagesView || !activeMarkdownFile) return val;
-    const pages = parseNotePages(activeMarkdownFile.content || '');
-    const curIdx = Math.min(Math.max(0, activeNotePageIndex), Math.max(0, pages.length - 1));
-    pages[curIdx] = val;
-    return joinNotePages(pages);
-  };
-
   const saveNoteFile = async () => {
     if (!activeMarkdownFile) return;
-    const val = fileEditor ? fileEditor.value : undefined;
-    const newFull = val !== undefined ? getFullNoteContent(val) : activeMarkdownFile.content;
+    const val = fileEditor ? fileEditor.value : activeMarkdownFile.content;
     try {
-      await window.senku.saveTextFile(activeMarkdownFile.path, newFull);
-      activeMarkdownFile.content = newFull;
+      await window.senku.saveTextFile(activeMarkdownFile.path, val);
+      activeMarkdownFile.content = val;
       if (saveStatus) {
         saveStatus.textContent = 'saved';
         setTimeout(() => { if (saveStatus) saveStatus.textContent = ''; }, 1500);
@@ -244,101 +218,6 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
         void saveNoteFile();
         return;
       }
-      if ((e.altKey && e.key === 'ArrowLeft') || e.key === 'PageUp') {
-        e.preventDefault();
-        void (async () => {
-          await saveNoteFile();
-          if (activeNotePageIndex > 0) {
-            setActiveNotePageIndex(activeNotePageIndex - 1);
-            setIsNoteAllPagesView(false);
-            render();
-          }
-        })();
-      } else if ((e.altKey && e.key === 'ArrowRight') || e.key === 'PageDown') {
-        e.preventDefault();
-        void (async () => {
-          await saveNoteFile();
-          const pages = parseNotePages(activeMarkdownFile?.content || '');
-          if (activeNotePageIndex < pages.length - 1) {
-            setActiveNotePageIndex(activeNotePageIndex + 1);
-            setIsNoteAllPagesView(false);
-            render();
-          }
-        })();
-      }
     });
   }
-
-  // Multipage Page Bar Controls
-  document.querySelectorAll<HTMLElement>('.notes-page-circle').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      await saveNoteFile();
-      const idx = parseInt(btn.dataset.pageIndex ?? '0', 10);
-      setActiveNotePageIndex(idx);
-      setIsNoteAllPagesView(false);
-      render();
-    });
-  });
-
-  document.querySelector('#notes-page-prev, #notes-prev-page')?.addEventListener('click', async () => {
-    await saveNoteFile();
-    if (activeNotePageIndex > 0) {
-      setActiveNotePageIndex(activeNotePageIndex - 1);
-      setIsNoteAllPagesView(false);
-      render();
-    }
-  });
-
-  document.querySelector('#notes-page-next, #notes-next-page')?.addEventListener('click', async () => {
-    await saveNoteFile();
-    const pages = parseNotePages(activeMarkdownFile?.content || '');
-    if (activeNotePageIndex < pages.length - 1) {
-      setActiveNotePageIndex(activeNotePageIndex + 1);
-      setIsNoteAllPagesView(false);
-      render();
-    }
-  });
-
-  document.querySelector('#notes-toggle-all-view, #notes-toggle-all-pages')?.addEventListener('click', async () => {
-    await saveNoteFile();
-    setIsNoteAllPagesView(!isNoteAllPagesView);
-    render();
-  });
-
-  document.querySelector('#notes-page-add, #notes-add-page-btn')?.addEventListener('click', async () => {
-    await saveNoteFile();
-    if (!activeMarkdownFile) return;
-    const current = (activeMarkdownFile.content || '').trimEnd();
-    const updated = current ? `${current}${PAGE_SEPARATOR}` : `<!-- pagebreak -->\n\n`;
-    activeMarkdownFile.content = updated;
-    await window.senku.saveTextFile(activeMarkdownFile.path, updated);
-    const pages = parseNotePages(updated);
-    setActiveNotePageIndex(Math.max(0, pages.length - 1));
-    setIsNoteAllPagesView(false);
-    setIsNotePreviewMode(false);
-    render();
-    const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
-    if (editor) {
-      editor.focus();
-      editor.setSelectionRange(editor.value.length, editor.value.length);
-    }
-  });
-
-  document.querySelector('#notes-page-delete')?.addEventListener('click', async () => {
-    if (!activeMarkdownFile) return;
-    const pages = parseNotePages(activeMarkdownFile.content || '');
-    if (pages.length <= 1) return;
-    pages.splice(activeNotePageIndex, 1);
-    const updated = joinNotePages(pages);
-    activeMarkdownFile.content = updated;
-    await window.senku.saveTextFile(activeMarkdownFile.path, updated);
-    setActiveNotePageIndex(Math.max(0, activeNotePageIndex - 1));
-    setIsNoteAllPagesView(false);
-    render();
-    const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
-    if (editor && !isNotePreviewMode) {
-      editor.focus();
-      editor.setSelectionRange(editor.value.length, editor.value.length);
-    }
-  });
 }

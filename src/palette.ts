@@ -9,12 +9,10 @@ import {
   setActiveMarkdownFile,
   isNotePreviewMode,
   setIsNotePreviewMode,
-  setActiveNotePageIndex,
-  setIsNoteAllPagesView,
   setCurrentFolder,
   setFilePaneCompact,
 } from './state';
-import { fuzzyMatch, escapeHtml, parseNotePages, PAGE_SEPARATOR } from './utils';
+import { fuzzyMatch, escapeHtml } from './utils';
 import { toast } from './toast';
 import {
   openWorkspaceFormModal,
@@ -124,9 +122,6 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
 
           const qNote = await window.senku.getOrCreateQuickNote();
           setActiveMarkdownFile(qNote);
-          const pages = parseNotePages(qNote.content || '');
-          setActiveNotePageIndex(Math.max(0, pages.length - 1));
-          setIsNoteAllPagesView(false);
           setIsNotePreviewMode(false);
 
           setView('Home');
@@ -215,8 +210,6 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
           try {
             const note = await window.senku.createFileNote(folder);
             setActiveMarkdownFile(note);
-            setActiveNotePageIndex(0);
-            setIsNoteAllPagesView(false);
             setIsNotePreviewMode(false);
             setView('Home');
             setHomeCenterMode('notes');
@@ -287,30 +280,6 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
               editor.focus();
               editor.setSelectionRange(editor.value.length, editor.value.length);
             }
-          }
-        },
-      });
-      items.push({
-        id: 'action-add-page',
-        type: 'Action',
-        typeOrder: 3,
-        text: 'Add Page to Active Note',
-        run: async () => {
-          const current = (currentNote.content || '').trimEnd();
-          const updated = current ? `${current}${PAGE_SEPARATOR}` : `<!-- page -->\n\n`;
-          currentNote.content = updated;
-          await window.senku.saveTextFile(currentNote.path, updated);
-          const pages = parseNotePages(updated);
-          setActiveNotePageIndex(Math.max(0, pages.length - 1));
-          setIsNoteAllPagesView(false);
-          setIsNotePreviewMode(false);
-          setView('Home');
-          setHomeCenterMode('notes');
-          render();
-          const editor = document.querySelector<HTMLTextAreaElement>('#notes-file-editor');
-          if (editor) {
-            editor.focus();
-            editor.setSelectionRange(editor.value.length, editor.value.length);
           }
         },
       });

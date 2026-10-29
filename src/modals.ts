@@ -6,11 +6,9 @@ import {
   activeNoteId,
   setActiveMarkdownFile,
   setHomeCenterMode,
-  setActiveNotePageIndex,
-  setIsNoteAllPagesView,
   setIsNotePreviewMode,
 } from './state';
-import { checkMainFolder, escapeHtml, DEFAULT_GREETING, parseNotePages } from './utils';
+import { checkMainFolder, escapeHtml, DEFAULT_GREETING } from './utils';
 import { uiIcon } from './markup';
 import { toast } from './toast';
 import pkg from '../package.json';
@@ -440,9 +438,6 @@ export function openNewNoteModal(
 
       setActiveMarkdownFile({ path: created.path, name: created.name, content: created.content });
       setHomeCenterMode('notes');
-      const pages = parseNotePages(created.content || '');
-      setActiveNotePageIndex(Math.max(0, pages.length - 1));
-      setIsNoteAllPagesView(false);
       setIsNotePreviewMode(false);
 
       await load(notesFolder);

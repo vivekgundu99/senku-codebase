@@ -5,11 +5,9 @@ import {
   homeCenterMode,
   activeMarkdownFile,
   isNotePreviewMode,
-  activeNotePageIndex,
-  isNoteAllPagesView,
   isGlobalNotesMode,
 } from '../state';
-import { escapeHtml, renderGreeting, parseNotePages } from '../utils';
+import { escapeHtml, renderGreeting } from '../utils';
 import { uiIcon } from './icons';
 import { formatRelativeTime } from './files';
 import { marked } from 'marked';
@@ -197,9 +195,6 @@ export function notesWindowMarkup(): string {
       <div class="notes-window-actions">
         ${file ? `
           <span class="notes-window-save-status" id="notes-file-save-status"></span>
-          <button type="button" class="notes-window-action-btn icon-only" id="copy-pagebreak-tag" title="Add this text in MD wherever you want pagebreak: &lt;!-- pagebreak --&gt;">
-            ${uiIcon('copy', 12)}
-          </button>
           <button type="button" class="notes-window-action-btn icon-only" id="refresh-notes-file" title="Refresh note and folder">
             ${uiIcon('refresh', 12)}
           </button>
@@ -227,13 +222,9 @@ export function notesWindowMarkup(): string {
     `;
   }
 
-  const content = file.content;
-  const pages = parseNotePages(content);
-  const totalPages = pages.length;
-  const currentPageIndex = Math.min(Math.max(0, activeNotePageIndex), Math.max(0, totalPages - 1));
-  const currentContent = isNoteAllPagesView ? content : (pages[currentPageIndex] ?? '');
-  const hasVisibleContent = currentContent.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0;
-  const previewHtml = isPreview && hasVisibleContent ? (marked.parse(currentContent, { gfm: true, breaks: true }) as string) : '';
+  const content = file.content || '';
+  const hasVisibleContent = content.trim().length > 0;
+  const previewHtml = isPreview && hasVisibleContent ? (marked.parse(content, { gfm: true, breaks: true }) as string) : '';
 
   return `
     <section class="notes-window-panel">
@@ -248,46 +239,11 @@ export function notesWindowMarkup(): string {
           <textarea
             id="notes-file-editor"
             class="notes-window-editor"
-            placeholder="${isNoteAllPagesView ? 'Start writing (all pages)...' : `Start writing on Page ${currentPageIndex + 1}...`}"
+            placeholder="Start writing markdown…"
             data-file-path="${escapeHtml(file.path)}"
             spellcheck="false"
-          >${escapeHtml(currentContent)}</textarea>
+          >${escapeHtml(content)}</textarea>
         `}
-
-        <div class="notes-pages-bar">
-          <div class="notes-pages-actions">
-            ${totalPages > 1 ? `
-              <button type="button" class="notes-pages-mode-btn ${isNoteAllPagesView ? 'active' : ''}" id="notes-toggle-all-view" title="${isNoteAllPagesView ? 'Switch to single page view' : 'View full note (all pages)'}">
-                ${isNoteAllPagesView ? 'Page view' : 'All'}
-              </button>
-            ` : ''}
-            <button type="button" class="notes-page-add-btn" id="notes-page-add" title="Add clean page">+ Page</button>
-          </div>
-          ${totalPages > 1 ? `
-            <div class="notes-pages-nav">
-              <button type="button" class="notes-page-nav-btn" id="notes-page-prev" title="Previous page (Alt+←)" ${currentPageIndex === 0 || isNoteAllPagesView ? 'disabled' : ''}>‹</button>
-              <div class="notes-pages-list">
-                ${pages.map((_, i) => `
-                  <button type="button" class="notes-page-circle ${!isNoteAllPagesView && i === currentPageIndex ? 'active' : ''}" data-page-index="${i}" title="Page ${i + 1}">
-                    ${i + 1}
-                  </button>
-                `).join('')}
-              </div>
-              <button type="button" class="notes-page-nav-btn" id="notes-page-next" title="Next page (Alt+→)" ${currentPageIndex >= totalPages - 1 || isNoteAllPagesView ? 'disabled' : ''}>›</button>
-            </div>
-            <div class="notes-pages-danger">
-              ${!isNoteAllPagesView ? `
-                <button type="button" class="notes-page-delete-btn" id="notes-page-delete" title="Delete current page">
-                  ${uiIcon('trash', 12)}
-                </button>
-              ` : ''}
-            </div>
-          ` : `
-            <div class="notes-pages-info">
-              <span class="notes-pages-single-hint">1 page</span>
-            </div>
-          `}
-        </div>
       </div>
     </section>
   `;

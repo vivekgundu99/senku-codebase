@@ -10,13 +10,10 @@ import {
   setFilePaneCompact,
   setCurrentFolder,
   setActiveMarkdownFile,
-  setActiveNotePageIndex,
-  setIsNoteAllPagesView,
   setIsNotePreviewMode,
   isGlobalNotesMode,
   setGlobalNotesMode,
 } from '../state';
-import { parseNotePages } from '../utils';
 import { uiIcon } from '../markup';
 import { toast } from '../toast';
 import { openPalette } from '../palette';
@@ -35,9 +32,6 @@ export function bindNavigation(load: LoadFn, render: RenderFn): void {
 
         const qNote = await window.senku.getOrCreateQuickNote();
         setActiveMarkdownFile(qNote);
-        const pages = parseNotePages(qNote.content || '');
-        setActiveNotePageIndex(Math.max(0, pages.length - 1));
-        setIsNoteAllPagesView(false);
         setIsNotePreviewMode(false);
 
         setView('Home');
