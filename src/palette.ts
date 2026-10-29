@@ -14,6 +14,7 @@ import {
 } from './state';
 import { fuzzyMatch, escapeHtml } from './utils';
 import { toast } from './toast';
+import { triggerGlobalRefresh } from './refresh';
 import {
   openWorkspaceFormModal,
   openAppSettingsModal,
@@ -243,15 +244,9 @@ export function openPalette(load: LoadFn, render: RenderFn): void {
         id: 'action-refresh',
         type: 'Action',
         typeOrder: 3,
-        text: 'Refresh (Soft Restart)',
+        text: 'Refresh',
         run: async () => {
-          setGlobalNotesMode(false);
-          setHomeCenterMode('overview');
-          setActiveMarkdownFile(null);
-          setFilePaneCompact(false);
-          setView('Home');
-          await load(state.workspace?.masterFolder);
-          toast('Restarted to Home');
+          await triggerGlobalRefresh(load, render);
         },
       },
       {

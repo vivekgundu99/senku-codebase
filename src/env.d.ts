@@ -25,6 +25,7 @@ declare global {
       readTextFile(path: string): Promise<string>;
       saveTextFile(path: string, content: string): Promise<boolean>;
       createFileNote(folderPath: string, name?: string): Promise<{ path: string; name: string; content: string }>;
+      deleteFileNote(path: string): Promise<{ ok: boolean; error?: string }>;
       zoomIn(): void;
       zoomOut(): void;
       resetZoom(): void;

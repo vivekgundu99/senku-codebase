@@ -461,5 +461,32 @@ export function openNewNoteModal(
   });
 }
 
+export function openDeleteNoteModal(noteName: string, onConfirm: () => Promise<void>): void {
+  const overlay = createOverlay(`
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2 class="dialog-title">Delete Note</h2>
+        <button class="dialog-close" id="close-modal" aria-label="Close">✕</button>
+      </div>
+      <div style="padding: 18px 20px 14px; font-size: 13.5px; color: var(--ink); line-height: 1.5;">
+        Are you sure you want to delete <strong>${escapeHtml(noteName)}</strong>?
+        <div style="margin-top: 6px; font-size: 12px; color: var(--soft);">
+          This file will be safely moved to your Windows Recycle Bin.
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-button" id="cancel-delete">Cancel</button>
+        <button type="button" class="danger-button" id="confirm-delete">Delete</button>
+      </div>
+    </div>
+  `);
+
+  overlay.querySelector('#cancel-delete')?.addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#confirm-delete')?.addEventListener('click', async () => {
+    overlay.remove();
+    await onConfirm();
+  });
+}
+
 
 

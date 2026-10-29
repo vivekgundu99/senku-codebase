@@ -209,7 +209,9 @@
   justify-content: center;
   padding: 0 0 14px;
   flex-direction: row;
-  height: 26px;
+  height: 40px;
+  min-height: 40px;
+  box-sizing: border-box;
   gap: 0;
 }
 
@@ -228,19 +230,26 @@
 
 .sidebar.collapsed .nav-item {
   justify-content: center;
-  padding: 8px 0;
+  padding: 6px 0;
+  min-height: 30px;
+  height: 30px;
   gap: 0;
 }
 
 .sidebar.collapsed .spaces-head {
   justify-content: center;
-  margin: 12px 0 6px;
-  padding-top: 10px;
+  margin: 14px 4px 10px;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  height: 1px;
+  min-height: 1px;
 }
 
 .sidebar.collapsed .space-item {
   justify-content: center;
-  padding: 4px 0;
+  padding: 6px 0;
+  min-height: 34px;
+  height: 34px;
   gap: 0;
 }
 

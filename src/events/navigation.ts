@@ -16,6 +16,7 @@ import {
 } from '../state';
 import { uiIcon } from '../markup';
 import { toast } from '../toast';
+import { triggerGlobalRefresh } from '../refresh';
 import { openPalette } from '../palette';
 import { openProfileModal } from '../modals';
 import type { LoadFn, RenderFn } from './types';
@@ -79,12 +80,7 @@ export function bindSidebarButtons(_load: LoadFn, render: RenderFn): void {
 
 export function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
   document.querySelector('#refresh-button')?.addEventListener('click', () => {
-    setGlobalNotesMode(false);
-    setHomeCenterMode('overview');
-    setActiveMarkdownFile(null);
-    setFilePaneCompact(false);
-    setView('Home');
-    void load(state.workspace?.masterFolder).then(() => toast('Restarted to Home'));
+    void triggerGlobalRefresh(load, render);
   });
 
   // Tools dropdown menu

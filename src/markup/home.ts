@@ -195,15 +195,17 @@ export function notesWindowMarkup(): string {
       <div class="notes-window-actions">
         ${file ? `
           <span class="notes-window-save-status" id="notes-file-save-status"></span>
-          <button type="button" class="notes-window-action-btn icon-only" id="refresh-notes-file" title="Refresh note and folder">
-            ${uiIcon('refresh', 12)}
-          </button>
           <button type="button" class="notes-window-action-btn ${isPreview ? 'active' : ''}" id="toggle-note-preview-mode" title="${isPreview ? 'Switch to Edit' : 'Switch to Preview'}">
             ${uiIcon(isPreview ? 'pen' : 'eye', 11)} <span>${isPreview ? 'Edit' : 'Preview'}</span>
           </button>
           <button type="button" class="notes-window-action-btn" id="open-note-in-default" title="Open in default application">
             ${uiIcon('external', 11)} <span>Open</span>
           </button>
+          ${file.name.toLowerCase() !== 'senku.md' ? `
+            <button type="button" class="notes-window-action-btn danger-hover icon-only" id="delete-note-file" title="Delete ${escapeHtml(file.name)}">
+              ${uiIcon('trash', 12)}
+            </button>
+          ` : ''}
         ` : ''}
       </div>
     </div>`;

@@ -1,6 +1,7 @@
 import { state, isGlobalNotesMode, setGlobalNotesMode, setHomeCenterMode, setActiveMarkdownFile, setFilePaneCompact, setView } from './state';
 import { isSamePath, parentOf } from './utils';
 import { toast } from './toast';
+import { triggerGlobalRefresh } from './refresh';
 
 type ShortcutContext = {
   load: (path?: string) => Promise<void>;
@@ -16,13 +17,8 @@ const shortcuts = [
   },
   {
     key: 'r',
-    run: ({ load }: ShortcutContext) => {
-      setGlobalNotesMode(false);
-      setHomeCenterMode('overview');
-      setActiveMarkdownFile(null);
-      setFilePaneCompact(false);
-      setView('Home');
-      void load(state.workspace?.masterFolder).then(() => toast('Restarted to Home'));
+    run: ({ load, render }: ShortcutContext) => {
+      void triggerGlobalRefresh(load, render);
     },
   },
   {

@@ -1022,6 +1022,12 @@
   border-color: var(--green);
 }
 
+.notes-window-action-btn.danger-hover:hover {
+  background: rgba(207, 67, 56, 0.1);
+  color: var(--red);
+  border-color: rgba(207, 67, 56, 0.3);
+}
+
 .notes-window-save-status {
   font: 700 9.5px var(--mono);
   color: var(--soft);

@@ -12,7 +12,7 @@ import {
   setView,
   setFilePaneCompact,
 } from '../state';
-import { openNewNoteModal } from '../modals';
+import { openNewNoteModal, openDeleteNoteModal } from '../modals';
 import { toast } from '../toast';
 import type { LoadFn, RenderFn } from './types';
 
@@ -112,23 +112,29 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
     }
   });
 
-  // Notes Window: Local refresh note and folder (reflects overlay changes instantly)
-  document.querySelector('#refresh-notes-file')?.addEventListener('click', async () => {
-    if (!activeMarkdownFile) return;
-    try {
-      const content = await window.senku.readTextFile(activeMarkdownFile.path);
-      activeMarkdownFile.content = content;
-      let folder = state.currentPath;
-      if (isGlobalNotesMode && !folder) {
-        folder = await window.senku.getNotesPath();
+  // Notes Window: Delete active note (never senku.md)
+  document.querySelector('#delete-note-file')?.addEventListener('click', () => {
+    if (!activeMarkdownFile || activeMarkdownFile.name.toLowerCase() === 'senku.md') return;
+    const target = activeMarkdownFile;
+    openDeleteNoteModal(target.name, async () => {
+      const res = await window.senku.deleteFileNote(target.path);
+      if (res.ok) {
+        toast(`Deleted ${target.name}`);
+        const qNote = await window.senku.getOrCreateQuickNote();
+        setActiveMarkdownFile(qNote);
+        setIsNotePreviewMode(false);
+        let folder = state.currentPath;
+        if (isGlobalNotesMode && (!folder || !folder.toLowerCase().includes('notes'))) {
+          folder = await window.senku.getNotesPath();
+        }
+        if (folder) await load(folder);
+        render();
+      } else {
+        toast(res.error || 'Failed to delete note');
       }
-      if (folder) await load(folder);
-      render();
-      toast('Note refreshed');
-    } catch {
-      toast('Could not refresh note.');
-    }
+    });
   });
+
 
   // Notes Window: Create new note in current folder
   document.querySelector('#new-note-in-folder')?.addEventListener('click', async () => {

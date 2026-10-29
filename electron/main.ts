@@ -1125,6 +1125,24 @@ ipcMain.handle('file:create-note', async (_event, folderPath: string, name?: str
   };
 });
 
+ipcMain.handle('file:delete-note', async (_event, filePath: string) => {
+  try {
+    const base = path.basename(filePath).toLowerCase();
+    if (base === 'senku.md') {
+      return { ok: false, error: 'Cannot delete primary scratchpad (senku.md)' };
+    }
+    await shell.trashItem(filePath);
+    return { ok: true };
+  } catch {
+    try {
+      await fs.unlink(filePath);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  }
+});
+
 // ---------------------------------------------------------------------------
 // V3: Resource Opening (Web URL or default OS handler)
 // ---------------------------------------------------------------------------

@@ -85,6 +85,9 @@ const api = {
   createFileNote: (folderPath: string, name?: string) =>
     ipcRenderer.invoke('file:create-note', folderPath, name) as Promise<{ path: string; name: string; content: string }>,
 
+  deleteFileNote: (filePath: string) =>
+    ipcRenderer.invoke('file:delete-note', filePath) as Promise<{ ok: boolean; error?: string }>,
+
   // --- V3: Quiet Log ---
   addLogEntry: (text: string, spaceId?: string) =>
     ipcRenderer.invoke('log:add', text, spaceId) as Promise<AppSnapshot>,
