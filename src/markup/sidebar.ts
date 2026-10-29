@@ -75,10 +75,10 @@ export function sidebarMarkup(): string {
       <div class="spaces-head">
         <span class="workspace-label">ACTIVE SPACES</span>
         <div class="spaces-head-actions">
-          <button class="spaces-head-btn" id="all-spaces-btn" title="All Spaces" aria-label="All Spaces">
-            ${uiIcon('list', 15)}
+          <button class="spaces-head-btn" id="create-space-sidebar-btn" title="New Space" aria-label="New Space">
+            ${uiIcon('plus', 15)}
           </button>
-          <button class="spaces-head-btn" id="search-spaces-btn" title="Search Spaces" aria-label="Search Spaces">
+          <button class="spaces-head-btn" id="search-spaces-btn" title="View all spaces" aria-label="View all spaces">
             ${uiIcon('search', 15)}
           </button>
         </div>

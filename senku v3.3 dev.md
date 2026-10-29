@@ -134,11 +134,9 @@ To eliminate confusion between the global catalog of spaces, the open sidebar ta
     - Space name.
     - Close button `[✕]` on hover (hidden or disabled if `openSpaceIds.length <= 1`).
     - Settings gear icon if active.
-- **Add Space Button (`+`):**
-  - Located in the `SPACES` section header.
-  - Clicking opens a menu or modal offering:
-    1. "Open Existing Space" (from spaces not currently in sidebar).
-    2. "Create New Space" (pick name & master folder).
+- **Header Actions on ACTIVE SPACES:**
+  - `[+]` **New Space**: Directly opens the Create Space modal dialog.
+  - `[🔍]` **View all spaces**: Opens the searchable catalog popover to find and switch to any space, with a `+ New Space` shortcut in the footer.
 
 ### 3.5. Topbar Space Switcher (Global Directory)
 

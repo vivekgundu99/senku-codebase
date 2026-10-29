@@ -154,16 +154,16 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       return;
     }
 
-    // Sidebar All Spaces button (GUI list)
-    const allSpacesBtn = target.closest<HTMLElement>('#all-spaces-btn');
-    if (allSpacesBtn) {
+    // Sidebar Create Space button (+)
+    const createSpaceSidebarBtn = target.closest<HTMLElement>('#create-space-sidebar-btn');
+    if (createSpaceSidebarBtn) {
       e.preventDefault();
       e.stopPropagation();
-      openAllSpacesMenu(allSpacesBtn, load);
+      openWorkspaceFormModal(load);
       return;
     }
 
-    // Sidebar Search Spaces button (Filterable box)
+    // Sidebar View All Spaces button (Filterable popover)
     const searchSpacesBtn = target.closest<HTMLElement>('#search-spaces-btn');
     if (searchSpacesBtn) {
       e.preventDefault();
@@ -184,79 +184,6 @@ export function initGlobalListeners(load: LoadFn, render: RenderFn): void {
       return;
     }
   }, true);
-}
-
-function openAllSpacesMenu(anchorBtn: HTMLElement, load: LoadFn): void {
-  document.querySelectorAll('.topbar-spaces-popover').forEach((p) => p.remove());
-
-  const allWorkspaces = [...(state.workspaces ?? [])]
-    .filter((w) => w.id !== '__senku_notes__' && !(w as any).isNotesSpace)
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-
-  const currentWsId = state.workspace?.id;
-
-  const itemsHtml = allWorkspaces.map((ws) => {
-    const isCurrent = ws.id === currentWsId;
-    return `
-      <button type="button" class="spaces-popover-item ${isCurrent ? 'active' : ''}" data-select-space="${ws.id}">
-        <span class="spaces-popover-badge">${escapeHtml(ws.name.charAt(0).toUpperCase() || '?')}</span>
-        <span class="spaces-popover-name">${escapeHtml(ws.name)}</span>
-        ${isCurrent ? `<span class="spaces-popover-check">✓</span>` : ''}
-      </button>
-    `;
-  }).join('');
-
-  const popover = document.createElement('div');
-  popover.className = 'topbar-spaces-popover';
-  popover.innerHTML = `
-    <div class="spaces-popover-header">ALL SPACES</div>
-    <div class="spaces-popover-list">
-      ${itemsHtml || '<div class="spaces-popover-empty" style="padding: 8px; font-size: 11px; color: var(--muted);">No spaces yet</div>'}
-    </div>
-  `;
-
-  const rect = anchorBtn.getBoundingClientRect();
-  popover.style.top = `${rect.bottom + 4}px`;
-  popover.style.left = `${rect.left}px`;
-
-  document.body.appendChild(popover);
-
-  const closePopover = () => {
-    popover.remove();
-    document.removeEventListener('click', onDocClick);
-    document.removeEventListener('keydown', onDocKey);
-  };
-
-  const onDocClick = (evt: MouseEvent) => {
-    if (!popover.contains(evt.target as Node) && evt.target !== anchorBtn) {
-      closePopover();
-    }
-  };
-
-  const onDocKey = (evt: KeyboardEvent) => {
-    if (evt.key === 'Escape') closePopover();
-  };
-
-  setTimeout(() => {
-    document.addEventListener('click', onDocClick);
-    document.addEventListener('keydown', onDocKey);
-  }, 0);
-
-  popover.querySelectorAll<HTMLElement>('[data-select-space]').forEach((item) => {
-    item.addEventListener('click', async () => {
-      const targetId = item.dataset.selectSpace;
-      closePopover();
-      if (targetId && targetId !== currentWsId) {
-        if (isGlobalNotesMode) {
-          setGlobalNotesMode(false);
-          setHomeCenterMode('overview');
-        }
-        await window.senku.switchWorkspace(targetId);
-        setView('Home');
-        await load();
-      }
-    });
-  });
 }
 
 function openSearchSpacesMenu(anchorBtn: HTMLElement, load: LoadFn): void {
@@ -300,6 +227,12 @@ function openSearchSpacesMenu(anchorBtn: HTMLElement, load: LoadFn): void {
     <div class="spaces-popover-list" id="spaces-popover-list">
       ${renderList()}
     </div>
+    <div class="spaces-popover-footer">
+      <button type="button" class="spaces-popover-add-btn" id="popover-create-space">
+        ${uiIcon('plus', 12)}
+        <span>New Space</span>
+      </button>
+    </div>
   `;
 
   const rect = anchorBtn.getBoundingClientRect();
@@ -333,6 +266,11 @@ function openSearchSpacesMenu(anchorBtn: HTMLElement, load: LoadFn): void {
     document.addEventListener('click', onDocClick);
     document.addEventListener('keydown', onDocKey);
   }, 0);
+
+  popover.querySelector('#popover-create-space')?.addEventListener('click', () => {
+    closePopover();
+    openWorkspaceFormModal(load);
+  });
 
   const bindItemClicks = () => {
     listEl.querySelectorAll<HTMLElement>('[data-select-space]').forEach((item) => {
