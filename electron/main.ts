@@ -19,9 +19,12 @@ import { randomUUID } from 'node:crypto';
 import type {
   AppSnapshot,
   FileEntry,
+  FocusSession,
   HomeData,
+  InboxItem,
   LogEntry,
   NoteFile,
+  PinnedLink,
   Settings,
   TrashWorkspace,
   Workspace,
@@ -101,6 +104,24 @@ const trashFile = () => path.join(baseDir(), 'trash.json');
 const spaceDir = (id: string) => path.join(baseDir(), 'spaces', id);
 const trashSpaceDir = (id: string) => path.join(baseDir(), 'trash', id);
 const globalNotesDir = () => path.join(app.getPath('documents'), 'Senku Notes');
+const inboxFile = () => path.join(baseDir(), 'inbox.json');
+const focusFile = () => path.join(baseDir(), 'focus.json');
+
+async function getInboxItems(): Promise<InboxItem[]> {
+  return readJson<InboxItem[]>(inboxFile(), []);
+}
+
+async function saveInboxItems(items: InboxItem[]): Promise<void> {
+  await writeJson(inboxFile(), items);
+}
+
+async function getFocusSession(): Promise<FocusSession | null> {
+  return readJson<FocusSession | null>(focusFile(), null);
+}
+
+async function saveFocusSession(session: FocusSession | null): Promise<void> {
+  await writeJson(focusFile(), session);
+}
 
 // ---------------------------------------------------------------------------
 // JSON helpers
@@ -271,8 +292,8 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
 
   const workspace = spaceId ? getWorkspace(workspaces, spaceId) : null;
 
-  // Parallel: workspace availability checks + trash + logs + notes metadata
-  const [workspaceFolderAvailabilityEntries, trashWorkspaces, allLogs, notesAndBundles] =
+  // Parallel: workspace availability checks + trash + logs + notes metadata + inbox + focus session
+  const [workspaceFolderAvailabilityEntries, trashWorkspaces, allLogs, notesAndBundles, inboxItems, activeSession] =
     await Promise.all([
       Promise.all(
         workspaces.map(async (ws) =>
@@ -283,6 +304,8 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       listLog(masterLogFile()),
       // Single-pass: one readdir, stat-only (no file content reads)
       listNotesAndBundles(globalNotesDir()),
+      getInboxItems(),
+      getFocusSession(),
     ]);
 
   const workspaceFolderAvailability = Object.fromEntries(workspaceFolderAvailabilityEntries);
@@ -318,6 +341,8 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
       bundles,
       activeNoteId,
       home,
+      inboxItems,
+      activeSession,
     };
   }
 
@@ -355,6 +380,8 @@ async function snapshot(requestedPath?: string): Promise<AppSnapshot> {
     bundles,
     activeNoteId,
     home,
+    inboxItems,
+    activeSession,
   };
 }
 
@@ -916,6 +943,122 @@ handleLocked('workspace:purge-trash', async (_event, id?: string) => {
     }
     await saveTrashWorkspaces([]);
   }
+  return snapshot();
+});
+
+// ---------------------------------------------------------------------------
+// Reborn: Space Objective & Pinned Links (Launchpad)
+// ---------------------------------------------------------------------------
+
+handleLocked('space:update-objective', async (_event, id: string, objective: string) => {
+  const workspaces = await getWorkspaces();
+  const workspace = getWorkspace(workspaces, id);
+  if (!workspace) throw new Error('Space not found.');
+  workspace.activeObjective = (objective || '').trim();
+  await saveWorkspaces(workspaces);
+  return snapshot();
+});
+
+handleLocked('space:add-link', async (_event, id: string, title: string, url: string) => {
+  const workspaces = await getWorkspaces();
+  const workspace = getWorkspace(workspaces, id);
+  if (!workspace) throw new Error('Space not found.');
+  const trimmedUrl = (url || '').trim();
+  if (!trimmedUrl) throw new Error('URL is required.');
+  const trimmedTitle = (title || '').trim() || trimmedUrl.replace(/^https?:\/\//i, '').split('/')[0];
+  const links = workspace.pinnedLinks || [];
+  links.push({
+    id: randomUUID(),
+    title: trimmedTitle,
+    url: trimmedUrl,
+  });
+  workspace.pinnedLinks = links;
+  await saveWorkspaces(workspaces);
+  return snapshot();
+});
+
+handleLocked('space:remove-link', async (_event, id: string, linkId: string) => {
+  const workspaces = await getWorkspaces();
+  const workspace = getWorkspace(workspaces, id);
+  if (!workspace) throw new Error('Space not found.');
+  workspace.pinnedLinks = (workspace.pinnedLinks || []).filter((l) => l.id !== linkId);
+  await saveWorkspaces(workspaces);
+  return snapshot();
+});
+
+// ---------------------------------------------------------------------------
+// Reborn: Capture & Triage Inbox
+// ---------------------------------------------------------------------------
+
+handleLocked('inbox:add', async (_event, text: string, spaceId?: string) => {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return snapshot();
+  const items = await getInboxItems();
+  const newItem: InboxItem = {
+    id: randomUUID(),
+    text: trimmed,
+    createdAt: Date.now(),
+    spaceId,
+  };
+  await saveInboxItems([newItem, ...items]);
+  return snapshot();
+});
+
+handleLocked('inbox:delete', async (_event, id: string) => {
+  const items = await getInboxItems();
+  await saveInboxItems(items.filter((item) => item.id !== id));
+  return snapshot();
+});
+
+handleLocked('inbox:triage', async (_event, id: string, action: 'log' | 'objective' | 'delete', spaceId?: string) => {
+  const items = await getInboxItems();
+  const target = items.find((item) => item.id === id);
+  if (!target) return snapshot();
+
+  if (action === 'log') {
+    const ws = spaceId ? getWorkspace(await getWorkspaces(), spaceId) : null;
+    await addLog(masterLogFile(), target.text, spaceId, ws?.name);
+  } else if (action === 'objective' && spaceId) {
+    const workspaces = await getWorkspaces();
+    const workspace = getWorkspace(workspaces, spaceId);
+    if (workspace) {
+      workspace.activeObjective = target.text;
+      await saveWorkspaces(workspaces);
+    }
+  }
+
+  await saveInboxItems(items.filter((item) => item.id !== id));
+  return snapshot();
+});
+
+// ---------------------------------------------------------------------------
+// Reborn: Focus Engine
+// ---------------------------------------------------------------------------
+
+handleLocked('focus:start', async (_event, durationMinutes: number, objective?: string, spaceId?: string) => {
+  const session: FocusSession = {
+    id: randomUUID(),
+    spaceId,
+    objective: (objective || '').trim() || undefined,
+    durationMinutes: Math.max(1, durationMinutes || 25),
+    startedAt: Date.now(),
+    state: 'running',
+  };
+  await saveFocusSession(session);
+  return snapshot();
+});
+
+handleLocked('focus:stop', async (_event, status: 'completed' | 'cancelled') => {
+  const current = await getFocusSession();
+  if (current) {
+    current.state = status;
+    await saveFocusSession(current);
+  }
+  return snapshot();
+});
+
+handleLocked('focus:clear', async () => {
+  await saveFocusSession(null);
   return snapshot();
 });
 
@@ -1660,6 +1803,18 @@ handleLocked('notes:append-active', async (_event, snippet: string) => {
     ? `${existing.trimEnd()}\n\n${trimmed}\n`
     : `# Senku\n\n${trimmed}\n`;
   await fs.writeFile(sPath, updated, 'utf8');
+
+  // Also add to Reborn Inbox for 1-click triage
+  try {
+    const items = await getInboxItems();
+    const newItem: InboxItem = {
+      id: randomUUID(),
+      text: trimmed,
+      createdAt: Date.now(),
+    };
+    await saveInboxItems([newItem, ...items]);
+  } catch {}
+
   // NOTE: Zero IPC broadcast (no snapshot:updated) - prevents any main window UI thrashing
   return { ok: true, noteName: 'senku.md' };
 });

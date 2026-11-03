@@ -709,6 +709,15 @@
   gap: 8px;
 }
 
+.notes-markdown-preview input[type="checkbox"],
+.simple-md-scroll input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--green);
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+
 .notes-markdown-preview li:has(input[type="checkbox"]:checked),
 .simple-md-scroll li:has(input[type="checkbox"]:checked) {
   opacity: 0.55;

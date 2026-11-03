@@ -1,6 +1,7 @@
 import { state, currentView, homeCenterMode, isGlobalNotesMode } from '../state';
 import { escapeHtml } from '../utils';
 import { uiIcon } from './icons';
+import { formatTimerSeconds, getRemainingSeconds } from '../focus';
 
 export function topbarMarkup(): string {
   const ws = state.workspace;
@@ -20,12 +21,30 @@ export function topbarMarkup(): string {
       </div>`
     : '';
 
+  const session = state.activeSession;
+  const focusPill = (session && session.state === 'running')
+    ? `<div class="topbar-focus-pill running" title="${escapeHtml(session.objective || 'Focus Session')}">
+        <span class="focus-pulse-dot"></span>
+        <span class="focus-countdown" id="topbar-focus-countdown">${formatTimerSeconds(getRemainingSeconds())}</span>
+        <span class="focus-title">${escapeHtml(session.objective || ws?.name || 'Focus')}</span>
+        <button type="button" class="focus-pill-btn done" id="topbar-focus-done" title="Finish session (✓)">${uiIcon('check', 11)}</button>
+        <button type="button" class="focus-pill-btn stop" id="topbar-focus-stop" title="Cancel session (✕)">✕</button>
+      </div>`
+    : `<div class="topbar-focus-pill idle">
+        <span class="focus-idle-icon">${uiIcon('clock', 12)}</span>
+        <button type="button" class="focus-preset-btn" data-start-focus="25" title="Start 25m focus sprint">25m</button>
+        <button type="button" class="focus-preset-btn" data-start-focus="45" title="Start 45m deep flow">45m</button>
+      </div>`;
+
   return `
     <header class="topbar">
       <div class="topbar-left">
         <span class="topbar-view-title">${pageTitle}</span>
         <span class="topbar-dot-sep">·</span>
         <span class="date-line">${dateFormatted}</span>
+      </div>
+      <div class="topbar-center">
+        ${focusPill}
       </div>
       <div class="top-actions">
         ${spaceBadge}

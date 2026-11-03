@@ -17,6 +17,18 @@ declare global {
       purgeTrash(id?: string): Promise<AppSnapshot>;
       renameWorkspace(id: string, name: string): Promise<AppSnapshot>;
       setMasterFolder(id: string, folder: string): Promise<AppSnapshot>;
+      // Reborn: Space Objective & Launchpad
+      updateSpaceObjective(id: string, objective: string): Promise<AppSnapshot>;
+      addSpaceLink(id: string, title: string, url: string): Promise<AppSnapshot>;
+      removeSpaceLink(id: string, linkId: string): Promise<AppSnapshot>;
+      // Reborn: Capture & Triage Inbox
+      addInboxItem(text: string, spaceId?: string): Promise<AppSnapshot>;
+      deleteInboxItem(id: string): Promise<AppSnapshot>;
+      triageInboxItem(id: string, action: 'log' | 'objective' | 'delete', spaceId?: string): Promise<AppSnapshot>;
+      // Reborn: Focus Engine
+      startFocus(durationMinutes: number, objective?: string, spaceId?: string): Promise<AppSnapshot>;
+      stopFocus(status: 'completed' | 'cancelled'): Promise<AppSnapshot>;
+      clearFocus(): Promise<AppSnapshot>;
       openPath(path: string): Promise<{ ok: boolean; error?: string }>;
       openUserGuide(): Promise<{ ok: boolean; error?: string }>;
       copyPath(path: string): Promise<boolean>;

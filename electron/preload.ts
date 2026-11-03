@@ -57,6 +57,36 @@ const api = {
   setMasterFolder: (id: string, folder: string) =>
     ipcRenderer.invoke('workspace:set-master-folder', id, folder) as Promise<AppSnapshot>,
 
+  // --- Reborn: Space Objective & Launchpad ---
+  updateSpaceObjective: (id: string, objective: string) =>
+    ipcRenderer.invoke('space:update-objective', id, objective) as Promise<AppSnapshot>,
+
+  addSpaceLink: (id: string, title: string, url: string) =>
+    ipcRenderer.invoke('space:add-link', id, title, url) as Promise<AppSnapshot>,
+
+  removeSpaceLink: (id: string, linkId: string) =>
+    ipcRenderer.invoke('space:remove-link', id, linkId) as Promise<AppSnapshot>,
+
+  // --- Reborn: Capture & Triage Inbox ---
+  addInboxItem: (text: string, spaceId?: string) =>
+    ipcRenderer.invoke('inbox:add', text, spaceId) as Promise<AppSnapshot>,
+
+  deleteInboxItem: (id: string) =>
+    ipcRenderer.invoke('inbox:delete', id) as Promise<AppSnapshot>,
+
+  triageInboxItem: (id: string, action: 'log' | 'objective' | 'delete', spaceId?: string) =>
+    ipcRenderer.invoke('inbox:triage', id, action, spaceId) as Promise<AppSnapshot>,
+
+  // --- Reborn: Focus Engine ---
+  startFocus: (durationMinutes: number, objective?: string, spaceId?: string) =>
+    ipcRenderer.invoke('focus:start', durationMinutes, objective, spaceId) as Promise<AppSnapshot>,
+
+  stopFocus: (status: 'completed' | 'cancelled') =>
+    ipcRenderer.invoke('focus:stop', status) as Promise<AppSnapshot>,
+
+  clearFocus: () =>
+    ipcRenderer.invoke('focus:clear') as Promise<AppSnapshot>,
+
   // --- File system ---
   readFolder: (folderPath: string) =>
     ipcRenderer.invoke('folder:read', folderPath) as Promise<{ entries: FileEntry[]; currentPath: string }>,

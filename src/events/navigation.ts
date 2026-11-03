@@ -17,6 +17,7 @@ import {
 import { uiIcon } from '../markup';
 import { toast } from '../toast';
 import { triggerGlobalRefresh } from '../refresh';
+import { startFocusSession, stopFocusSession } from '../focus';
 import { openPalette } from '../palette';
 import { openProfileModal } from '../modals';
 import type { LoadFn, RenderFn } from './types';
@@ -81,6 +82,22 @@ export function bindSidebarButtons(_load: LoadFn, render: RenderFn): void {
 export function bindTopbarButtons(load: LoadFn, render: RenderFn): void {
   document.querySelector('#refresh-button')?.addEventListener('click', () => {
     void triggerGlobalRefresh(load, render);
+  });
+
+  // Reborn Focus Engine
+  document.querySelectorAll<HTMLElement>('[data-start-focus]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mins = parseInt(btn.dataset.startFocus || '25', 10);
+      void startFocusSession(mins, undefined, load, render);
+    });
+  });
+
+  document.querySelector('#topbar-focus-done')?.addEventListener('click', () => {
+    void stopFocusSession('completed', load, render);
+  });
+
+  document.querySelector('#topbar-focus-stop')?.addEventListener('click', () => {
+    void stopFocusSession('cancelled', load, render);
   });
 
   // Tools dropdown menu

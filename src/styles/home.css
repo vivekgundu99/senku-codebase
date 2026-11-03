@@ -1132,5 +1132,411 @@
   line-height: 1.45;
 }
 
+/* ==========================================================================
+   REBORN COCKPIT DESIGN SYSTEM
+   ========================================================================== */
+
+.reborn-cockpit-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.reborn-cockpit-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.reborn-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s ease;
+}
+
+.reborn-card:hover {
+  border-color: var(--border-hover, #d9d5c9);
+}
+
+.reborn-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.reborn-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reborn-card-icon {
+  display: inline-flex;
+  color: var(--soft);
+}
+
+.reborn-card-icon.objective-icon { color: var(--green); }
+.reborn-card-icon.launch-icon { color: #d97706; }
+.reborn-card-icon.inbox-icon { color: #2563eb; }
+.reborn-card-icon.timeline-icon { color: var(--green); }
+
+.reborn-card-label {
+  font: 750 11px var(--mono);
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.reborn-mini-btn, .reborn-mini-link {
+  font: 600 11px var(--sans);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.reborn-mini-btn:hover, .reborn-mini-link:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+/* Active Objective Card */
+.reborn-objective-card {
+  border-left: 3px solid var(--green);
+}
+
+.reborn-objective-body {
+  display: flex;
+  align-items: center;
+}
+
+.reborn-objective-input {
+  width: 100%;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 4px 0;
+  line-height: 1.4;
+}
+
+.reborn-objective-input::placeholder {
+  color: var(--soft);
+  font-weight: 500;
+  font-size: 13.5px;
+}
+
+.reborn-action-btn.complete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--green);
+  background: var(--green-pale);
+  color: var(--green);
+  font: 600 11.5px var(--sans);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.reborn-action-btn.complete-btn:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+/* Launchpad Grid */
+.reborn-launchpad-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.reborn-launchpad-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--hover, rgba(0,0,0,0.02));
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.12s ease;
+}
+
+.reborn-launchpad-item:hover {
+  background: var(--surface);
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.launchpad-link-anchor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.launchpad-item-remove {
+  border: none;
+  background: transparent;
+  color: var(--soft);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.launchpad-item-remove:hover {
+  color: var(--red);
+}
+
+/* Inbox Deck */
+.reborn-inbox-card {
+  border-left: 3px solid #2563eb;
+  background: rgba(37, 99, 235, 0.02);
+}
+
+.inbox-sub-hint {
+  font-size: 11px;
+  color: var(--soft);
+  font-style: italic;
+}
+
+.reborn-inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reborn-inbox-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  gap: 12px;
+}
+
+.inbox-item-text {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.inbox-triage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.inbox-triage-btn.focus-target:hover {
+  background: var(--green-pale);
+  color: var(--green);
+  border-color: var(--green);
+}
+
+.inbox-triage-btn.log-milestone:hover {
+  background: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+  border-color: #d97706;
+}
+
+.inbox-triage-btn.delete-item:hover {
+  background: rgba(207, 67, 56, 0.1);
+  color: var(--red);
+  border-color: rgba(207, 67, 56, 0.3);
+}
+
+/* Momentum Timeline */
+.reborn-quick-log-wrap {
+  margin-bottom: 12px;
+}
+
+.reborn-quick-log-input-box {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 2px 8px;
+  transition: border-color 0.15s ease;
+}
+
+.reborn-quick-log-input-box:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px var(--green-pale);
+}
+
+.reborn-quick-log-input {
+  flex: 1 1 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 6px 0;
+}
+
+.reborn-quick-log-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: none;
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+
+.reborn-quick-log-submit:hover {
+  opacity: 0.9;
+}
+
+.reborn-quick-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.reborn-tag-chip {
+  font: 600 10.5px var(--sans);
+  color: var(--soft);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.reborn-tag-chip:hover {
+  color: var(--ink);
+  background: var(--hover);
+  border-color: var(--border-hover);
+}
+
+.timeline-group-header {
+  font: 700 11px var(--mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 12px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.timeline-group-header:first-child {
+  margin-top: 0;
+}
+
+.reborn-timeline-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.04);
+}
+
+.timeline-row-time {
+  font: 600 10.5px var(--mono);
+  color: var(--soft);
+  flex-shrink: 0;
+  width: 54px;
+}
+
+.reborn-tag-badge {
+  font: 700 10px var(--sans);
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.reborn-tag-badge.milestone {
+  background: rgba(30, 90, 58, 0.1);
+  color: var(--green);
+}
+
+.reborn-tag-badge.bug {
+  background: rgba(207, 67, 56, 0.1);
+  color: var(--red);
+}
+
+.reborn-tag-badge.focus {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.reborn-tag-badge.note {
+  background: rgba(100, 116, 139, 0.1);
+  color: #475569;
+}
+
+.timeline-row-text {
+  color: var(--ink);
+  flex: 1 1 0;
+  word-break: break-word;
+}
+
+.timeline-empty-hint {
+  font-size: 12.5px;
+  color: var(--soft);
+  font-style: italic;
+  padding: 16px 0;
+}
+
 
 

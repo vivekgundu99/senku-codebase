@@ -12,7 +12,7 @@ import {
   setView,
   setFilePaneCompact,
 } from '../state';
-import { openNewNoteModal, openDeleteNoteModal } from '../modals';
+import { openNewNoteModal, openDeleteNoteModal, openAddLinkModal } from '../modals';
 import { toast } from '../toast';
 import type { LoadFn, RenderFn } from './types';
 
@@ -29,62 +29,144 @@ export function growTextarea(el: HTMLTextAreaElement, minPx: number, maxPx = 200
 }
 
 export function bindHomeActions(load: LoadFn, render: RenderFn): void {
-  const textarea = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
-  const btn = document.querySelector<HTMLButtonElement>('#home-capture-submit');
+  const ws = state.workspace;
 
-  const adjustHomeHeight = () => {
-    if (!textarea) return;
-    textarea.style.height = '20px';
-    const scrollH = textarea.scrollHeight;
-    if (scrollH > 24) {
-      const targetH = Math.min(180, scrollH);
-      textarea.style.height = `${targetH}px`;
-      textarea.style.overflowY = scrollH > 180 ? 'auto' : 'hidden';
-    } else {
-      textarea.style.height = '20px';
-      textarea.style.overflowY = 'hidden';
-    }
-  };
-
-  if (textarea) {
-    textarea.addEventListener('input', () => {
-      setHomeLogDraft(textarea.value);
-      adjustHomeHeight();
-    });
-    adjustHomeHeight();
-    textarea.addEventListener('keydown', (e) => {
-      if (isSendKey(e)) {
+  // --- Reborn: Active Objective ---
+  const objInput = document.querySelector<HTMLInputElement>('#reborn-objective-input');
+  if (objInput && ws) {
+    objInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
         e.preventDefault();
-        void submit();
+        objInput.blur();
+      }
+    });
+    objInput.addEventListener('blur', async () => {
+      const val = objInput.value.trim();
+      if (val !== (ws.activeObjective || '')) {
+        await window.senku.updateSpaceObjective(ws.id, val);
+        ws.activeObjective = val;
+        render();
       }
     });
   }
 
-  const submit = async () => {
-    const rawVal = textarea ? textarea.value : homeLogDraft;
-    const text = rawVal.trim();
-    if (!text) return;
-    setHomeLogDraft('');
-    if (textarea) {
-      textarea.value = '';
-      textarea.style.height = '20px';
-      textarea.style.overflowY = 'hidden';
+  document.querySelector('#complete-objective-btn')?.addEventListener('click', async () => {
+    if (!ws || !ws.activeObjective) return;
+    const completedText = `[Milestone] Completed: ${ws.activeObjective}`;
+    await window.senku.addLogEntry(completedText, ws.id);
+    await window.senku.updateSpaceObjective(ws.id, '');
+    toast('🎉 Objective completed and logged as milestone!');
+    await load(state.currentPath);
+    render();
+  });
+
+  // --- Reborn: Launchpad & Resources ---
+  document.querySelector('#launchpad-open-folder')?.addEventListener('click', async () => {
+    if (ws?.masterFolder) await window.senku.openPath(ws.masterFolder);
+  });
+
+  document.querySelector('#launchpad-open-vscode')?.addEventListener('click', async () => {
+    if (ws?.masterFolder) {
+      const res = await window.senku.openInVSCode(ws.masterFolder);
+      if (!res.ok) toast(res.error || 'Could not open VS Code.');
     }
+  });
+
+  document.querySelector('#launchpad-open-terminal')?.addEventListener('click', async () => {
+    if (ws?.masterFolder) {
+      const res = await window.senku.openInTerminal(ws.masterFolder);
+      if (!res.ok) toast(res.error || 'Could not open Terminal.');
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>('.launchpad-link-anchor').forEach((a) => {
+    a.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const url = a.dataset.launchUrl;
+      if (url) await window.senku.openPath(url);
+    });
+  });
+
+  document.querySelectorAll<HTMLElement>('[data-remove-link]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const linkId = btn.dataset.removeLink;
+      if (ws && linkId) {
+        await window.senku.removeSpaceLink(ws.id, linkId);
+        await load();
+        render();
+        toast('Link removed');
+      }
+    });
+  });
+
+  document.querySelector('#add-space-link-btn')?.addEventListener('click', () => {
+    if (ws) openAddLinkModal(ws.id, load, render);
+  });
+
+  // --- Reborn: Capture & Triage Inbox ---
+  document.querySelectorAll<HTMLElement>('[data-triage-action]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const itemEl = btn.closest<HTMLElement>('.reborn-inbox-item');
+      const id = itemEl?.dataset.inboxId;
+      const action = btn.dataset.triageAction as 'objective' | 'log' | 'delete';
+      if (!id || !action) return;
+
+      if (action === 'objective' && ws) {
+        await window.senku.triageInboxItem(id, 'objective', ws.id);
+        toast('Set as Current Objective');
+      } else if (action === 'log') {
+        await window.senku.triageInboxItem(id, 'log', ws?.id);
+        toast('Logged to Timeline');
+      } else if (action === 'delete') {
+        await window.senku.deleteInboxItem(id);
+      }
+      await load();
+      render();
+    });
+  });
+
+  // --- Reborn: Momentum Timeline & Quick Log ---
+  const quickLogInput = document.querySelector<HTMLInputElement>('#reborn-quick-log-input');
+  const submitRebornLog = async () => {
+    if (!quickLogInput) return;
+    const text = quickLogInput.value.trim();
+    if (!text) return;
+    quickLogInput.value = '';
+    setHomeLogDraft('');
     const spaceId = state.workspace?.id;
     await window.senku.addLogEntry(text, spaceId);
     await load(state.currentPath);
     render();
     requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLTextAreaElement>('#home-capture-textarea');
-      if (el) {
-        el.focus();
-        el.style.height = '20px';
-        el.style.overflowY = 'hidden';
-      }
+      document.querySelector<HTMLInputElement>('#reborn-quick-log-input')?.focus();
     });
   };
 
-  btn?.addEventListener('click', () => void submit());
+  quickLogInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void submitRebornLog();
+    }
+  });
+
+  document.querySelector('#reborn-quick-log-submit')?.addEventListener('click', () => void submitRebornLog());
+
+  document.querySelectorAll<HTMLElement>('[data-log-tag]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      if (!quickLogInput) return;
+      const tag = chip.dataset.logTag;
+      let prefix = '';
+      if (tag === 'milestone') prefix = '[Milestone] ';
+      else if (tag === 'bug') prefix = '[Bug] ';
+      else if (tag === 'note') prefix = '[Note] ';
+
+      if (!quickLogInput.value.startsWith('[')) {
+        quickLogInput.value = prefix + quickLogInput.value;
+      }
+      quickLogInput.focus();
+    });
+  });
 
 
 
@@ -292,4 +374,26 @@ export function bindHomeActions(load: LoadFn, render: RenderFn): void {
       }
     });
   }
+
+  // Notes Window: Interactive Markdown Checkbox Toggle
+  document.querySelectorAll<HTMLInputElement>('.notes-markdown-preview input[type="checkbox"]').forEach((box, boxIdx) => {
+    box.disabled = false;
+    box.style.cursor = 'pointer';
+    box.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!activeMarkdownFile) return;
+      let count = 0;
+      const updated = activeMarkdownFile.content.replace(/(- \[[ xX]\])/g, (match) => {
+        if (count === boxIdx) {
+          count++;
+          return match.includes('x') || match.includes('X') ? '- [ ]' : '- [x]';
+        }
+        count++;
+        return match;
+      });
+      activeMarkdownFile.content = updated;
+      await window.senku.saveTextFile(activeMarkdownFile.path, updated);
+      render();
+    });
+  });
 }

@@ -488,5 +488,44 @@ export function openDeleteNoteModal(noteName: string, onConfirm: () => Promise<v
   });
 }
 
+export function openAddLinkModal(spaceId: string, load: () => Promise<void>, render?: () => void): void {
+  const overlay = createOverlay(`
+    <form class="dialog" id="add-link-form">
+      <div class="dialog-header">
+        <h2 class="dialog-title">Add Resource Link</h2>
+        <button type="button" class="dialog-close" id="close-modal" aria-label="Close">✕</button>
+      </div>
+      <div style="padding: 16px 20px;">
+        <label class="field-label" for="link-url">URL or Resource Address</label>
+        <input class="field-input" id="link-url" name="url" type="text" placeholder="https://github.com/... or localhost:5173" required autofocus />
+        
+        <label class="field-label" for="link-title" style="margin-top: 12px;">Display Title (Optional)</label>
+        <input class="field-input" id="link-title" name="title" type="text" placeholder="e.g. GitHub Repo, Figma, Docs" />
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-button" id="cancel-link">Cancel</button>
+        <button type="submit" class="primary-button" id="submit-link">Add Link</button>
+      </div>
+    </form>
+  `);
+
+  overlay.querySelector('#cancel-link')?.addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#add-link-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget as HTMLFormElement);
+    let url = String(data.get('url') || '').trim();
+    const title = String(data.get('title') || '').trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url) && !url.includes(':') && !url.startsWith('\\')) {
+      url = `https://${url}`;
+    }
+    overlay.remove();
+    await window.senku.addSpaceLink(spaceId, title, url);
+    await load();
+    if (render) render();
+    toast('Added resource link');
+  });
+}
+
 
 

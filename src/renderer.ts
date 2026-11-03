@@ -15,6 +15,7 @@ import {
   notesWindowMarkup,
 } from './markup';
 import { bindAll, initGlobalListeners, isNoteEditorPendingSave } from './events';
+import { initFocusTimer } from './focus';
 
 const appRoot = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -62,6 +63,7 @@ function render(): void {
     </div>`;
 
   bindAll(load, render);
+  initFocusTimer(render);
 
   // Restore scroll
   if (notesScroll !== undefined) {
