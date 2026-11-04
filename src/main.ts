@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import type { SenkuState, Workspace, LogEntry, InboxItem, PinnedLink } from '../electron/types';
+import type { SenkuState, Workspace, LogEntry, InboxItem } from '../electron/types';
 
 let state: SenkuState = {
   version: 4,
@@ -22,6 +22,12 @@ let isNotePreview = false;
 let saveNoteTimeout: any = null;
 let timerInterval: any = null;
 
+// Configure marked
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
+
 // Helpers
 function getActiveSpace(): Workspace | null {
   if (!state.spaces || state.spaces.length === 0) return null;
@@ -29,7 +35,6 @@ function getActiveSpace(): Workspace | null {
 }
 
 function getSpaceNotePath(space: Workspace): string {
-  // Path to senku.md in the space folder
   return `${space.path}\\senku.md`;
 }
 
@@ -42,6 +47,43 @@ function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------------------
+// Markdown Interactive Checkbox Engine
+// ---------------------------------------------------------------------------
+
+function renderMarkdownWithTasks(md: string): string {
+  if (!md.trim()) {
+    return '<p style="color: var(--text-dim); font-style: italic;">Empty note. Click Edit or type to start writing...</p>';
+  }
+  let html = marked.parse(md) as string;
+  let taskIndex = 0;
+  html = html.replace(/<input\s+([^>]*?)type=["']checkbox["']([^>]*?)>/gi, (_match, before, after) => {
+    const clean = (before + after).replace(/disabled(="")?/gi, '');
+    const idx = taskIndex++;
+    return `<input type="checkbox" class="interactive-task" data-task-idx="${idx}" ${clean}>`;
+  });
+  return html;
+}
+
+function toggleTaskByIndex(targetIndex: number) {
+  const lines = activeNoteContent.split('\n');
+  let currentIdx = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(/^(\s*[-*]\s\[)([ xX])(\]\s.*)$/);
+    if (match) {
+      if (currentIdx === targetIndex) {
+        const newCheck = match[2] === ' ' ? 'x' : ' ';
+        lines[i] = `${match[1]}${newCheck}${match[3]}`;
+        activeNoteContent = lines.join('\n');
+        scheduleSaveNote();
+        render();
+        return;
+      }
+      currentIdx++;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -78,7 +120,7 @@ function scheduleSaveNote() {
 }
 
 // ---------------------------------------------------------------------------
-// Render
+// Render UI
 // ---------------------------------------------------------------------------
 
 function render() {
@@ -146,28 +188,30 @@ function render() {
                 <button class="btn-secondary" id="btn-del-space" style="color: var(--danger)" title="Delete space">Delete</button>
               </div>
             </div>
-            <div class="space-path-bar" id="space-path-click" title="Click to open in Explorer">
-              📁 ${activeSpace.path}
+
+            <!-- Compact Action & Path Strip -->
+            <div class="space-action-strip">
+              <div class="path-display" id="space-path-click" title="Click to open folder in Explorer">
+                📁 ${activeSpace.path}
+              </div>
+              <div class="quick-launch-group">
+                <button class="action-pill code" id="btn-launch-code" title="Launch VS Code">
+                  💻 VS Code
+                </button>
+                <button class="action-pill terminal" id="btn-launch-terminal" title="Launch Terminal">
+                  ⌨️ Terminal
+                </button>
+                <button class="action-pill folder" id="btn-launch-explorer" title="Open in Explorer">
+                  📂 Explorer
+                </button>
+              </div>
             </div>
           </div>
 
-          <!-- Objective -->
-          <div class="objective-card">
-            <span class="section-label">Active Objective</span>
-            <input class="objective-input" id="space-objective-input" value="${activeSpace.objective || ''}" placeholder="What is your main target for this space right now?" />
-          </div>
-
-          <!-- Launchpad -->
-          <div class="launchpad-grid">
-            <button class="launch-btn vscode" id="btn-launch-code">
-              💻 VS Code
-            </button>
-            <button class="launch-btn terminal" id="btn-launch-terminal">
-              ⌨️ Terminal
-            </button>
-            <button class="launch-btn explorer" id="btn-launch-explorer">
-              📁 Explorer
-            </button>
+          <!-- Objective Strip -->
+          <div class="objective-strip">
+            <span class="objective-label">Active Target</span>
+            <input class="objective-input" id="space-objective-input" value="${activeSpace.objective || ''}" placeholder="What single problem are you solving here today?" />
           </div>
 
           <!-- Links Section -->
@@ -189,26 +233,29 @@ function render() {
             </div>
             <form class="add-link-form" id="add-link-form">
               <input class="input-pill" id="link-title" placeholder="Title" required />
-              <input class="input-pill" id="link-url" placeholder="URL or Path (https://...)" required />
-              <button class="btn-secondary" type="submit">+ Add</button>
+              <input class="input-pill" id="link-url" placeholder="URL or file path..." required />
+              <button class="btn-secondary" type="submit">+ Link</button>
             </form>
           </div>
 
-          <!-- Workspace Note (senku.md) -->
+          <!-- Living Workspace Note Canvas (senku.md) -->
           <div class="note-section">
             <div class="note-header">
-              <span class="section-label">Workspace Note (senku.md)</span>
-              <div>
+              <span class="section-label">Workspace Canvas (senku.md)</span>
+              <div class="note-actions">
+                <button class="btn-secondary" id="btn-open-note-code" title="Open senku.md in VS Code">
+                  💻 VS Code
+                </button>
                 <button class="btn-secondary" id="toggle-note-mode">
-                  ${isNotePreview ? 'Edit' : 'Preview'}
+                  ${isNotePreview ? 'Edit (Ctrl+Enter)' : 'Preview (Ctrl+Enter)'}
                 </button>
               </div>
             </div>
             <div class="note-editor-wrapper">
               ${
                 isNotePreview
-                  ? `<div class="note-preview">${marked.parse(activeNoteContent || '*Empty note. Click Edit to write.*')}</div>`
-                  : `<textarea class="note-textarea" id="note-textarea" placeholder="Write markdown notes for this space...">${activeNoteContent}</textarea>`
+                  ? `<div class="note-preview">${renderMarkdownWithTasks(activeNoteContent)}</div>`
+                  : `<textarea class="note-textarea" id="note-textarea" placeholder="Start typing thoughts, tasks (- [ ]), notes, code blocks...">${activeNoteContent}</textarea>`
               }
             </div>
           </div>
@@ -226,7 +273,7 @@ function render() {
       <aside class="stream-panel">
         <!-- Focus Session Box -->
         <div class="stream-section">
-          <span class="section-label">Deep Focus Engine</span>
+          <span class="section-label">Contextual Focus Engine</span>
           <div class="focus-box ${focusActive ? 'running' : ''}">
             <div class="focus-timer-text" id="focus-display">
               ${focusActive ? formatDuration(focusRemainingSec) : `${state.focus?.durationMinutes || 25}:00`}
@@ -440,17 +487,113 @@ function bindEvents() {
     }
   });
 
+  // Open note in VS Code
+  document.getElementById('btn-open-note-code')?.addEventListener('click', () => {
+    if (activeSpace) {
+      const notePath = getSpaceNotePath(activeSpace);
+      window.senku.openCode(notePath);
+    }
+  });
+
   // Note Toggle & Textarea
   document.getElementById('toggle-note-mode')?.addEventListener('click', () => {
     isNotePreview = !isNotePreview;
     render();
   });
 
-  const noteArea = document.getElementById('note-textarea') as HTMLTextAreaElement | null;
-  noteArea?.addEventListener('input', () => {
-    activeNoteContent = noteArea.value;
-    scheduleSaveNote();
+  // Interactive Task Checkbox clicks in Preview mode
+  document.querySelectorAll('.interactive-task').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const idx = Number(cb.getAttribute('data-task-idx'));
+      if (!isNaN(idx)) {
+        toggleTaskByIndex(idx);
+      }
+    });
   });
+
+  // Smart Note Editor Key Handling
+  const noteArea = document.getElementById('note-textarea') as HTMLTextAreaElement | null;
+  if (noteArea) {
+    noteArea.addEventListener('input', () => {
+      activeNoteContent = noteArea.value;
+      scheduleSaveNote();
+    });
+
+    noteArea.addEventListener('keydown', (e) => {
+      // Tab -> 2 spaces indent
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = noteArea.selectionStart;
+        const end = noteArea.selectionEnd;
+        if (e.shiftKey) {
+          // Unindent
+          const textBefore = noteArea.value.substring(0, start);
+          if (textBefore.endsWith('  ')) {
+            noteArea.value = noteArea.value.substring(0, start - 2) + noteArea.value.substring(start);
+            noteArea.selectionStart = noteArea.selectionEnd = start - 2;
+          }
+        } else {
+          // Indent
+          noteArea.value = noteArea.value.substring(0, start) + '  ' + noteArea.value.substring(end);
+          noteArea.selectionStart = noteArea.selectionEnd = start + 2;
+        }
+        activeNoteContent = noteArea.value;
+        scheduleSaveNote();
+        return;
+      }
+
+      // Enter -> Smart list continuation
+      if (e.key === 'Enter') {
+        const cursor = noteArea.selectionStart;
+        const textBefore = noteArea.value.substring(0, cursor);
+        const lastLine = textBefore.split('\n').pop() || '';
+
+        // Match task list item: "- [ ] " or "- [x] "
+        const taskMatch = lastLine.match(/^(\s*[-*]\s\[[ xX]\]\s)(.*)$/);
+        if (taskMatch) {
+          if (!taskMatch[2].trim()) {
+            // Empty task item -> exit list
+            e.preventDefault();
+            const lineStart = cursor - lastLine.length;
+            noteArea.value = noteArea.value.substring(0, lineStart) + noteArea.value.substring(cursor);
+            noteArea.selectionStart = noteArea.selectionEnd = lineStart;
+            activeNoteContent = noteArea.value;
+            scheduleSaveNote();
+            return;
+          }
+          // Continue new task
+          e.preventDefault();
+          const insert = `\n${taskMatch[1].replace(/\[[xX]\]/, '[ ]')}`;
+          noteArea.value = noteArea.value.substring(0, cursor) + insert + noteArea.value.substring(cursor);
+          noteArea.selectionStart = noteArea.selectionEnd = cursor + insert.length;
+          activeNoteContent = noteArea.value;
+          scheduleSaveNote();
+          return;
+        }
+
+        // Match bullet list item: "- " or "* "
+        const bulletMatch = lastLine.match(/^(\s*[-*]\s)(.*)$/);
+        if (bulletMatch) {
+          if (!bulletMatch[2].trim()) {
+            e.preventDefault();
+            const lineStart = cursor - lastLine.length;
+            noteArea.value = noteArea.value.substring(0, lineStart) + noteArea.value.substring(cursor);
+            noteArea.selectionStart = noteArea.selectionEnd = lineStart;
+            activeNoteContent = noteArea.value;
+            scheduleSaveNote();
+            return;
+          }
+          e.preventDefault();
+          const insert = `\n${bulletMatch[1]}`;
+          noteArea.value = noteArea.value.substring(0, cursor) + insert + noteArea.value.substring(cursor);
+          noteArea.selectionStart = noteArea.selectionEnd = cursor + insert.length;
+          activeNoteContent = noteArea.value;
+          scheduleSaveNote();
+          return;
+        }
+      }
+    });
+  }
 
   // Focus Session Controls
   const toggleFocus = async () => {
@@ -574,7 +717,6 @@ function bindEvents() {
 // ---------------------------------------------------------------------------
 
 window.addEventListener('keydown', (e) => {
-  // If focused inside an input or textarea, don't trigger global number switching
   const target = e.target as HTMLElement;
   const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
 
@@ -590,7 +732,7 @@ window.addEventListener('keydown', (e) => {
     }
   }
 
-  // Ctrl+Enter in note editor toggles preview
+  // Ctrl+Enter anywhere toggles note preview
   if (e.ctrlKey && e.key === 'Enter') {
     isNotePreview = !isNotePreview;
     render();
@@ -609,7 +751,6 @@ function startTimerLoop() {
       const totalSec = (state.focus.durationMinutes || 25) * 60;
       const remaining = Math.max(0, totalSec - elapsed);
 
-      // Update timer elements directly for buttery smooth 60fps without full re-render
       const pill = document.getElementById('toggle-focus-top');
       if (pill) {
         pill.innerHTML = `⏱️ ${formatDuration(remaining)} — ${state.focus.goal || 'Focusing'}`;
@@ -620,7 +761,6 @@ function startTimerLoop() {
       }
 
       if (remaining === 0) {
-        // Complete focus
         state.focus.active = false;
         state.focus.startedAt = null;
         state.logs.unshift({

@@ -1,13 +1,12 @@
 {
   "name": "senku",
-  "version": "3.3.0",
+  "version": "4.0.0",
   "author": "Vivek Gundu",
-  "description": "Senku is a win Desktop app which reduces the friction of starting a Work",
+  "description": "Senku Reborn — Ultra-minimalist personal work cockpit",
   "main": "dist/electron/main.js",
   "scripts": {
     "dev": "tsc && concurrently -k \"vite --config vite.config.ts\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "tsc && vite build --config vite.config.ts",
-    "package:win": "npm run build && electron-builder --win",
     "start": "electron ."
   },
   "devDependencies": {
@@ -19,33 +18,6 @@
     "typescript": "^5.7.0",
     "vite": "^7.0.0",
     "wait-on": "^8.0.0"
-  },
-  "allowScripts": {
-    "electron@37.10.3": true,
-    "esbuild@0.28.2": true
-  },
-  "build": {
-    "appId": "com.senku.desktop",
-    "productName": "Senku",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/electron/**/*",
-      "dist/renderer/**/*",
-      "assets/**/*",
-      "guide/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "guide",
-        "to": "guide"
-      }
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "assets/senku.ico"
-    }
   },
   "dependencies": {
     "marked": "^18.1.1"

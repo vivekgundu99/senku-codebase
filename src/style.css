@@ -24,12 +24,12 @@
 }
 
 :root {
-  --bg: #0b0d11;
-  --surface: #13161d;
-  --card: #181c25;
-  --hover: #202633;
+  --bg: #090b0e;
+  --surface: #11141a;
+  --card: #161a22;
+  --hover: #1e232e;
   --border: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.5);
+  --border-focus: rgba(99, 102, 241, 0.6);
   --primary: #6366f1;
   --primary-hover: #4f46e5;
   --text: #f1f5f9;
@@ -59,7 +59,7 @@ body {
   line-height: 1.5;
 }
 
-input, button, textarea {
+input, button, textarea, select {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -81,10 +81,9 @@ input, button, textarea {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.22);
 }
 
-/* Layout */
 #app {
   display: flex;
   flex-direction: column;
@@ -113,7 +112,7 @@ input, button, textarea {
 
 .brand {
   font-weight: 800;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 1.5px;
   color: var(--primary);
   display: flex;
@@ -128,16 +127,13 @@ input, button, textarea {
 }
 
 .space-tab {
-  padding: 5px 12px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 .space-tab:hover {
   color: var(--text);
@@ -150,8 +146,8 @@ input, button, textarea {
 }
 
 .btn-add-space {
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  border-radius: 5px;
   font-size: 14px;
   color: var(--text-dim);
   cursor: pointer;
@@ -169,7 +165,7 @@ input, button, textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px;
+  padding: 4px 14px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -180,7 +176,7 @@ input, button, textarea {
 }
 .focus-pill.active {
   border-color: var(--primary);
-  background: rgba(99, 102, 241, 0.12);
+  background: rgba(99, 102, 241, 0.14);
   color: #a5b4fc;
 }
 .focus-pill:hover {
@@ -217,17 +213,17 @@ input, button, textarea {
 /* Main Split View */
 .main-view {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 360px;
   flex: 1;
   overflow: hidden;
 }
 
-/* Workspace Cockpit (Left) */
+/* Left Cockpit */
 .cockpit-panel {
   display: flex;
   flex-direction: column;
-  padding: 20px 24px;
-  gap: 18px;
+  padding: 16px 20px;
+  gap: 14px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
 }
@@ -235,7 +231,7 @@ input, button, textarea {
 .space-header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .space-title-row {
@@ -245,13 +241,13 @@ input, button, textarea {
 }
 
 .space-name-input {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
   border-bottom: 1px solid transparent;
   padding-bottom: 2px;
   user-select: text;
-  width: 70%;
+  flex: 1;
 }
 .space-name-input:focus {
   border-bottom-color: var(--primary);
@@ -260,28 +256,109 @@ input, button, textarea {
 .space-actions-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.space-path-bar {
+/* Compact Launchpad & Path Strip */
+.space-action-strip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-dim);
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  gap: 10px;
+}
+
+.path-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
   user-select: text;
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.space-path-bar:hover {
-  color: var(--text-muted);
+.path-display:hover {
+  color: var(--text);
+}
+
+.quick-launch-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.action-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.action-pill:hover {
+  background: var(--hover);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text);
+}
+.action-pill.code:hover {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+.action-pill.terminal:hover {
+  border-color: #34d399;
+  color: #34d399;
+}
+.action-pill.folder:hover {
+  border-color: #fbbf24;
+  color: #fbbf24;
 }
 
 /* Objective Card */
-.objective-card {
+.objective-strip {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 16px;
+  border-radius: 7px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.objective-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 800;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.objective-input {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: text;
+  flex: 1;
+}
+.objective-input::placeholder {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+/* Pinned Links */
+.links-section {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -290,82 +367,25 @@ input, button, textarea {
 .section-label {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   font-weight: 700;
   color: var(--text-dim);
-}
-
-.objective-input {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  user-select: text;
-}
-.objective-input::placeholder {
-  color: var(--text-dim);
-  font-weight: 400;
-}
-
-/* Launchpad */
-.launchpad-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.launch-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.launch-btn:hover {
-  background: var(--card);
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateY(-1px);
-}
-.launch-btn.vscode:hover {
-  border-color: #007acc;
-  color: #38bdf8;
-}
-.launch-btn.terminal:hover {
-  border-color: #4ade80;
-  color: #4ade80;
-}
-.launch-btn.explorer:hover {
-  border-color: #fbbf24;
-  color: #fbbf24;
-}
-
-/* Pinned Links */
-.links-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .links-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .link-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 4px 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 12px;
   color: var(--text);
   cursor: pointer;
@@ -377,7 +397,7 @@ input, button, textarea {
 }
 .link-chip-del {
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 .link-chip-del:hover {
@@ -386,16 +406,15 @@ input, button, textarea {
 
 .add-link-form {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
 }
 
 .input-pill {
   flex: 1;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 10px;
+  border-radius: 5px;
+  padding: 5px 9px;
   font-size: 12px;
   user-select: text;
 }
@@ -404,11 +423,11 @@ input, button, textarea {
 }
 
 .btn-secondary {
-  padding: 6px 12px;
+  padding: 4px 10px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 5px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -418,13 +437,13 @@ input, button, textarea {
   color: var(--text);
 }
 
-/* Notes / Scratchpad */
+/* Full-Height Markdown Canvas (senku.md) */
 .note-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
   flex: 1;
-  min-height: 220px;
+  min-height: 280px;
 }
 
 .note-header {
@@ -433,47 +452,108 @@ input, button, textarea {
   justify-content: space-between;
 }
 
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .note-editor-wrapper {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 7px;
   display: flex;
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  position: relative;
 }
 
 .note-textarea {
   width: 100%;
-  height: 220px;
-  padding: 12px;
+  height: 100%;
+  padding: 14px;
   user-select: text;
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
-  resize: vertical;
+  resize: none;
   color: var(--text);
+  overflow-y: auto;
 }
 
+/* Rich Markdown Preview Styling */
 .note-preview {
-  padding: 14px;
+  padding: 16px;
   overflow-y: auto;
-  max-height: 300px;
+  height: 100%;
   user-select: text;
-  line-height: 1.6;
+  line-height: 1.65;
+  color: #e2e8f0;
 }
-.note-preview h1, .note-preview h2, .note-preview h3 {
+.note-preview h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 10px 0 6px 0;
+  color: #fff;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.note-preview h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 12px 0 6px 0;
+  color: #f1f5f9;
+}
+.note-preview h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  color: #cbd5e1;
+}
+.note-preview p {
   margin-bottom: 8px;
-  color: var(--text);
-}
-.note-preview p, .note-preview ul {
-  margin-bottom: 10px;
   color: var(--text-muted);
+}
+.note-preview ul, .note-preview ol {
+  margin-bottom: 8px;
+  padding-left: 20px;
+  color: var(--text-muted);
+}
+.note-preview li {
+  margin-bottom: 3px;
+}
+
+/* Interactive Checkboxes */
+.note-preview input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.note-preview li:has(input[type="checkbox"]:checked) {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.note-preview pre {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  overflow-x: auto;
+  font-family: 'Consolas', monospace;
+  font-size: 12px;
 }
 .note-preview code {
   background: var(--card);
   padding: 2px 5px;
   border-radius: 4px;
+  font-family: 'Consolas', monospace;
+  font-size: 12px;
 }
 
 /* Sidebar Stream (Right Panel) */
@@ -485,22 +565,22 @@ input, button, textarea {
 }
 
 .stream-section {
-  padding: 16px;
+  padding: 14px;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 /* Focus Session Box */
 .focus-box {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
+  border-radius: 7px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .focus-box.running {
@@ -509,7 +589,7 @@ input, button, textarea {
 }
 
 .focus-timer-text {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: 1px;
   color: var(--text);
@@ -523,7 +603,7 @@ input, button, textarea {
 
 .preset-btn {
   flex: 1;
-  padding: 5px;
+  padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -541,10 +621,10 @@ input, button, textarea {
 }
 
 .btn-primary {
-  padding: 8px 14px;
+  padding: 7px 12px;
   background: var(--primary);
   color: #fff;
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -559,8 +639,8 @@ input, button, textarea {
 .inbox-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 240px;
+  gap: 5px;
+  max-height: 220px;
   overflow-y: auto;
 }
 
@@ -568,10 +648,10 @@ input, button, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 12px;
   user-select: text;
   transition: all 0.15s ease;
@@ -592,14 +672,15 @@ input, button, textarea {
 }
 
 .check-box {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   border-radius: 3px;
   border: 1px solid var(--border);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 10px;
 }
 .inbox-item.done .check-box {
   background: var(--primary);
@@ -613,10 +694,10 @@ input, button, textarea {
 }
 
 .tag-select {
-  padding: 6px 8px;
+  padding: 5px 7px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
@@ -626,8 +707,8 @@ input, button, textarea {
 .logs-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 280px;
+  gap: 6px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
@@ -635,10 +716,10 @@ input, button, textarea {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 7px 9px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 12px;
   user-select: text;
 }
@@ -647,7 +728,7 @@ input, button, textarea {
   font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -660,7 +741,7 @@ input, button, textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .log-text {
@@ -675,7 +756,7 @@ input, button, textarea {
 
 .item-del-btn {
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   padding: 0 4px;
 }

@@ -154,3 +154,4 @@ export function saveState(patch: Partial<SenkuState>): SenkuState {
 
   return updated;
 }
+
