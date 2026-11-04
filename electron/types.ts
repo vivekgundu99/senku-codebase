@@ -22,6 +22,8 @@ export interface InboxItem {
 
 export interface FocusSession {
   active: boolean;
+  paused?: boolean;
+  remainingSeconds?: number;
   spaceId: string | null;
   goal: string;
   startedAt: number | null;

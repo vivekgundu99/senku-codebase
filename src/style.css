@@ -675,11 +675,28 @@ input, button, textarea, select {
 }
 
 .focus-timer-text {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   color: var(--text);
   text-align: center;
+}
+
+.focus-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.focus-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  width: 0%;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
 }
 
 .focus-presets {
@@ -706,7 +723,13 @@ input, button, textarea, select {
   color: var(--primary);
 }
 
+.focus-controls-row {
+  display: flex;
+  gap: 6px;
+}
+
 .btn-primary {
+  flex: 1;
   padding: 7px 12px;
   background: var(--primary);
   color: #fff;
@@ -719,6 +742,35 @@ input, button, textarea, select {
 }
 .btn-primary:hover {
   background: var(--primary-hover);
+}
+
+.btn-danger {
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #fff;
+}
+.btn-confirm-delete {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.75; }
+  100% { opacity: 1; }
 }
 
 /* Inbox items */
