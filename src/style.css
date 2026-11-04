@@ -111,10 +111,15 @@ input, button, textarea, select {
   font-weight: 800;
   font-size: 13px;
   letter-spacing: 1.2px;
-  color: var(--text);
+  color: var(--primary);
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+.brand span {
+  color: var(--primary);
+  font-weight: 800;
 }
 
 .brand-icon {
@@ -137,15 +142,22 @@ input, button, textarea, select {
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid transparent;
 }
 .space-tab:hover {
   color: var(--text);
   background: var(--hover);
 }
 .space-tab.active {
-  color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--border);
+  color: #ffffff;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+  font-weight: 700;
 }
 
 .btn-add-space {
@@ -421,15 +433,17 @@ input, button, textarea, select {
   display: flex;
   align-items: center;
   gap: 4px;
+  border: 1px solid transparent;
 }
 .slot-tab:hover {
   color: var(--text);
   background: var(--hover);
 }
 .slot-tab.active {
-  color: #fff;
-  background: var(--card);
-  border: 1px solid var(--border);
+  color: #ffffff;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
   font-weight: 700;
 }
 
@@ -740,12 +754,49 @@ input, button, textarea, select {
   color: #fff;
 }
 
+.focus-timer-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 42px;
+}
+
 .focus-timer-text {
   font-size: 28px;
   font-weight: 800;
   letter-spacing: 2px;
   color: #ffffff;
   text-align: center;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 8px;
+  transition: background 0.15s ease;
+}
+.focus-timer-text:hover:not(.running) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.focus-timer-text.running {
+  cursor: default;
+}
+
+.focus-timer-input {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ffffff;
+  text-align: center;
+  width: 110px;
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  padding: 2px 4px;
+  outline: none;
+}
+.focus-timer-input::-webkit-outer-spin-button,
+.focus-timer-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .focus-progress-track {

@@ -103,25 +103,27 @@ function getActiveSpace(): Workspace | null {
 }
 
 function getSlotPath(slot: NoteSlot): string {
-  const space = getActiveSpace();
+  const base = appPaths.documents || appPaths.userData;
   if (slot === 'global') {
-    const base = appPaths.documents || appPaths.userData;
     return `${base}\\Senku Notes\\senku-global.md`;
   }
+  const space = getActiveSpace();
   if (!space) {
-    return `${appPaths.userData}\\senku-fallback.md`;
+    return `${base}\\Senku Notes\\senku-fallback.md`;
   }
+  const safeSpaceName = space.name.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'default';
+  const spaceNotesDir = `${base}\\Senku Notes\\spaces\\${safeSpaceName}`;
   switch (slot) {
     case 'main':
-      return `${space.path}\\senku.md`;
+      return `${spaceNotesDir}\\senku.md`;
     case 'tasks':
-      return `${space.path}\\tasks.md`;
+      return `${spaceNotesDir}\\tasks.md`;
     case 'scratch':
-      return `${space.path}\\scratch.md`;
+      return `${spaceNotesDir}\\scratch.md`;
     case 'links':
-      return `${space.path}\\links.md`;
+      return `${spaceNotesDir}\\links.md`;
     default:
-      return `${space.path}\\senku.md`;
+      return `${spaceNotesDir}\\senku.md`;
   }
 }
 
@@ -236,20 +238,24 @@ async function loadNoteForActiveSlot() {
   updateNoteCanvas();
 }
 
+async function flushSaveNote() {
+  if (isViewingLogsInCanvas) return;
+  if (saveNoteTimeout) {
+    clearTimeout(saveNoteTimeout);
+    saveNoteTimeout = null;
+  }
+  const path = getSlotPath(activeSlot);
+  await window.senku.writeNote(path, activeNoteContent);
+}
+
 function scheduleSaveNote() {
   if (isViewingLogsInCanvas) return;
-  const path = getSlotPath(activeSlot);
   if (saveNoteTimeout) clearTimeout(saveNoteTimeout);
-  saveNoteTimeout = setTimeout(async () => {
-    await window.senku.writeNote(path, activeNoteContent);
-  }, 400);
+  saveNoteTimeout = setTimeout(flushSaveNote, 400);
 }
 
 async function switchSlot(newSlot: NoteSlot) {
-  if (saveNoteTimeout) {
-    clearTimeout(saveNoteTimeout);
-    await window.senku.writeNote(getSlotPath(activeSlot), activeNoteContent);
-  }
+  await flushSaveNote();
   activeSlot = newSlot;
   updateNoteSlotTabs();
   await loadNoteForActiveSlot();
@@ -352,11 +358,11 @@ function buildShell() {
         <div class="focus-hero-card">
           <div class="focus-hero-metrics">
             <div class="metric-group">
-              <span class="metric-label work">🔥 Work</span>
+              <span class="metric-label work">Work</span>
               <span class="metric-value" id="today-work-value">0m</span>
             </div>
             <div class="metric-group">
-              <span class="metric-label rest">☕ Rest</span>
+              <span class="metric-label rest">Rest</span>
               <span class="metric-value" id="today-rest-value">0m</span>
             </div>
           </div>
@@ -367,23 +373,25 @@ function buildShell() {
         <div class="focus-box" id="focus-box">
           <!-- Mode Toggle: Work vs Rest -->
           <div class="mode-toggle-group">
-            <button class="mode-btn active work" id="btn-mode-work">🎯 Work Mode</button>
-            <button class="mode-btn rest" id="btn-mode-rest">☕ Rest Mode</button>
+            <button class="mode-btn active work" id="btn-mode-work">Work</button>
+            <button class="mode-btn rest" id="btn-mode-rest">Rest</button>
           </div>
 
-          <div class="focus-timer-text" id="focus-display">30:00</div>
+          <div class="focus-timer-container">
+            <div class="focus-timer-text" id="focus-display" title="Click to edit custom minutes">30:00</div>
+            <input type="number" class="focus-timer-input" id="focus-timer-input" min="1" max="720" style="display: none;" />
+          </div>
           <div class="focus-progress-track">
             <div class="focus-progress-fill" id="focus-progress-bar"></div>
           </div>
 
           <input class="input-pill" id="focus-goal-input" placeholder="What are you working on?" />
 
-          <!-- Presets: 15m, 30m, 45m, Custom -->
+          <!-- Presets: 15m, 30m, 45m -->
           <div class="focus-presets">
             <button class="preset-btn" data-mins="15">15m</button>
             <button class="preset-btn active" data-mins="30">30m</button>
             <button class="preset-btn" data-mins="45">45m</button>
-            <button class="preset-btn" id="btn-preset-custom">Custom</button>
           </div>
 
           <div class="focus-controls-row">
@@ -397,8 +405,8 @@ function buildShell() {
           <div class="logs-header-row">
             <span class="section-label">Global logs.md</span>
             <div class="logs-header-actions">
-              <button class="btn-secondary" id="btn-view-logs-md" title="View logs.md in Senku viewer">View in Senku</button>
-              <button class="btn-secondary" id="btn-open-logs-code" title="Open logs.md in VS Code">💻 VS Code</button>
+              <button class="btn-secondary" id="btn-view-logs-md" title="View full logs.md inside Senku viewer">View</button>
+              <button class="btn-secondary" id="btn-open-logs-code" title="Open logs.md in VS Code">Code</button>
             </div>
           </div>
 
@@ -426,7 +434,7 @@ function updateSpaceTabs() {
   container.innerHTML = state.spaces
     .map(
       (s) => `
-    <div class="space-tab ${s.id === activeSpace?.id ? 'active' : ''}" data-space-id="${s.id}">
+    <div class="space-tab ${s.id === activeSpace?.id ? 'active' : ''}" data-space-id="${s.id}" title="${s.name}">
       ${s.name}
     </div>
   `,
@@ -437,6 +445,7 @@ function updateSpaceTabs() {
     tab.addEventListener('click', async () => {
       const spaceId = tab.getAttribute('data-space-id');
       if (spaceId && spaceId !== state.activeSpaceId) {
+        await flushSaveNote();
         state.activeSpaceId = spaceId;
         await saveCurrentState();
         updateSpaceTabs();
@@ -562,8 +571,27 @@ function updateFocusUI() {
 
   const progressPct = Math.min(100, Math.max(0, ((totalSec - remaining) / totalSec) * 100));
 
-  if (display) display.textContent = formatDuration(remaining);
+  if (display) {
+    display.textContent = formatDuration(remaining);
+    if (state.focus?.active) {
+      display.classList.add('running');
+      display.title = 'Focus timer running';
+    } else {
+      display.classList.remove('running');
+      display.title = 'Click to edit custom minutes';
+    }
+  }
   if (bar) bar.style.width = `${progressPct}%`;
+
+  // Highlight active preset button if matches current minutes
+  document.querySelectorAll('.preset-btn[data-mins]').forEach((btn) => {
+    const m = Number(btn.getAttribute('data-mins'));
+    if (m === state.focus?.durationMinutes && !state.focus?.active) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
 
   if (state.focus?.active) {
     box?.classList.add('running', mode);
@@ -610,8 +638,8 @@ async function updateLogsStream() {
       return;
     }
 
-    // Latest 30 entries (lazy slice)
-    const recent = lines.slice(-30).reverse();
+    // Latest 30 entries in descending order (logs.md prepends newest on top)
+    const recent = lines.slice(0, 30);
 
     container.innerHTML = recent
       .map((line) => {
@@ -823,6 +851,14 @@ function bindPersistentEvents() {
       scheduleSaveNote();
     });
 
+    noteArea.addEventListener('blur', () => {
+      flushSaveNote();
+    });
+
+    window.addEventListener('blur', () => {
+      flushSaveNote();
+    });
+
     noteArea.addEventListener('keydown', (e) => {
       // Tab -> 2 spaces indent
       if (e.key === 'Tab') {
@@ -923,13 +959,14 @@ function bindPersistentEvents() {
     const mode = state.focus.mode || 'work';
 
     if (!state.focus?.active) {
+      const typedGoal = goalInput?.value.trim() || '';
       state.focus = {
         mode,
         active: true,
         paused: false,
         remainingSeconds: (state.focus?.durationMinutes || 30) * 60,
         spaceId: activeSpace?.id || null,
-        goal: goalInput?.value.trim() || (mode === 'work' ? activeSpace?.objective || 'Deep Focus' : 'Recharge Break'),
+        goal: typedGoal,
         startedAt: Date.now(),
         durationMinutes: state.focus?.durationMinutes || 30,
         history: state.focus?.history || [],
@@ -974,20 +1011,40 @@ function bindPersistentEvents() {
     });
   });
 
-  // Custom Preset (Prompt)
-  document.getElementById('btn-preset-custom')?.addEventListener('click', async () => {
-    const input = prompt('Enter custom minutes (e.g. 20, 50, 90):', '20');
-    const mins = parseInt(input || '', 10);
-    if (!isNaN(mins) && mins > 0) {
-      document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
-      document.getElementById('btn-preset-custom')?.classList.add('active');
-      state.focus.durationMinutes = mins;
-      state.focus.remainingSeconds = mins * 60;
-      if (!state.focus.active) {
-        state.focus.startedAt = null;
-      }
-      await saveCurrentState();
-      updateFocusUI();
+  // In-place Timer Edit (Click big timer numbers when stopped to edit custom minutes)
+  const display = document.getElementById('focus-display');
+  const timerInput = document.getElementById('focus-timer-input') as HTMLInputElement | null;
+
+  display?.addEventListener('click', () => {
+    if (state.focus?.active) return;
+    if (timerInput && display) {
+      timerInput.value = String(state.focus?.durationMinutes || 30);
+      display.style.display = 'none';
+      timerInput.style.display = 'block';
+      timerInput.focus();
+      timerInput.select();
+    }
+  });
+
+  const commitTimerEdit = async () => {
+    if (!timerInput || timerInput.style.display === 'none') return;
+    const mins = Math.max(1, Math.min(720, parseInt(timerInput.value, 10) || 30));
+    state.focus.durationMinutes = mins;
+    state.focus.remainingSeconds = mins * 60;
+    state.focus.startedAt = null;
+    timerInput.style.display = 'none';
+    if (display) display.style.display = 'block';
+    await saveCurrentState();
+    updateFocusUI();
+  };
+
+  timerInput?.addEventListener('blur', commitTimerEdit);
+  timerInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      commitTimerEdit();
+    } else if (e.key === 'Escape') {
+      if (timerInput) timerInput.style.display = 'none';
+      if (display) display.style.display = 'block';
     }
   });
 }
@@ -1040,7 +1097,7 @@ function startTimerLoop() {
         // Complete focus session!
         const durationMins = state.focus.durationMinutes || 30;
         const mode = state.focus.mode || 'work';
-        const goal = state.focus.goal || (mode === 'work' ? 'Deep Work' : 'Rest Break');
+        const rawGoal = (state.focus.goal || '').trim();
         const activeSpace = getActiveSpace();
 
         const newRecord: FocusRecord = {
@@ -1048,7 +1105,7 @@ function startTimerLoop() {
           type: mode,
           spaceId: mode === 'work' ? activeSpace?.id || null : null,
           spaceName: mode === 'work' ? activeSpace?.name || 'General' : 'Break',
-          goal,
+          goal: rawGoal || (mode === 'work' ? 'Deep Work' : 'Break'),
           durationMinutes: durationMins,
           completedAt: Date.now(),
         };
@@ -1056,11 +1113,11 @@ function startTimerLoop() {
         if (!state.focus.history) state.focus.history = [];
         state.focus.history.push(newRecord);
 
-        // Append to Documents/Senku Notes/logs.md
-        const logMsg = mode === 'work'
-          ? `(Work ${durationMins}m) ${goal}`
-          : `(Rest ${durationMins}m) Recharged`;
-        await window.senku.appendLog(logMsg, mode === 'work' ? activeSpace?.name : undefined);
+        // ONLY append to logs.md if user explicitly typed a goal!
+        if (mode === 'work' && rawGoal.length > 0) {
+          const logMsg = `(Work ${durationMins}m) ${rawGoal}`;
+          await window.senku.appendLog(logMsg, activeSpace?.name);
+        }
 
         playChime();
 
@@ -1072,6 +1129,9 @@ function startTimerLoop() {
           state.focus.durationMinutes = 5;
           state.focus.remainingSeconds = 5 * 60;
           state.focus.startedAt = null;
+          state.focus.goal = '';
+          const gInput = document.getElementById('focus-goal-input') as HTMLInputElement | null;
+          if (gInput) gInput.value = '';
         } else {
           state.focus.mode = 'work';
           state.focus.active = false;
@@ -1079,6 +1139,9 @@ function startTimerLoop() {
           state.focus.durationMinutes = 30;
           state.focus.remainingSeconds = 30 * 60;
           state.focus.startedAt = null;
+          state.focus.goal = '';
+          const gInput = document.getElementById('focus-goal-input') as HTMLInputElement | null;
+          if (gInput) gInput.value = '';
         }
 
         await saveCurrentState();
