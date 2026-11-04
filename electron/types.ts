@@ -1,114 +1,71 @@
-export interface Settings {
-  userName: string;
-  activeWorkspaceId: string;
-  openSpaceIds?: string[];
-  activeNoteId?: string;
-  launchAtStartup: boolean;
-  greeting: string;
-  lastLogSeq?: number;
-  windowBounds?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    maximized?: boolean;
-  };
-  overlayPosition?: {
-    x: number;
-    y: number;
-  };
-}
-
 export interface PinnedLink {
   id: string;
   title: string;
   url: string;
-  icon?: string;
 }
 
 export interface Workspace {
   id: string;
   name: string;
-  masterFolder: string;
-  lastSubfolder?: string;
-  createdAt: string;
-  pinnedPaths: string[];
-  activeObjective?: string;
-  pinnedLinks?: PinnedLink[];
-}
-
-export interface FileEntry {
-  name: string;
   path: string;
-  kind: 'file' | 'folder';
-  extension: string;
-  size?: number;
-  modifiedAt?: string;
-  pinned?: boolean;
-}
-
-export interface LogEntry {
-  id: string;
-  seq: number;
-  text: string;
+  objective: string;
+  links: PinnedLink[];
   createdAt: number;
-  spaceId?: string;
-  spaceName?: string;
-  refId?: string;
-  tag?: 'milestone' | 'bug' | 'note' | 'focus';
 }
 
 export interface InboxItem {
   id: string;
   text: string;
+  done: boolean;
   createdAt: number;
-  spaceId?: string;
 }
 
 export interface FocusSession {
-  id: string;
-  spaceId?: string;
-  objective?: string;
+  active: boolean;
+  spaceId: string | null;
+  goal: string;
+  startedAt: number | null;
   durationMinutes: number;
-  startedAt: number;
-  state: 'running' | 'paused' | 'completed' | 'cancelled';
 }
 
-export interface HomeData {
-  log: LogEntry[];
-}
-
-export interface NoteFile {
+export interface LogEntry {
   id: string;
-  name: string;
-  bundle?: string;
-  content: string;
+  spaceId: string | null;
+  spaceName?: string;
+  text: string;
+  tag: 'dev' | 'bug' | 'idea' | 'done';
   createdAt: number;
-  updatedAt: number;
-  filePath?: string;
 }
 
-export interface TrashWorkspace {
-  id: string;
-  name: string;
-  masterFolder: string;
-  deletedAt: number;
+export interface SenkuState {
+  version: number;
+  activeSpaceId: string | null;
+  spaces: Workspace[];
+  inbox: InboxItem[];
+  focus: FocusSession;
+  logs: LogEntry[];
+  settings: {
+    userName: string;
+    windowBounds?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      maximized?: boolean;
+    };
+  };
 }
 
-export interface AppSnapshot {
-  settings: Settings;
-  workspaces: Workspace[];
-  openSpaceIds: string[];
-  workspaceFolderAvailability: Record<string, boolean>;
-  workspace: Workspace | null;
-  entries: FileEntry[];
-  currentPath: string;
-  logEntries: LogEntry[];
-  trashWorkspaces: TrashWorkspace[];
-  notes: NoteFile[];
-  bundles: string[];
-  activeNoteId?: string;
-  home: HomeData;
-  inboxItems: InboxItem[];
-  activeSession: FocusSession | null;
+export interface SenkuAPI {
+  getState: () => Promise<SenkuState>;
+  saveState: (patch: Partial<SenkuState>) => Promise<SenkuState>;
+  openFolder: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;
+  openTerminal: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;
+  openCode: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;
+  openUrl: (url: string) => Promise<{ ok: boolean; error?: string }>;
+  pickFolder: () => Promise<string | null>;
+  readNote: (filePath: string) => Promise<string>;
+  writeNote: (filePath: string, content: string) => Promise<boolean>;
+  minimize: () => void;
+  close: () => void;
 }
