@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import type { SenkuState, Workspace, FocusBlock } from '../electron/types';
+import type { SenkuState, Workspace, FocusRecord } from '../electron/types';
 
 type NoteSlot = 'global' | 'main' | 'tasks' | 'scratch' | 'links';
 
@@ -8,13 +8,14 @@ let state: SenkuState = {
   activeSpaceId: null,
   spaces: [],
   focus: {
+    mode: 'work',
     active: false,
     paused: false,
-    remainingSeconds: 25 * 60,
+    remainingSeconds: 30 * 60,
     spaceId: null,
     goal: '',
     startedAt: null,
-    durationMinutes: 25,
+    durationMinutes: 30,
     history: [],
   },
   settings: { userName: 'Vivek' },
@@ -29,6 +30,7 @@ let appPaths = {
 let activeSlot: NoteSlot = 'main';
 let activeNoteContent = '';
 let isNotePreview = false;
+let isViewingLogsInCanvas = false;
 let saveNoteTimeout: any = null;
 let timerInterval: any = null;
 let deleteConfirmTimeout: any = null;
@@ -69,7 +71,7 @@ npm run dev
 > Click any checkbox in Preview mode to toggle it live.
 
 ### Next Up
-- [ ] Review sprint targets
+- [ ] Plan sprint targets
 - [ ] Implement core features
 - [ ] Test edge cases
 
@@ -123,30 +125,33 @@ function getSlotPath(slot: NoteSlot): string {
   }
 }
 
-function formatTime(timestamp: number): string {
-  const d = new Date(timestamp);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Calculate Today's Focus Stats
-function getTodayFocusStats(): { totalHoursText: string; count: number; todayBlocks: FocusBlock[] } {
+// Calculate Daily Work & Rest Stats
+function getTodayFocusStats(): { workText: string; restText: string; totalSessions: number } {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const history = state.focus?.history || [];
-  const todayBlocks = history.filter((b) => b.completedAt >= startOfDay);
-  const totalMinutes = todayBlocks.reduce((acc, b) => acc + (b.durationMinutes || 0), 0);
+  const todayRecords = history.filter((b) => b.completedAt >= startOfDay);
 
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  const totalHoursText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  const workMinutes = todayRecords.filter((b) => b.type === 'work').reduce((acc, b) => acc + (b.durationMinutes || 0), 0);
+  const restMinutes = todayRecords.filter((b) => b.type === 'rest').reduce((acc, b) => acc + (b.durationMinutes || 0), 0);
 
-  return { totalHoursText, count: todayBlocks.length, todayBlocks };
+  const formatHrsMins = (mins: number) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  return {
+    workText: formatHrsMins(workMinutes),
+    restText: formatHrsMins(restMinutes),
+    totalSessions: todayRecords.length,
+  };
 }
 
 // Gentle Web Audio API Chime on Timer Complete
@@ -168,7 +173,7 @@ function playChime() {
 }
 
 // ---------------------------------------------------------------------------
-// Markdown Parsing & Silent Interactive Tasks
+// Markdown Parsing & Interactive Tasks
 // ---------------------------------------------------------------------------
 
 function renderMarkdownWithTasks(md: string): string {
@@ -214,11 +219,11 @@ async function saveCurrentState(patch?: Partial<SenkuState>) {
 }
 
 async function loadNoteForActiveSlot() {
+  isViewingLogsInCanvas = false;
   const path = getSlotPath(activeSlot);
   try {
     let content = await window.senku.readNote(path);
     if (!content.trim()) {
-      // Seed with starter template
       const space = getActiveSpace();
       const template = STARTER_TEMPLATES[activeSlot](space?.name || 'Workspace');
       content = template;
@@ -232,6 +237,7 @@ async function loadNoteForActiveSlot() {
 }
 
 function scheduleSaveNote() {
+  if (isViewingLogsInCanvas) return;
   const path = getSlotPath(activeSlot);
   if (saveNoteTimeout) clearTimeout(saveNoteTimeout);
   saveNoteTimeout = setTimeout(async () => {
@@ -261,7 +267,10 @@ function buildShell() {
     <!-- Top Drag Bar -->
     <header class="titlebar">
       <div class="titlebar-left">
-        <span class="brand">⚡ SENKU</span>
+        <div class="brand">
+          <img src="./assets/senku.ico" class="brand-icon" alt="Senku" />
+          <span>SENKU</span>
+        </div>
         <div class="space-tabs" id="space-tabs-container"></div>
         <button class="btn-add-space" id="btn-add-space" title="Add Space (+)">+</button>
       </div>
@@ -272,9 +281,9 @@ function buildShell() {
       </div>
     </header>
 
-    <!-- Main Content Split -->
+    <!-- Main Content Split: Left (Space Context) / Right (Global Engine) -->
     <main class="main-view">
-      <!-- Cockpit Panel (Left) -->
+      <!-- LEFT HEMISPHERE: Local Space Context -->
       <section class="cockpit-panel" id="cockpit-panel">
         <div class="space-header">
           <div class="space-title-row">
@@ -337,40 +346,66 @@ function buildShell() {
         </div>
       </section>
 
-      <!-- Right Panel: Focus Momentum Engine -->
-      <aside class="focus-panel">
-        <!-- Hero Today Summary -->
+      <!-- RIGHT HEMISPHERE: 100% Global Engine (Independent) -->
+      <aside class="global-panel">
+        <!-- Hero Daily Focus & Rest Stats Card -->
         <div class="focus-hero-card">
-          <div class="focus-hero-left">
-            <span class="focus-hero-label">🔥 Today's Focus</span>
-            <span class="focus-hero-value" id="today-focus-value">0m</span>
+          <div class="focus-hero-metrics">
+            <div class="metric-group">
+              <span class="metric-label work">🔥 Work</span>
+              <span class="metric-value" id="today-work-value">0m</span>
+            </div>
+            <div class="metric-group">
+              <span class="metric-label rest">☕ Rest</span>
+              <span class="metric-value" id="today-rest-value">0m</span>
+            </div>
           </div>
           <span class="focus-hero-badge" id="today-sessions-count">0 sessions</span>
         </div>
 
-        <!-- Focus Timer Box -->
+        <!-- Focus Session Box -->
         <div class="focus-box" id="focus-box">
-          <div class="focus-timer-text" id="focus-display">25:00</div>
+          <!-- Mode Toggle: Work vs Rest -->
+          <div class="mode-toggle-group">
+            <button class="mode-btn active work" id="btn-mode-work">🎯 Work Mode</button>
+            <button class="mode-btn rest" id="btn-mode-rest">☕ Rest Mode</button>
+          </div>
+
+          <div class="focus-timer-text" id="focus-display">30:00</div>
           <div class="focus-progress-track">
             <div class="focus-progress-fill" id="focus-progress-bar"></div>
           </div>
-          <input class="input-pill" id="focus-goal-input" placeholder="What are you focusing on?" />
+
+          <input class="input-pill" id="focus-goal-input" placeholder="What are you working on?" />
+
+          <!-- Presets: 15m, 30m, 45m, Custom -->
           <div class="focus-presets">
             <button class="preset-btn" data-mins="15">15m</button>
-            <button class="preset-btn active" data-mins="25">25m</button>
+            <button class="preset-btn active" data-mins="30">30m</button>
             <button class="preset-btn" data-mins="45">45m</button>
-            <button class="preset-btn" data-mins="60">60m</button>
+            <button class="preset-btn" id="btn-preset-custom">Custom</button>
           </div>
+
           <div class="focus-controls-row">
             <button class="btn-primary" id="btn-toggle-focus">Start Focus</button>
             <button class="btn-secondary" id="btn-reset-focus" style="display: none;">Reset</button>
           </div>
         </div>
 
-        <!-- Today's Completed Blocks Stream -->
-        <div class="completed-section">
-          <span class="section-label">Today's Completed Blocks</span>
-          <div class="blocks-list" id="blocks-list-container"></div>
+        <!-- Global Work Logs Section -->
+        <div class="global-logs-card">
+          <div class="logs-header-row">
+            <span class="section-label">Global logs.md</span>
+            <div class="logs-header-actions">
+              <button class="btn-secondary" id="btn-view-logs-md" title="View logs.md in Senku viewer">View in Senku</button>
+              <button class="btn-secondary" id="btn-open-logs-code" title="Open logs.md in VS Code">💻 VS Code</button>
+            </div>
+          </div>
+
+          <input class="quick-log-input" id="quick-log-input" placeholder="Log completed work & hit Enter..." />
+
+          <!-- Lazy-loaded stream of recent logs -->
+          <div class="logs-stream-list" id="logs-stream-container"></div>
         </div>
       </aside>
     </main>
@@ -380,7 +415,7 @@ function buildShell() {
 }
 
 // ---------------------------------------------------------------------------
-// Granular Targeted DOM Updaters (ZERO FULL-PAGE REFRESH)
+// Granular Targeted DOM Updaters (NO FULL PAGE REFRESH)
 // ---------------------------------------------------------------------------
 
 function updateSpaceTabs() {
@@ -428,7 +463,7 @@ function updateSpaceHeader() {
 function updateNoteSlotTabs() {
   document.querySelectorAll('.slot-tab').forEach((tab) => {
     const slot = tab.getAttribute('data-slot');
-    if (slot === activeSlot) {
+    if (slot === activeSlot && !isViewingLogsInCanvas) {
       tab.classList.add('active');
     } else {
       tab.classList.remove('active');
@@ -451,7 +486,6 @@ function updateNoteCanvas() {
       preview.style.display = 'block';
       preview.innerHTML = renderMarkdownWithTasks(activeNoteContent);
 
-      // Bind interactive tasks without full-page re-render
       preview.querySelectorAll('.interactive-task').forEach((cb) => {
         cb.addEventListener('change', (e) => {
           const input = e.target as HTMLInputElement;
@@ -468,7 +502,6 @@ function updateNoteCanvas() {
         });
       });
 
-      // Hyperlinks open in browser
       preview.querySelectorAll('a').forEach((link) => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
@@ -493,15 +526,32 @@ function updateFocusUI() {
   const toggleBtn = document.getElementById('btn-toggle-focus');
   const resetBtn = document.getElementById('btn-reset-focus');
   const goalInput = document.getElementById('focus-goal-input') as HTMLInputElement | null;
-  const heroValue = document.getElementById('today-focus-value');
-  const heroBadge = document.getElementById('today-sessions-count');
+  const workVal = document.getElementById('today-work-value');
+  const restVal = document.getElementById('today-rest-value');
+  const sessBadge = document.getElementById('today-sessions-count');
+  const workModeBtn = document.getElementById('btn-mode-work');
+  const restModeBtn = document.getElementById('btn-mode-rest');
 
-  // Update Hero Stats
+  // Daily Stats
   const stats = getTodayFocusStats();
-  if (heroValue) heroValue.textContent = stats.totalHoursText;
-  if (heroBadge) heroBadge.textContent = `${stats.count} sessions`;
+  if (workVal) workVal.textContent = stats.workText;
+  if (restVal) restVal.textContent = stats.restText;
+  if (sessBadge) sessBadge.textContent = `${stats.totalSessions} sessions`;
 
-  const totalSec = (state.focus?.durationMinutes || 25) * 60;
+  const mode = state.focus?.mode || 'work';
+  if (mode === 'work') {
+    workModeBtn?.classList.add('active');
+    restModeBtn?.classList.remove('active');
+    bar?.classList.remove('rest');
+    if (goalInput && !state.focus?.active) goalInput.placeholder = 'What are you working on?';
+  } else {
+    restModeBtn?.classList.add('active');
+    workModeBtn?.classList.remove('active');
+    bar?.classList.add('rest');
+    if (goalInput && !state.focus?.active) goalInput.placeholder = 'Rest & recharge...';
+  }
+
+  const totalSec = (state.focus?.durationMinutes || 30) * 60;
   let remaining = state.focus?.remainingSeconds ?? totalSec;
 
   if (state.focus?.active && !state.focus?.paused && state.focus?.startedAt) {
@@ -516,66 +566,79 @@ function updateFocusUI() {
   if (bar) bar.style.width = `${progressPct}%`;
 
   if (state.focus?.active) {
-    box?.classList.add('running');
+    box?.classList.add('running', mode);
     if (resetBtn) resetBtn.style.display = 'block';
     if (goalInput) goalInput.disabled = true;
 
     if (state.focus.paused) {
-      if (toggleBtn) toggleBtn.textContent = 'Resume';
+      if (toggleBtn) {
+        toggleBtn.textContent = 'Resume';
+        toggleBtn.className = mode === 'rest' ? 'btn-primary rest-active' : 'btn-primary';
+      }
     } else {
-      if (toggleBtn) toggleBtn.textContent = 'Pause';
+      if (toggleBtn) {
+        toggleBtn.textContent = 'Pause';
+        toggleBtn.className = mode === 'rest' ? 'btn-primary rest-active' : 'btn-primary';
+      }
     }
   } else {
-    box?.classList.remove('running');
+    box?.classList.remove('running', 'work', 'rest');
     if (resetBtn) resetBtn.style.display = 'none';
-    if (toggleBtn) toggleBtn.textContent = 'Start Focus';
+    if (toggleBtn) {
+      toggleBtn.textContent = mode === 'work' ? 'Start Focus' : 'Start Rest';
+      toggleBtn.className = mode === 'rest' ? 'btn-primary rest-active' : 'btn-primary';
+    }
     if (goalInput) goalInput.disabled = false;
   }
-
-  updateCompletedBlocksStream();
 }
 
-function updateCompletedBlocksStream() {
-  const container = document.getElementById('blocks-list-container');
+// Lazy load & parse recent logs from documents/Senku Notes/logs.md
+async function updateLogsStream() {
+  const container = document.getElementById('logs-stream-container');
   if (!container) return;
 
-  const stats = getTodayFocusStats();
-  if (stats.todayBlocks.length === 0) {
-    container.innerHTML = `
-      <div style="color: var(--text-dim); font-size: 11px; text-align: center; padding: 20px 0;">
-        No focus blocks completed yet today.<br>Start a 25m session above to build momentum.
-      </div>
-    `;
-    return;
+  try {
+    const raw = await window.senku.readLogs();
+    const lines = raw.split('\n').filter((l) => l.trim().startsWith('- '));
+
+    if (lines.length === 0) {
+      container.innerHTML = `
+        <div style="color: var(--text-dim); font-size: 11px; text-align: center; padding: 20px 0;">
+          No logs recorded yet.<br>Type work above or finish a focus session.
+        </div>
+      `;
+      return;
+    }
+
+    // Latest 30 entries (lazy slice)
+    const recent = lines.slice(-30).reverse();
+
+    container.innerHTML = recent
+      .map((line) => {
+        // Line format: - 16:45 [Space] Text
+        const match = line.match(/^-\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(?:\[(.*?)\]\s+)?(.*)$/);
+        if (match) {
+          const time = match[1];
+          const tag = match[2] || '';
+          const text = match[3];
+          return `
+            <div class="log-stream-entry">
+              <span class="log-stream-time">${time}</span>
+              ${tag ? `<span class="log-stream-tag">${tag}</span>` : ''}
+              <span class="log-stream-text">${text}</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="log-stream-entry">
+            <span class="log-stream-text">${line.replace(/^-\s*/, '')}</span>
+          </div>
+        `;
+      })
+      .join('');
+  } catch (err) {
+    console.error('[logs-stream]', err);
   }
-
-  container.innerHTML = stats.todayBlocks
-    .slice()
-    .reverse()
-    .map(
-      (b) => `
-    <div class="block-entry">
-      <div class="block-entry-left">
-        <span class="block-duration-pill">${b.durationMinutes}m</span>
-        <span class="block-goal-text" title="${b.goal}">${b.goal || 'Focus Session'}</span>
-      </div>
-      <div style="display: flex; align-items: center;">
-        <span class="block-entry-meta">${formatTime(b.completedAt)} • ${b.spaceName}</span>
-        <span class="block-del-btn" data-del-block="${b.id}" title="Remove entry">✕</span>
-      </div>
-    </div>
-  `,
-    )
-    .join('');
-
-  container.querySelectorAll('[data-del-block]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-del-block');
-      state.focus.history = (state.focus.history || []).filter((b) => b.id !== id);
-      await saveCurrentState();
-      updateFocusUI();
-    });
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -694,7 +757,7 @@ function bindPersistentEvents() {
   document.querySelectorAll('.slot-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       const slot = tab.getAttribute('data-slot') as NoteSlot;
-      if (slot && slot !== activeSlot) {
+      if (slot && (slot !== activeSlot || isViewingLogsInCanvas)) {
         switchSlot(slot);
       }
     });
@@ -702,22 +765,54 @@ function bindPersistentEvents() {
 
   // Clear Slot
   document.getElementById('btn-clear-slot')?.addEventListener('click', async () => {
+    if (isViewingLogsInCanvas) return;
     activeNoteContent = '';
     const path = getSlotPath(activeSlot);
     await window.senku.writeNote(path, '');
     updateNoteCanvas();
   });
 
-  // Open note in VS Code
+  // Open active note in VS Code
   document.getElementById('btn-open-note-code')?.addEventListener('click', () => {
-    const notePath = getSlotPath(activeSlot);
-    window.senku.openCode(notePath);
+    if (isViewingLogsInCanvas) {
+      window.senku.getLogsPath().then((p) => window.senku.openCode(p));
+    } else {
+      const notePath = getSlotPath(activeSlot);
+      window.senku.openCode(notePath);
+    }
   });
 
   // Note Toggle Edit / Preview
   document.getElementById('toggle-note-mode')?.addEventListener('click', () => {
     isNotePreview = !isNotePreview;
     updateNoteCanvas();
+  });
+
+  // View logs.md in Senku Canvas
+  document.getElementById('btn-view-logs-md')?.addEventListener('click', async () => {
+    isViewingLogsInCanvas = true;
+    document.querySelectorAll('.slot-tab').forEach((t) => t.classList.remove('active'));
+    activeNoteContent = await window.senku.readLogs();
+    isNotePreview = true;
+    updateNoteCanvas();
+  });
+
+  // Open logs.md in VS Code
+  document.getElementById('btn-open-logs-code')?.addEventListener('click', async () => {
+    const p = await window.senku.getLogsPath();
+    window.senku.openCode(p);
+  });
+
+  // Quick Log Input (Enter submits directly to logs.md)
+  const quickLog = document.getElementById('quick-log-input') as HTMLInputElement | null;
+  quickLog?.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter' && quickLog.value.trim()) {
+      const activeSpace = getActiveSpace();
+      const text = quickLog.value.trim();
+      await window.senku.appendLog(text, activeSpace?.name);
+      quickLog.value = '';
+      updateLogsStream();
+    }
   });
 
   // Note Textarea Editor
@@ -798,29 +893,51 @@ function bindPersistentEvents() {
     });
   }
 
+  // Focus Mode Buttons: Work vs Rest
+  document.getElementById('btn-mode-work')?.addEventListener('click', async () => {
+    state.focus.mode = 'work';
+    state.focus.active = false;
+    state.focus.paused = false;
+    state.focus.durationMinutes = 30;
+    state.focus.remainingSeconds = 30 * 60;
+    state.focus.startedAt = null;
+    await saveCurrentState();
+    updateFocusUI();
+  });
+
+  document.getElementById('btn-mode-rest')?.addEventListener('click', async () => {
+    state.focus.mode = 'rest';
+    state.focus.active = false;
+    state.focus.paused = false;
+    state.focus.durationMinutes = 5;
+    state.focus.remainingSeconds = 5 * 60;
+    state.focus.startedAt = null;
+    await saveCurrentState();
+    updateFocusUI();
+  });
+
   // Focus Timer Controls
   const toggleFocus = async () => {
     const activeSpace = getActiveSpace();
     const goalInput = document.getElementById('focus-goal-input') as HTMLInputElement | null;
+    const mode = state.focus.mode || 'work';
 
     if (!state.focus?.active) {
-      // Start fresh focus
       state.focus = {
+        mode,
         active: true,
         paused: false,
-        remainingSeconds: (state.focus?.durationMinutes || 25) * 60,
+        remainingSeconds: (state.focus?.durationMinutes || 30) * 60,
         spaceId: activeSpace?.id || null,
-        goal: goalInput?.value.trim() || activeSpace?.objective || 'Deep Focus',
+        goal: goalInput?.value.trim() || (mode === 'work' ? activeSpace?.objective || 'Deep Focus' : 'Recharge Break'),
         startedAt: Date.now(),
-        durationMinutes: state.focus?.durationMinutes || 25,
+        durationMinutes: state.focus?.durationMinutes || 30,
         history: state.focus?.history || [],
       };
     } else if (state.focus.paused) {
-      // Resume
       state.focus.paused = false;
-      state.focus.startedAt = Date.now() - (((state.focus.durationMinutes || 25) * 60 - (state.focus.remainingSeconds || 0)) * 1000);
+      state.focus.startedAt = Date.now() - (((state.focus.durationMinutes || 30) * 60 - (state.focus.remainingSeconds || 0)) * 1000);
     } else {
-      // Pause
       state.focus.paused = true;
     }
     await saveCurrentState();
@@ -831,20 +948,22 @@ function bindPersistentEvents() {
 
   // Reset Focus
   document.getElementById('btn-reset-focus')?.addEventListener('click', async () => {
+    const defMins = state.focus.mode === 'rest' ? 5 : 30;
     state.focus.active = false;
     state.focus.paused = false;
     state.focus.startedAt = null;
-    state.focus.remainingSeconds = (state.focus?.durationMinutes || 25) * 60;
+    state.focus.remainingSeconds = defMins * 60;
+    state.focus.durationMinutes = defMins;
     await saveCurrentState();
     updateFocusUI();
   });
 
-  // Focus presets (15m, 25m, 45m, 60m)
-  document.querySelectorAll('.preset-btn').forEach((btn) => {
+  // Focus presets: 15m, 30m, 45m
+  document.querySelectorAll('.preset-btn[data-mins]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      const mins = Number(btn.getAttribute('data-mins')) || 25;
+      const mins = Number(btn.getAttribute('data-mins')) || 30;
       state.focus.durationMinutes = mins;
       state.focus.remainingSeconds = mins * 60;
       if (!state.focus.active) {
@@ -853,6 +972,23 @@ function bindPersistentEvents() {
       await saveCurrentState();
       updateFocusUI();
     });
+  });
+
+  // Custom Preset (Prompt)
+  document.getElementById('btn-preset-custom')?.addEventListener('click', async () => {
+    const input = prompt('Enter custom minutes (e.g. 20, 50, 90):', '20');
+    const mins = parseInt(input || '', 10);
+    if (!isNaN(mins) && mins > 0) {
+      document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
+      document.getElementById('btn-preset-custom')?.classList.add('active');
+      state.focus.durationMinutes = mins;
+      state.focus.remainingSeconds = mins * 60;
+      if (!state.focus.active) {
+        state.focus.startedAt = null;
+      }
+      await saveCurrentState();
+      updateFocusUI();
+    }
   });
 }
 
@@ -865,7 +1001,7 @@ window.addEventListener('keydown', (e) => {
   const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
 
   if (!isInput) {
-    // 1-9 switch spaces
+    // 1-9 switch spaces (ONLY affects Left Hemisphere)
     if (e.key >= '1' && e.key <= '9') {
       const index = parseInt(e.key, 10) - 1;
       if (state.spaces[index] && state.spaces[index].id !== state.activeSpaceId) {
@@ -891,9 +1027,9 @@ window.addEventListener('keydown', (e) => {
 
 function startTimerLoop() {
   if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
+  timerInterval = setInterval(async () => {
     if (state.focus?.active && !state.focus?.paused && state.focus?.startedAt) {
-      const totalSec = (state.focus.durationMinutes || 25) * 60;
+      const totalSec = (state.focus.durationMinutes || 30) * 60;
       const elapsed = Math.floor((Date.now() - state.focus.startedAt) / 1000);
       const remaining = Math.max(0, totalSec - elapsed);
       state.focus.remainingSeconds = remaining;
@@ -902,30 +1038,52 @@ function startTimerLoop() {
 
       if (remaining === 0) {
         // Complete focus session!
-        const durationMins = state.focus.durationMinutes || 25;
-        const goal = state.focus.goal || 'Deep Focus';
+        const durationMins = state.focus.durationMinutes || 30;
+        const mode = state.focus.mode || 'work';
+        const goal = state.focus.goal || (mode === 'work' ? 'Deep Work' : 'Rest Break');
         const activeSpace = getActiveSpace();
 
-        state.focus.active = false;
-        state.focus.paused = false;
-        state.focus.startedAt = null;
-        state.focus.remainingSeconds = totalSec;
-
-        const newBlock: FocusBlock = {
+        const newRecord: FocusRecord = {
           id: crypto.randomUUID(),
-          spaceId: state.focus.spaceId,
-          spaceName: activeSpace?.name || 'General',
+          type: mode,
+          spaceId: mode === 'work' ? activeSpace?.id || null : null,
+          spaceName: mode === 'work' ? activeSpace?.name || 'General' : 'Break',
           goal,
           durationMinutes: durationMins,
           completedAt: Date.now(),
         };
 
         if (!state.focus.history) state.focus.history = [];
-        state.focus.history.push(newBlock);
+        state.focus.history.push(newRecord);
+
+        // Append to Documents/Senku Notes/logs.md
+        const logMsg = mode === 'work'
+          ? `(Work ${durationMins}m) ${goal}`
+          : `(Rest ${durationMins}m) Recharged`;
+        await window.senku.appendLog(logMsg, mode === 'work' ? activeSpace?.name : undefined);
 
         playChime();
-        saveCurrentState();
+
+        // Switch to the other mode seamlessly!
+        if (mode === 'work') {
+          state.focus.mode = 'rest';
+          state.focus.active = false;
+          state.focus.paused = false;
+          state.focus.durationMinutes = 5;
+          state.focus.remainingSeconds = 5 * 60;
+          state.focus.startedAt = null;
+        } else {
+          state.focus.mode = 'work';
+          state.focus.active = false;
+          state.focus.paused = false;
+          state.focus.durationMinutes = 30;
+          state.focus.remainingSeconds = 30 * 60;
+          state.focus.startedAt = null;
+        }
+
+        await saveCurrentState();
         updateFocusUI();
+        updateLogsStream();
       }
     }
   }, 1000);
@@ -945,6 +1103,7 @@ async function init() {
     updateSpaceHeader();
     updateNoteSlotTabs();
     updateFocusUI();
+    updateLogsStream();
 
     await loadNoteForActiveSlot();
     startTimerLoop();

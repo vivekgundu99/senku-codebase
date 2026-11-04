@@ -29,6 +29,7 @@ function createDefaultState(): SenkuState {
     activeSpaceId: defaultSpace.id,
     spaces: [defaultSpace],
     focus: {
+      mode: 'work',
       active: false,
       paused: false,
       remainingSeconds: 25 * 60,
@@ -75,6 +76,7 @@ function tryMigrateLegacy(): SenkuState | null {
       activeSpaceId: spaces[0]?.id || null,
       spaces,
       focus: {
+        mode: 'work',
         active: false,
         paused: false,
         remainingSeconds: 25 * 60,

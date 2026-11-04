@@ -125,6 +125,56 @@ function createWindow() {
 }
 
 // ---------------------------------------------------------------------------
+// Global Logs Storage
+// ---------------------------------------------------------------------------
+
+function getLogsFilePath(): string {
+  const dir = path.join(app.getPath('documents'), 'Senku Notes');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 'logs.md');
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, '# Senku Work Logs\n\n', 'utf8');
+  }
+  return file;
+}
+
+function readLogsContent(): string {
+  try {
+    const file = getLogsFilePath();
+    return fs.readFileSync(file, 'utf8');
+  } catch (err) {
+    console.error('[readLogs]', err);
+    return '';
+  }
+}
+
+function appendLogEntry(text: string, spaceName?: string): boolean {
+  try {
+    const file = getLogsFilePath();
+    let content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '# Senku Work Logs\n\n';
+
+    const now = new Date();
+    const todayHeader = `## ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const tag = spaceName ? `[${spaceName}] ` : '';
+    const line = `- ${timeStr} ${tag}${text}\n`;
+
+    if (content.includes(todayHeader)) {
+      const parts = content.split(todayHeader);
+      content = parts[0] + todayHeader + '\n' + line + parts[1].replace(/^\n*/, '');
+    } else {
+      content = content.replace(/^(#\s+Senku\s+Work\s+Logs\s*\n+)?/, `# Senku Work Logs\n\n${todayHeader}\n${line}\n`);
+    }
+
+    fs.writeFileSync(file, content, 'utf8');
+    return true;
+  } catch (err) {
+    console.error('[appendLog]', err);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Shell & OS Actions
 // ---------------------------------------------------------------------------
 
@@ -225,6 +275,12 @@ ipcMain.handle('senku:get-app-paths', () => ({
   documents: app.getPath('documents'),
   home: app.getPath('home'),
 }));
+
+ipcMain.handle('senku:read-logs', () => readLogsContent());
+
+ipcMain.handle('senku:append-log', (_event, text: string, spaceName?: string) => appendLogEntry(text, spaceName));
+
+ipcMain.handle('senku:get-logs-path', () => getLogsFilePath());
 
 ipcMain.handle('senku:open-folder', (_event, folderPath: string) => openPathFolder(folderPath));
 
