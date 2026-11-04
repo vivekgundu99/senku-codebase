@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import type { SenkuState, Workspace, LogEntry, InboxItem } from '../electron/types';
+import type { SenkuState, Workspace, FocusBlock } from '../electron/types';
 
 type NoteSlot = 'global' | 'main' | 'tasks' | 'scratch' | 'links';
 
@@ -7,7 +7,6 @@ let state: SenkuState = {
   version: 4,
   activeSpaceId: null,
   spaces: [],
-  inbox: [],
   focus: {
     active: false,
     paused: false,
@@ -16,8 +15,8 @@ let state: SenkuState = {
     goal: '',
     startedAt: null,
     durationMinutes: 25,
+    history: [],
   },
-  logs: [],
   settings: { userName: 'Vivek' },
 };
 
@@ -41,7 +40,7 @@ marked.setOptions({
   breaks: true,
 });
 
-// Starter Templates for Reference
+// Built-in Starter Reference Templates
 const STARTER_TEMPLATES: Record<NoteSlot, (spaceName: string) => string> = {
   global: () => `# Global Brain Dump
 > Universal thoughts and cross-project ideas.
@@ -50,7 +49,7 @@ const STARTER_TEMPLATES: Record<NoteSlot, (spaceName: string) => string> = {
 - 
 
 ## Quick Todos
-- [ ] Review daily priorities
+- [ ] 
 `,
 
   main: (name) => `# ${name} — Documentation & Specs
@@ -79,7 +78,7 @@ npm run dev
 `,
 
   scratch: () => `# Scratchpad
-> Temporary thinking canvas. Dump logs, terminal outputs, or WIP snippets. Hit [Clear] anytime to wipe clean.
+> Temporary thinking canvas. Dump logs, test commands, or WIP snippets. Hit [Clear] anytime to wipe.
 
 `,
 
@@ -93,7 +92,7 @@ npm run dev
 };
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers & Calculations
 // ---------------------------------------------------------------------------
 
 function getActiveSpace(): Workspace | null {
@@ -135,6 +134,21 @@ function formatDuration(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+// Calculate Today's Focus Stats
+function getTodayFocusStats(): { totalHoursText: string; count: number; todayBlocks: FocusBlock[] } {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const history = state.focus?.history || [];
+  const todayBlocks = history.filter((b) => b.completedAt >= startOfDay);
+  const totalMinutes = todayBlocks.reduce((acc, b) => acc + (b.durationMinutes || 0), 0);
+
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  const totalHoursText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+  return { totalHoursText, count: todayBlocks.length, todayBlocks };
+}
+
 // Gentle Web Audio API Chime on Timer Complete
 function playChime() {
   try {
@@ -146,15 +160,15 @@ function playChime() {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
     osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.25); // A5
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.9);
     osc.start();
-    osc.stop(ctx.currentTime + 0.8);
+    osc.stop(ctx.currentTime + 0.9);
   } catch {}
 }
 
 // ---------------------------------------------------------------------------
-// Markdown Parsing & Interactive Tasks
+// Markdown Parsing & Silent Interactive Tasks
 // ---------------------------------------------------------------------------
 
 function renderMarkdownWithTasks(md: string): string {
@@ -189,7 +203,7 @@ function toggleTaskInMemory(targetIndex: number, isChecked: boolean) {
 }
 
 // ---------------------------------------------------------------------------
-// State Sync & Note Operations
+// State & File Operations
 // ---------------------------------------------------------------------------
 
 async function saveCurrentState(patch?: Partial<SenkuState>) {
@@ -250,12 +264,6 @@ function buildShell() {
         <span class="brand">⚡ SENKU</span>
         <div class="space-tabs" id="space-tabs-container"></div>
         <button class="btn-add-space" id="btn-add-space" title="Add Space (+)">+</button>
-      </div>
-
-      <div class="titlebar-center">
-        <div class="focus-pill" id="toggle-focus-top">
-          🎯 Start Focus
-        </div>
       </div>
 
       <div class="titlebar-right">
@@ -329,50 +337,40 @@ function buildShell() {
         </div>
       </section>
 
-      <!-- Sidebar Stream (Right) -->
-      <aside class="stream-panel">
-        <!-- Focus Session Box -->
-        <div class="stream-section">
-          <span class="section-label">Contextual Focus Engine</span>
-          <div class="focus-box" id="focus-box">
-            <div class="focus-timer-text" id="focus-display">25:00</div>
-            <div class="focus-progress-track">
-              <div class="focus-progress-fill" id="focus-progress-bar"></div>
-            </div>
-            <input class="input-pill" id="focus-goal-input" placeholder="Focus target..." />
-            <div class="focus-presets">
-              <button class="preset-btn" data-mins="15">15m</button>
-              <button class="preset-btn active" data-mins="25">25m</button>
-              <button class="preset-btn" data-mins="45">45m</button>
-            </div>
-            <div class="focus-controls-row">
-              <button class="btn-primary" id="btn-toggle-focus">Start Focus</button>
-              <button class="btn-secondary" id="btn-reset-focus" style="display: none;">Reset</button>
-            </div>
+      <!-- Right Panel: Focus Momentum Engine -->
+      <aside class="focus-panel">
+        <!-- Hero Today Summary -->
+        <div class="focus-hero-card">
+          <div class="focus-hero-left">
+            <span class="focus-hero-label">🔥 Today's Focus</span>
+            <span class="focus-hero-value" id="today-focus-value">0m</span>
+          </div>
+          <span class="focus-hero-badge" id="today-sessions-count">0 sessions</span>
+        </div>
+
+        <!-- Focus Timer Box -->
+        <div class="focus-box" id="focus-box">
+          <div class="focus-timer-text" id="focus-display">25:00</div>
+          <div class="focus-progress-track">
+            <div class="focus-progress-fill" id="focus-progress-bar"></div>
+          </div>
+          <input class="input-pill" id="focus-goal-input" placeholder="What are you focusing on?" />
+          <div class="focus-presets">
+            <button class="preset-btn" data-mins="15">15m</button>
+            <button class="preset-btn active" data-mins="25">25m</button>
+            <button class="preset-btn" data-mins="45">45m</button>
+            <button class="preset-btn" data-mins="60">60m</button>
+          </div>
+          <div class="focus-controls-row">
+            <button class="btn-primary" id="btn-toggle-focus">Start Focus</button>
+            <button class="btn-secondary" id="btn-reset-focus" style="display: none;">Reset</button>
           </div>
         </div>
 
-        <!-- Fast Capture Inbox -->
-        <div class="stream-section">
-          <span class="section-label">Fast Capture Inbox</span>
-          <input class="input-pill" id="inbox-input" placeholder="Type task & press Enter..." />
-          <div class="inbox-list" id="inbox-list-container"></div>
-        </div>
-
-        <!-- Timeline Logs -->
-        <div class="stream-section" style="border-bottom: none; flex: 1;">
-          <span class="section-label">Timeline Logs</span>
-          <form class="log-input-row" id="add-log-form">
-            <select class="tag-select" id="log-tag">
-              <option value="dev">Dev</option>
-              <option value="bug">Bug</option>
-              <option value="idea">Idea</option>
-              <option value="done">Done</option>
-            </select>
-            <input class="input-pill" id="log-text" placeholder="Logged milestone..." required />
-            <button class="btn-secondary" type="submit">Log</button>
-          </form>
-          <div class="logs-list" id="logs-list-container"></div>
+        <!-- Today's Completed Blocks Stream -->
+        <div class="completed-section">
+          <span class="section-label">Today's Completed Blocks</span>
+          <div class="blocks-list" id="blocks-list-container"></div>
         </div>
       </aside>
     </main>
@@ -382,7 +380,7 @@ function buildShell() {
 }
 
 // ---------------------------------------------------------------------------
-// Granular Targeted DOM Updaters (NO FULL PAGE REFRESH)
+// Granular Targeted DOM Updaters (ZERO FULL-PAGE REFRESH)
 // ---------------------------------------------------------------------------
 
 function updateSpaceTabs() {
@@ -488,86 +486,20 @@ function updateNoteCanvas() {
   }
 }
 
-function updateLogs() {
-  const container = document.getElementById('logs-list-container');
-  if (!container) return;
-
-  container.innerHTML = (state.logs || [])
-    .slice(0, 40)
-    .map(
-      (l) => `
-    <div class="log-entry">
-      <span class="log-tag-badge ${l.tag}">${l.tag}</span>
-      <div class="log-content">
-        <span class="log-text">${l.text}</span>
-        <span class="log-meta">${formatTime(l.createdAt)} • ${l.spaceName || 'Global'}</span>
-      </div>
-      <span class="item-del-btn" data-del-log="${l.id}">✕</span>
-    </div>
-  `,
-    )
-    .join('');
-
-  container.querySelectorAll('[data-del-log]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-del-log');
-      state.logs = state.logs.filter((l) => l.id !== id);
-      await saveCurrentState();
-      updateLogs();
-    });
-  });
-}
-
-function updateInbox() {
-  const container = document.getElementById('inbox-list-container');
-  if (!container) return;
-
-  container.innerHTML = (state.inbox || [])
-    .map(
-      (item) => `
-    <div class="inbox-item ${item.done ? 'done' : ''}">
-      <div class="inbox-item-left">
-        <div class="check-box" data-toggle-inbox="${item.id}">
-          ${item.done ? '✓' : ''}
-        </div>
-        <span>${item.text}</span>
-      </div>
-      <span class="item-del-btn" data-del-inbox="${item.id}">✕</span>
-    </div>
-  `,
-    )
-    .join('');
-
-  container.querySelectorAll('[data-toggle-inbox]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-toggle-inbox');
-      const item = state.inbox.find((i) => i.id === id);
-      if (item) {
-        item.done = !item.done;
-        await saveCurrentState();
-        updateInbox();
-      }
-    });
-  });
-
-  container.querySelectorAll('[data-del-inbox]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-del-inbox');
-      state.inbox = state.inbox.filter((i) => i.id !== id);
-      await saveCurrentState();
-      updateInbox();
-    });
-  });
-}
-
 function updateFocusUI() {
   const box = document.getElementById('focus-box');
   const display = document.getElementById('focus-display');
   const bar = document.getElementById('focus-progress-bar');
   const toggleBtn = document.getElementById('btn-toggle-focus');
   const resetBtn = document.getElementById('btn-reset-focus');
-  const topPill = document.getElementById('toggle-focus-top');
   const goalInput = document.getElementById('focus-goal-input') as HTMLInputElement | null;
+  const heroValue = document.getElementById('today-focus-value');
+  const heroBadge = document.getElementById('today-sessions-count');
+
+  // Update Hero Stats
+  const stats = getTodayFocusStats();
+  if (heroValue) heroValue.textContent = stats.totalHoursText;
+  if (heroBadge) heroBadge.textContent = `${stats.count} sessions`;
 
   const totalSec = (state.focus?.durationMinutes || 25) * 60;
   let remaining = state.focus?.remainingSeconds ?? totalSec;
@@ -590,27 +522,60 @@ function updateFocusUI() {
 
     if (state.focus.paused) {
       if (toggleBtn) toggleBtn.textContent = 'Resume';
-      if (topPill) {
-        topPill.classList.remove('active');
-        topPill.textContent = `⏸️ ${formatDuration(remaining)} (Paused)`;
-      }
     } else {
       if (toggleBtn) toggleBtn.textContent = 'Pause';
-      if (topPill) {
-        topPill.classList.add('active');
-        topPill.textContent = `⏱️ ${formatDuration(remaining)} — ${state.focus.goal || 'Focusing'}`;
-      }
     }
   } else {
     box?.classList.remove('running');
     if (resetBtn) resetBtn.style.display = 'none';
     if (toggleBtn) toggleBtn.textContent = 'Start Focus';
     if (goalInput) goalInput.disabled = false;
-    if (topPill) {
-      topPill.classList.remove('active');
-      topPill.textContent = '🎯 Start Focus';
-    }
   }
+
+  updateCompletedBlocksStream();
+}
+
+function updateCompletedBlocksStream() {
+  const container = document.getElementById('blocks-list-container');
+  if (!container) return;
+
+  const stats = getTodayFocusStats();
+  if (stats.todayBlocks.length === 0) {
+    container.innerHTML = `
+      <div style="color: var(--text-dim); font-size: 11px; text-align: center; padding: 20px 0;">
+        No focus blocks completed yet today.<br>Start a 25m session above to build momentum.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = stats.todayBlocks
+    .slice()
+    .reverse()
+    .map(
+      (b) => `
+    <div class="block-entry">
+      <div class="block-entry-left">
+        <span class="block-duration-pill">${b.durationMinutes}m</span>
+        <span class="block-goal-text" title="${b.goal}">${b.goal || 'Focus Session'}</span>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <span class="block-entry-meta">${formatTime(b.completedAt)} • ${b.spaceName}</span>
+        <span class="block-del-btn" data-del-block="${b.id}" title="Remove entry">✕</span>
+      </div>
+    </div>
+  `,
+    )
+    .join('');
+
+  container.querySelectorAll('[data-del-block]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-del-block');
+      state.focus.history = (state.focus.history || []).filter((b) => b.id !== id);
+      await saveCurrentState();
+      updateFocusUI();
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -666,14 +631,13 @@ function bindPersistentEvents() {
     }
   });
 
-  // 2-Step Space Delete (Safe, Zero-Modal)
+  // Safe 2-Step Space Delete
   const delBtn = document.getElementById('btn-del-space');
   delBtn?.addEventListener('click', async () => {
     const activeSpace = getActiveSpace();
     if (!activeSpace) return;
 
     if (!isDeletePending) {
-      // Step 1: Arm confirmation
       isDeletePending = true;
       delBtn.textContent = 'Confirm Delete?';
       delBtn.classList.add('btn-confirm-delete');
@@ -684,7 +648,6 @@ function bindPersistentEvents() {
         delBtn.classList.remove('btn-confirm-delete');
       }, 3000);
     } else {
-      // Step 2: Confirmed!
       clearTimeout(deleteConfirmTimeout);
       isDeletePending = false;
       delBtn.textContent = 'Delete';
@@ -727,7 +690,7 @@ function bindPersistentEvents() {
     }
   });
 
-  // 5 Desk-Pad Slot Tabs Switching
+  // 5 Desk-Pad Slot Tabs
   document.querySelectorAll('.slot-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       const slot = tab.getAttribute('data-slot') as NoteSlot;
@@ -745,7 +708,7 @@ function bindPersistentEvents() {
     updateNoteCanvas();
   });
 
-  // Open active note in VS Code
+  // Open note in VS Code
   document.getElementById('btn-open-note-code')?.addEventListener('click', () => {
     const notePath = getSlotPath(activeSlot);
     window.senku.openCode(notePath);
@@ -850,6 +813,7 @@ function bindPersistentEvents() {
         goal: goalInput?.value.trim() || activeSpace?.objective || 'Deep Focus',
         startedAt: Date.now(),
         durationMinutes: state.focus?.durationMinutes || 25,
+        history: state.focus?.history || [],
       };
     } else if (state.focus.paused) {
       // Resume
@@ -864,7 +828,6 @@ function bindPersistentEvents() {
   };
 
   document.getElementById('btn-toggle-focus')?.addEventListener('click', toggleFocus);
-  document.getElementById('toggle-focus-top')?.addEventListener('click', toggleFocus);
 
   // Reset Focus
   document.getElementById('btn-reset-focus')?.addEventListener('click', async () => {
@@ -876,7 +839,7 @@ function bindPersistentEvents() {
     updateFocusUI();
   });
 
-  // Focus presets (15m, 25m, 45m)
+  // Focus presets (15m, 25m, 45m, 60m)
   document.querySelectorAll('.preset-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
@@ -890,46 +853,6 @@ function bindPersistentEvents() {
       await saveCurrentState();
       updateFocusUI();
     });
-  });
-
-  // Fast Capture Inbox (Enter adds, zero refresh)
-  const inboxInput = document.getElementById('inbox-input') as HTMLInputElement | null;
-  inboxInput?.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter' && inboxInput.value.trim()) {
-      const item: InboxItem = {
-        id: crypto.randomUUID(),
-        text: inboxInput.value.trim(),
-        done: false,
-        createdAt: Date.now(),
-      };
-      state.inbox.unshift(item);
-      inboxInput.value = '';
-      await saveCurrentState();
-      updateInbox();
-    }
-  });
-
-  // Timeline Logs (Submit adds, zero refresh!)
-  const logForm = document.getElementById('add-log-form') as HTMLFormElement | null;
-  logForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const textEl = document.getElementById('log-text') as HTMLInputElement | null;
-    const tagEl = document.getElementById('log-tag') as HTMLSelectElement | null;
-    const activeSpace = getActiveSpace();
-    if (textEl && textEl.value.trim()) {
-      const newLog: LogEntry = {
-        id: crypto.randomUUID(),
-        spaceId: activeSpace?.id || null,
-        spaceName: activeSpace?.name || 'General',
-        text: textEl.value.trim(),
-        tag: (tagEl?.value as any) || 'dev',
-        createdAt: Date.now(),
-      };
-      state.logs.unshift(newLog);
-      textEl.value = '';
-      await saveCurrentState();
-      updateLogs();
-    }
   });
 }
 
@@ -979,25 +902,29 @@ function startTimerLoop() {
 
       if (remaining === 0) {
         // Complete focus session!
+        const durationMins = state.focus.durationMinutes || 25;
+        const goal = state.focus.goal || 'Deep Focus';
+        const activeSpace = getActiveSpace();
+
         state.focus.active = false;
         state.focus.paused = false;
         state.focus.startedAt = null;
         state.focus.remainingSeconds = totalSec;
 
-        playChime();
-
-        const activeSpace = getActiveSpace();
-        state.logs.unshift({
+        const newBlock: FocusBlock = {
           id: crypto.randomUUID(),
           spaceId: state.focus.spaceId,
           spaceName: activeSpace?.name || 'General',
-          text: `🎉 Completed focus session: ${state.focus.goal || 'Deep Focus'} (${state.focus.durationMinutes}m)`,
-          tag: 'done',
-          createdAt: Date.now(),
-        });
+          goal,
+          durationMinutes: durationMins,
+          completedAt: Date.now(),
+        };
 
+        if (!state.focus.history) state.focus.history = [];
+        state.focus.history.push(newBlock);
+
+        playChime();
         saveCurrentState();
-        updateLogs();
         updateFocusUI();
       }
     }
@@ -1017,8 +944,6 @@ async function init() {
     updateSpaceTabs();
     updateSpaceHeader();
     updateNoteSlotTabs();
-    updateLogs();
-    updateInbox();
     updateFocusUI();
 
     await loadNoteForActiveSlot();

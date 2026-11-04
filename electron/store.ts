@@ -21,7 +21,6 @@ function createDefaultState(): SenkuState {
     name: 'Home',
     path: homePath,
     objective: 'Welcome to Senku Reborn',
-    links: [],
     createdAt: Date.now(),
   };
 
@@ -29,15 +28,16 @@ function createDefaultState(): SenkuState {
     version: 4,
     activeSpaceId: defaultSpace.id,
     spaces: [defaultSpace],
-    inbox: [],
     focus: {
       active: false,
+      paused: false,
+      remainingSeconds: 25 * 60,
       spaceId: defaultSpace.id,
       goal: '',
       startedAt: null,
       durationMinutes: 25,
+      history: [],
     },
-    logs: [],
     settings: {
       userName: 'Vivek',
     },
@@ -58,7 +58,6 @@ function tryMigrateLegacy(): SenkuState | null {
       name: item.name || 'Workspace',
       path: item.masterFolder || item.path || app.getPath('home'),
       objective: item.activeObjective || '',
-      links: Array.isArray(item.pinnedLinks) ? item.pinnedLinks : [],
       createdAt: typeof item.createdAt === 'string' ? new Date(item.createdAt).getTime() : Date.now(),
     }));
 
@@ -75,15 +74,16 @@ function tryMigrateLegacy(): SenkuState | null {
       version: 4,
       activeSpaceId: spaces[0]?.id || null,
       spaces,
-      inbox: [],
       focus: {
         active: false,
+        paused: false,
+        remainingSeconds: 25 * 60,
         spaceId: spaces[0]?.id || null,
         goal: '',
         startedAt: null,
         durationMinutes: 25,
+        history: [],
       },
-      logs: [],
       settings: { userName },
     };
   } catch (err) {
@@ -100,6 +100,21 @@ export function loadState(): SenkuState {
     try {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (data && Array.isArray(data.spaces)) {
+        // Ensure focus.history exists
+        if (!data.focus) {
+          data.focus = {
+            active: false,
+            paused: false,
+            remainingSeconds: 25 * 60,
+            spaceId: data.spaces[0]?.id || null,
+            goal: '',
+            startedAt: null,
+            durationMinutes: 25,
+            history: [],
+          };
+        } else if (!Array.isArray(data.focus.history)) {
+          data.focus.history = [];
+        }
         stateCache = data;
         return stateCache!;
       }
@@ -154,4 +169,3 @@ export function saveState(patch: Partial<SenkuState>): SenkuState {
 
   return updated;
 }
-

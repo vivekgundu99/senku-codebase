@@ -1,23 +1,18 @@
-export interface PinnedLink {
-  id: string;
-  title: string;
-  url: string;
-}
-
 export interface Workspace {
   id: string;
   name: string;
   path: string;
   objective: string;
-  links?: PinnedLink[];
   createdAt: number;
 }
 
-export interface InboxItem {
+export interface FocusBlock {
   id: string;
-  text: string;
-  done: boolean;
-  createdAt: number;
+  spaceId: string | null;
+  spaceName: string;
+  goal: string;
+  durationMinutes: number;
+  completedAt: number;
 }
 
 export interface FocusSession {
@@ -28,24 +23,14 @@ export interface FocusSession {
   goal: string;
   startedAt: number | null;
   durationMinutes: number;
-}
-
-export interface LogEntry {
-  id: string;
-  spaceId: string | null;
-  spaceName?: string;
-  text: string;
-  tag: 'dev' | 'bug' | 'idea' | 'done';
-  createdAt: number;
+  history: FocusBlock[];
 }
 
 export interface SenkuState {
-  version: number;
+  version: 4;
   activeSpaceId: string | null;
   spaces: Workspace[];
-  inbox: InboxItem[];
   focus: FocusSession;
-  logs: LogEntry[];
   settings: {
     userName: string;
     windowBounds?: {
