@@ -223,15 +223,17 @@ input, button, textarea, select {
   display: flex;
   flex-direction: column;
   padding: 16px 20px;
-  gap: 14px;
-  overflow-y: auto;
+  gap: 12px;
+  overflow-y: hidden;
   border-right: 1px solid var(--border);
+  height: 100%;
 }
 
 .space-header {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .space-title-row {
@@ -325,15 +327,16 @@ input, button, textarea, select {
   color: #fbbf24;
 }
 
-/* Objective Card */
+/* Objective Strip */
 .objective-strip {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .objective-label {
@@ -357,71 +360,6 @@ input, button, textarea, select {
   font-weight: 400;
 }
 
-/* Pinned Links */
-.links-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.section-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  font-weight: 700;
-  color: var(--text-dim);
-}
-
-.links-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.link-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  font-size: 12px;
-  color: var(--text);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.link-chip:hover {
-  background: var(--hover);
-  border-color: var(--border-focus);
-}
-.link-chip-del {
-  color: var(--text-dim);
-  font-size: 13px;
-  cursor: pointer;
-}
-.link-chip-del:hover {
-  color: var(--danger);
-}
-
-.add-link-form {
-  display: flex;
-  gap: 6px;
-}
-
-.input-pill {
-  flex: 1;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 5px 9px;
-  font-size: 12px;
-  user-select: text;
-}
-.input-pill:focus {
-  border-color: var(--primary);
-}
-
 .btn-secondary {
   padding: 4px 10px;
   background: var(--card);
@@ -437,19 +375,56 @@ input, button, textarea, select {
   color: var(--text);
 }
 
-/* Full-Height Markdown Canvas (senku.md) */
+/* Full-Height 5-Slot Note Workbench Canvas */
 .note-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
-  min-height: 280px;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.note-header {
+.note-header-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+/* 5 Desk-Pad Slot Tabs */
+.note-slot-tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--surface);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.slot-tab {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.slot-tab:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.slot-tab.active {
+  color: #fff;
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-weight: 700;
 }
 
 .note-actions {
@@ -465,6 +440,7 @@ input, button, textarea, select {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
@@ -472,53 +448,128 @@ input, button, textarea, select {
 .note-textarea {
   width: 100%;
   height: 100%;
-  padding: 14px;
+  padding: 14px 16px;
   user-select: text;
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.65;
   resize: none;
   color: var(--text);
   overflow-y: auto;
 }
 
-/* Rich Markdown Preview Styling */
+/* High-Precision Markdown Preview Styling */
 .note-preview {
-  padding: 16px;
+  padding: 18px 22px;
   overflow-y: auto;
   height: 100%;
   user-select: text;
-  line-height: 1.65;
-  color: #e2e8f0;
+  line-height: 1.7;
+  color: #cbd5e1;
+  font-size: 13.5px;
 }
+
 .note-preview h1 {
-  font-size: 20px;
-  font-weight: 700;
-  margin: 10px 0 6px 0;
-  color: #fff;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 4px;
+  font-size: 19px;
+  font-weight: 800;
+  margin: 16px 0 8px 0;
+  color: #ffffff;
+  letter-spacing: -0.2px;
 }
+.note-preview h1:first-child {
+  margin-top: 0;
+}
+
 .note-preview h2 {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
-  margin: 12px 0 6px 0;
+  margin: 14px 0 6px 0;
   color: #f1f5f9;
 }
+
 .note-preview h3 {
-  font-size: 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  margin: 12px 0 4px 0;
+  color: #e2e8f0;
+}
+
+.note-preview h4, .note-preview h5, .note-preview h6 {
+  font-size: 12.5px;
   font-weight: 600;
-  margin: 8px 0 4px 0;
-  color: #cbd5e1;
+  margin: 10px 0 4px 0;
+  color: var(--text-muted);
 }
+
 .note-preview p {
-  margin-bottom: 8px;
-  color: var(--text-muted);
+  margin-bottom: 10px;
 }
+
+.note-preview hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 16px 0;
+}
+
+/* Hyperlinks */
+.note-preview a {
+  color: #38bdf8;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.note-preview a:hover {
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+
+/* Tables (GitHub Dark Quality) */
+.note-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 12.5px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.note-preview th {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-weight: 700;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.note-preview th:last-child {
+  border-right: none;
+}
+
+.note-preview td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+}
+.note-preview td:last-child {
+  border-right: none;
+}
+.note-preview tr:last-child td {
+  border-bottom: none;
+}
+.note-preview tr:hover td {
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+}
+
+/* Lists & Tasks */
 .note-preview ul, .note-preview ol {
-  margin-bottom: 8px;
-  padding-left: 20px;
-  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding-left: 22px;
 }
 .note-preview li {
   margin-bottom: 3px;
@@ -533,27 +584,41 @@ input, button, textarea, select {
   margin-right: 6px;
   vertical-align: middle;
 }
-.note-preview li:has(input[type="checkbox"]:checked) {
+.note-preview li.task-done, .note-preview li:has(input[type="checkbox"]:checked) {
   text-decoration: line-through;
   opacity: 0.55;
 }
 
+/* Code & Snippets */
 .note-preview pre {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: #0b0e14;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  padding: 10px 12px;
-  margin: 8px 0;
+  padding: 12px 14px;
+  margin: 10px 0;
   overflow-x: auto;
-  font-family: 'Consolas', monospace;
-  font-size: 12px;
+  font-family: 'Consolas', 'Cascadia Code', monospace;
+  font-size: 12.5px;
 }
 .note-preview code {
-  background: var(--card);
+  font-family: 'Consolas', 'Cascadia Code', monospace;
+  font-size: 12px;
+}
+.note-preview p code, .note-preview li code, .note-preview td code {
+  background: rgba(255, 255, 255, 0.08);
   padding: 2px 5px;
   border-radius: 4px;
-  font-family: 'Consolas', monospace;
-  font-size: 12px;
+  color: #a5b4fc;
+}
+
+/* Blockquotes */
+.note-preview blockquote {
+  border-left: 3px solid var(--primary);
+  padding: 6px 12px;
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--text-muted);
+  border-radius: 0 5px 5px 0;
+  margin: 10px 0;
 }
 
 /* Sidebar Stream (Right Panel) */
@@ -570,6 +635,27 @@ input, button, textarea, select {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.input-pill {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+  user-select: text;
+}
+.input-pill:focus {
+  border-color: var(--primary);
 }
 
 /* Focus Session Box */

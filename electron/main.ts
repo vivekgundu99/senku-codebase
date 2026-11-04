@@ -220,6 +220,12 @@ ipcMain.handle('senku:get-state', () => loadState());
 
 ipcMain.handle('senku:save-state', (_event, patch: Partial<SenkuState>) => saveState(patch));
 
+ipcMain.handle('senku:get-app-paths', () => ({
+  userData: app.getPath('userData'),
+  documents: app.getPath('documents'),
+  home: app.getPath('home'),
+}));
+
 ipcMain.handle('senku:open-folder', (_event, folderPath: string) => openPathFolder(folderPath));
 
 ipcMain.handle('senku:open-terminal', (_event, folderPath: string) => launchTerminal(folderPath));

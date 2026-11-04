@@ -9,7 +9,7 @@ export interface Workspace {
   name: string;
   path: string;
   objective: string;
-  links: PinnedLink[];
+  links?: PinnedLink[];
   createdAt: number;
 }
 
@@ -59,6 +59,7 @@ export interface SenkuState {
 export interface SenkuAPI {
   getState: () => Promise<SenkuState>;
   saveState: (patch: Partial<SenkuState>) => Promise<SenkuState>;
+  getAppPaths: () => Promise<{ userData: string; documents: string; home: string }>;
   openFolder: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;
   openTerminal: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;
   openCode: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;

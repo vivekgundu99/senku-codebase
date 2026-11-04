@@ -4,6 +4,7 @@ import type { SenkuAPI, SenkuState } from './types';
 const api: SenkuAPI = {
   getState: () => ipcRenderer.invoke('senku:get-state'),
   saveState: (patch: Partial<SenkuState>) => ipcRenderer.invoke('senku:save-state', patch),
+  getAppPaths: () => ipcRenderer.invoke('senku:get-app-paths'),
   openFolder: (targetPath: string) => ipcRenderer.invoke('senku:open-folder', targetPath),
   openTerminal: (targetPath: string) => ipcRenderer.invoke('senku:open-terminal', targetPath),
   openCode: (targetPath: string) => ipcRenderer.invoke('senku:open-code', targetPath),

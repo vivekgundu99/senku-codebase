@@ -1,6 +1,8 @@
 import { marked } from 'marked';
 import type { SenkuState, Workspace, LogEntry, InboxItem } from '../electron/types';
 
+type NoteSlot = 'global' | 'main' | 'tasks' | 'scratch' | 'links';
+
 let state: SenkuState = {
   version: 4,
   activeSpaceId: null,
@@ -17,12 +19,19 @@ let state: SenkuState = {
   settings: { userName: 'Vivek' },
 };
 
+let appPaths = {
+  userData: '',
+  documents: '',
+  home: '',
+};
+
+let activeSlot: NoteSlot = 'main';
 let activeNoteContent = '';
 let isNotePreview = false;
 let saveNoteTimeout: any = null;
 let timerInterval: any = null;
 
-// Configure marked
+// Configure marked for GFM
 marked.setOptions({
   gfm: true,
   breaks: true,
@@ -34,8 +43,27 @@ function getActiveSpace(): Workspace | null {
   return state.spaces.find((s) => s.id === state.activeSpaceId) || state.spaces[0];
 }
 
-function getSpaceNotePath(space: Workspace): string {
-  return `${space.path}\\senku.md`;
+function getSlotPath(slot: NoteSlot): string {
+  const space = getActiveSpace();
+  if (slot === 'global') {
+    const base = appPaths.documents || appPaths.userData;
+    return `${base}\\Senku Notes\\senku-global.md`;
+  }
+  if (!space) {
+    return `${appPaths.userData}\\senku-fallback.md`;
+  }
+  switch (slot) {
+    case 'main':
+      return `${space.path}\\senku.md`;
+    case 'tasks':
+      return `${space.path}\\tasks.md`;
+    case 'scratch':
+      return `${space.path}\\scratch.md`;
+    case 'links':
+      return `${space.path}\\links.md`;
+    default:
+      return `${space.path}\\senku.md`;
+  }
 }
 
 function formatTime(timestamp: number): string {
@@ -50,7 +78,7 @@ function formatDuration(seconds: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Markdown Interactive Checkbox Engine
+// Markdown Parsing & Silent Interactive Tasks
 // ---------------------------------------------------------------------------
 
 function renderMarkdownWithTasks(md: string): string {
@@ -67,18 +95,16 @@ function renderMarkdownWithTasks(md: string): string {
   return html;
 }
 
-function toggleTaskByIndex(targetIndex: number) {
+function toggleTaskInMemory(targetIndex: number, isChecked: boolean) {
   const lines = activeNoteContent.split('\n');
   let currentIdx = 0;
   for (let i = 0; i < lines.length; i++) {
     const match = lines[i].match(/^(\s*[-*]\s\[)([ xX])(\]\s.*)$/);
     if (match) {
       if (currentIdx === targetIndex) {
-        const newCheck = match[2] === ' ' ? 'x' : ' ';
-        lines[i] = `${match[1]}${newCheck}${match[3]}`;
+        const mark = isChecked ? 'x' : ' ';
+        lines[i] = `${match[1]}${mark}${match[3]}`;
         activeNoteContent = lines.join('\n');
-        scheduleSaveNote();
-        render();
         return;
       }
       currentIdx++;
@@ -87,7 +113,7 @@ function toggleTaskByIndex(targetIndex: number) {
 }
 
 // ---------------------------------------------------------------------------
-// State Sync
+// State & File Operations
 // ---------------------------------------------------------------------------
 
 async function saveCurrentState(patch?: Partial<SenkuState>) {
@@ -97,30 +123,35 @@ async function saveCurrentState(patch?: Partial<SenkuState>) {
   await window.senku.saveState(state);
 }
 
-async function loadNoteForActiveSpace() {
-  const space = getActiveSpace();
-  if (!space) {
-    activeNoteContent = '';
-    return;
-  }
+async function loadNoteForActiveSlot() {
+  const path = getSlotPath(activeSlot);
   try {
-    activeNoteContent = await window.senku.readNote(getSpaceNotePath(space));
+    activeNoteContent = await window.senku.readNote(path);
   } catch {
     activeNoteContent = '';
   }
 }
 
 function scheduleSaveNote() {
-  const space = getActiveSpace();
-  if (!space) return;
+  const path = getSlotPath(activeSlot);
   if (saveNoteTimeout) clearTimeout(saveNoteTimeout);
   saveNoteTimeout = setTimeout(async () => {
-    await window.senku.writeNote(getSpaceNotePath(space), activeNoteContent);
+    await window.senku.writeNote(path, activeNoteContent);
   }, 400);
 }
 
+async function switchSlot(newSlot: NoteSlot) {
+  if (saveNoteTimeout) {
+    clearTimeout(saveNoteTimeout);
+    await window.senku.writeNote(getSlotPath(activeSlot), activeNoteContent);
+  }
+  activeSlot = newSlot;
+  await loadNoteForActiveSlot();
+  render();
+}
+
 // ---------------------------------------------------------------------------
-// Render UI
+// Render
 // ---------------------------------------------------------------------------
 
 function render() {
@@ -214,36 +245,19 @@ function render() {
             <input class="objective-input" id="space-objective-input" value="${activeSpace.objective || ''}" placeholder="What single problem are you solving here today?" />
           </div>
 
-          <!-- Links Section -->
-          <div class="links-section">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="section-label">Pinned Links & Docs</span>
-            </div>
-            <div class="links-list">
-              ${(activeSpace.links || [])
-                .map(
-                  (l) => `
-                <div class="link-chip" data-url="${l.url}">
-                  <span class="link-title">${l.title}</span>
-                  <span class="link-chip-del" data-del-link="${l.id}">×</span>
-                </div>
-              `,
-                )
-                .join('')}
-            </div>
-            <form class="add-link-form" id="add-link-form">
-              <input class="input-pill" id="link-title" placeholder="Title" required />
-              <input class="input-pill" id="link-url" placeholder="URL or file path..." required />
-              <button class="btn-secondary" type="submit">+ Link</button>
-            </form>
-          </div>
-
-          <!-- Living Workspace Note Canvas (senku.md) -->
+          <!-- Full-Height 5-Slot Note Workbench Canvas -->
           <div class="note-section">
-            <div class="note-header">
-              <span class="section-label">Workspace Canvas (senku.md)</span>
+            <div class="note-header-bar">
+              <div class="note-slot-tabs">
+                <button class="slot-tab ${activeSlot === 'global' ? 'active' : ''}" data-slot="global">🌐 Global</button>
+                <button class="slot-tab ${activeSlot === 'main' ? 'active' : ''}" data-slot="main">📝 Main</button>
+                <button class="slot-tab ${activeSlot === 'tasks' ? 'active' : ''}" data-slot="tasks">🎯 Tasks</button>
+                <button class="slot-tab ${activeSlot === 'scratch' ? 'active' : ''}" data-slot="scratch">💡 Scratch</button>
+                <button class="slot-tab ${activeSlot === 'links' ? 'active' : ''}" data-slot="links">📌 Links</button>
+              </div>
               <div class="note-actions">
-                <button class="btn-secondary" id="btn-open-note-code" title="Open senku.md in VS Code">
+                <button class="btn-secondary" id="btn-clear-slot" title="Clear this slot">Clear</button>
+                <button class="btn-secondary" id="btn-open-note-code" title="Open active note in VS Code">
                   💻 VS Code
                 </button>
                 <button class="btn-secondary" id="toggle-note-mode">
@@ -369,7 +383,7 @@ function bindEvents() {
       if (spaceId && spaceId !== state.activeSpaceId) {
         state.activeSpaceId = spaceId;
         await saveCurrentState();
-        await loadNoteForActiveSpace();
+        await loadNoteForActiveSlot();
         render();
       }
     });
@@ -385,13 +399,12 @@ function bindEvents() {
       name,
       path: folder,
       objective: '',
-      links: [],
       createdAt: Date.now(),
     };
     state.spaces.push(newSpace);
     state.activeSpaceId = newSpace.id;
     await saveCurrentState();
-    await loadNoteForActiveSpace();
+    await loadNoteForActiveSlot();
     render();
   });
 
@@ -412,7 +425,7 @@ function bindEvents() {
     if (folder) {
       activeSpace.path = folder;
       await saveCurrentState();
-      await loadNoteForActiveSpace();
+      await loadNoteForActiveSlot();
       render();
     }
   });
@@ -423,7 +436,7 @@ function bindEvents() {
     state.spaces = state.spaces.filter((s) => s.id !== activeSpace.id);
     state.activeSpaceId = state.spaces[0]?.id || null;
     await saveCurrentState();
-    await loadNoteForActiveSpace();
+    await loadNoteForActiveSlot();
     render();
   });
 
@@ -452,61 +465,66 @@ function bindEvents() {
     if (activeSpace) window.senku.openFolder(activeSpace.path);
   });
 
-  // Pinned Links
-  document.querySelectorAll('.link-chip').forEach((chip) => {
-    chip.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).classList.contains('link-chip-del')) return;
-      const url = chip.getAttribute('data-url');
-      if (url) window.senku.openUrl(url);
-    });
-  });
-
-  document.querySelectorAll('[data-del-link]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const linkId = btn.getAttribute('data-del-link');
-      if (activeSpace && linkId) {
-        activeSpace.links = (activeSpace.links || []).filter((l) => l.id !== linkId);
-        await saveCurrentState();
-        render();
+  // 5 Desk-Pad Slot Tabs Switching
+  document.querySelectorAll('.slot-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const slot = tab.getAttribute('data-slot') as NoteSlot;
+      if (slot && slot !== activeSlot) {
+        switchSlot(slot);
       }
     });
   });
 
-  const linkForm = document.getElementById('add-link-form') as HTMLFormElement | null;
-  linkForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!activeSpace) return;
-    const title = (document.getElementById('link-title') as HTMLInputElement)?.value.trim();
-    const url = (document.getElementById('link-url') as HTMLInputElement)?.value.trim();
-    if (title && url) {
-      if (!activeSpace.links) activeSpace.links = [];
-      activeSpace.links.push({ id: crypto.randomUUID(), title, url });
-      await saveCurrentState();
-      render();
-    }
+  // Clear Slot
+  document.getElementById('btn-clear-slot')?.addEventListener('click', async () => {
+    activeNoteContent = '';
+    const path = getSlotPath(activeSlot);
+    await window.senku.writeNote(path, '');
+    render();
   });
 
-  // Open note in VS Code
+  // Open active note in VS Code
   document.getElementById('btn-open-note-code')?.addEventListener('click', () => {
-    if (activeSpace) {
-      const notePath = getSpaceNotePath(activeSpace);
-      window.senku.openCode(notePath);
-    }
+    const notePath = getSlotPath(activeSlot);
+    window.senku.openCode(notePath);
   });
 
-  // Note Toggle & Textarea
+  // Note Toggle Edit / Preview
   document.getElementById('toggle-note-mode')?.addEventListener('click', () => {
     isNotePreview = !isNotePreview;
     render();
   });
 
-  // Interactive Task Checkbox clicks in Preview mode
+  // Hyperlinks in Preview: open in external browser!
+  document.querySelectorAll('.note-preview a').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      if (href) {
+        window.senku.openUrl(href);
+      }
+    });
+  });
+
+  // Silent Interactive Task Checkbox clicks (ZERO REFRESH)
   document.querySelectorAll('.interactive-task').forEach((cb) => {
-    cb.addEventListener('change', () => {
-      const idx = Number(cb.getAttribute('data-task-idx'));
+    cb.addEventListener('change', (e) => {
+      const input = e.target as HTMLInputElement;
+      const idx = Number(input.getAttribute('data-task-idx'));
       if (!isNaN(idx)) {
-        toggleTaskByIndex(idx);
+        // 1. Silently toggle in memory
+        toggleTaskInMemory(idx, input.checked);
+        // 2. Silently schedule save to disk
+        scheduleSaveNote();
+        // 3. Directly update parent LI in the DOM without re-rendering!
+        const parentLi = input.closest('li');
+        if (parentLi) {
+          if (input.checked) {
+            parentLi.classList.add('task-done');
+          } else {
+            parentLi.classList.remove('task-done');
+          }
+        }
       }
     });
   });
@@ -727,7 +745,7 @@ window.addEventListener('keydown', (e) => {
       if (state.spaces[index] && state.spaces[index].id !== state.activeSpaceId) {
         state.activeSpaceId = state.spaces[index].id;
         saveCurrentState();
-        loadNoteForActiveSpace().then(render);
+        loadNoteForActiveSlot().then(render);
       }
     }
   }
@@ -784,8 +802,9 @@ function startTimerLoop() {
 
 async function init() {
   try {
+    appPaths = await window.senku.getAppPaths();
     state = await window.senku.getState();
-    await loadNoteForActiveSpace();
+    await loadNoteForActiveSlot();
     render();
     startTimerLoop();
   } catch (err) {
