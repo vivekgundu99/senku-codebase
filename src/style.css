@@ -56,16 +56,6 @@
   --danger: #dc2626;
 }
 
-[data-theme="light"] .note-preview pre {
-  background: #f1ede3;
-  border-color: rgba(0, 0, 0, 0.08);
-}
-[data-theme="light"] .note-preview p code,
-[data-theme="light"] .note-preview li code,
-[data-theme="light"] .note-preview td code {
-  background: rgba(0, 0, 0, 0.06);
-  color: #2d6a4f;
-}
 [data-theme="light"] .focus-timer-text,
 [data-theme="light"] .metric-value {
   color: #1f2421;
@@ -591,7 +581,7 @@ input, button, textarea, select {
   height: 100%;
   user-select: text;
   line-height: 1.7;
-  color: #cbd5e1;
+  color: var(--text);
   font-size: 13.5px;
 }
 
@@ -599,7 +589,7 @@ input, button, textarea, select {
   font-size: 19px;
   font-weight: 800;
   margin: 16px 0 8px 0;
-  color: #ffffff;
+  color: var(--text);
   letter-spacing: -0.2px;
 }
 .note-preview h1:first-child {
@@ -610,14 +600,14 @@ input, button, textarea, select {
   font-size: 15.5px;
   font-weight: 700;
   margin: 14px 0 6px 0;
-  color: #f1f5f9;
+  color: var(--text);
 }
 
 .note-preview h3 {
   font-size: 13.5px;
   font-weight: 700;
   margin: 12px 0 4px 0;
-  color: #e2e8f0;
+  color: var(--text);
 }
 
 .note-preview h4, .note-preview h5, .note-preview h6 {
@@ -629,28 +619,28 @@ input, button, textarea, select {
 
 .note-preview p {
   margin-bottom: 10px;
+  color: var(--text);
 }
 
 .note-preview hr {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border);
   margin: 16px 0;
 }
 
 /* Hyperlinks */
 .note-preview a {
-  color: #38bdf8;
+  color: var(--primary);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .note-preview a:hover {
-  color: #7dd3fc;
   text-decoration: underline;
 }
 
-/* Tables (GitHub Dark Quality) */
+/* Tables */
 .note-preview table {
   width: 100%;
   border-collapse: collapse;
@@ -658,18 +648,18 @@ input, button, textarea, select {
   font-size: 12.5px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  background: var(--card);
 }
 
 .note-preview th {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  background: var(--hover);
+  color: var(--text);
   font-weight: 700;
   padding: 8px 12px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
 .note-preview th:last-child {
   border-right: none;
@@ -677,9 +667,9 @@ input, button, textarea, select {
 
 .note-preview td {
   padding: 7px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  color: #94a3b8;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
 }
 .note-preview td:last-child {
   border-right: none;
@@ -688,7 +678,7 @@ input, button, textarea, select {
   border-bottom: none;
 }
 .note-preview tr:hover td {
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--hover);
   color: var(--text);
 }
 
@@ -696,9 +686,11 @@ input, button, textarea, select {
 .note-preview ul, .note-preview ol {
   margin-bottom: 10px;
   padding-left: 22px;
+  color: var(--text);
 }
 .note-preview li {
   margin-bottom: 3px;
+  color: var(--text);
 }
 
 /* Interactive Checkboxes */
@@ -717,31 +709,34 @@ input, button, textarea, select {
 
 /* Code & Snippets */
 .note-preview pre {
-  background: #0b0e14;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 12px 14px;
   margin: 10px 0;
   overflow-x: auto;
   font-family: 'Consolas', 'Cascadia Code', monospace;
   font-size: 12.5px;
+  color: var(--text);
 }
 .note-preview code {
   font-family: 'Consolas', 'Cascadia Code', monospace;
   font-size: 12px;
+  color: var(--text);
 }
 .note-preview p code, .note-preview li code, .note-preview td code {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 2px 5px;
+  background: var(--hover);
+  padding: 2px 6px;
   border-radius: 4px;
-  color: #a5b4fc;
+  color: var(--primary);
+  font-weight: 600;
 }
 
 /* Blockquotes */
 .note-preview blockquote {
   border-left: 3px solid var(--primary);
-  padding: 6px 12px;
-  background: rgba(99, 102, 241, 0.06);
+  padding: 8px 14px;
+  background: var(--hover);
   color: var(--text-muted);
   border-radius: 0 5px 5px 0;
   margin: 10px 0;
