@@ -36,3 +36,4 @@ Senku is designed as two independent, frictionless halves working in quiet harmo
 <p align="center">
   <sub>Built for the builder &middot; Designed by Vivek Gundu &middot; <i>Jai Senku!</i></sub>
 </p>
+

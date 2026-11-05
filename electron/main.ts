@@ -212,14 +212,21 @@ function launchTerminal(targetFolder: string): { ok: boolean; error?: string } {
       if (!stat.isDirectory()) folder = path.dirname(targetFolder);
     } catch {}
 
-    const child = cp.spawn('wt', ['-d', folder], { shell: true, detached: true, stdio: 'ignore' });
+    const child = cp.spawn('wt.exe', ['-d', '.'], {
+      cwd: folder,
+      detached: true,
+      stdio: 'ignore',
+    });
+
     child.on('error', () => {
-      cp.spawn('powershell', ['-NoExit', '-Command', `Set-Location '${folder}'`], {
-        shell: true,
+      // Fallback to standard Command Prompt (cmd.exe) if Windows Terminal is not installed
+      cp.spawn('cmd.exe', ['/c', 'start', 'cmd.exe'], {
+        cwd: folder,
         detached: true,
         stdio: 'ignore',
       }).unref();
     });
+
     child.unref();
     return { ok: true };
   } catch (err) {
