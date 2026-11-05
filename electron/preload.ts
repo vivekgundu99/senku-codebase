@@ -17,6 +17,7 @@ const api: SenkuAPI = {
   writeNote: (filePath: string, content: string) => ipcRenderer.invoke('senku:write-note', filePath, content),
   renameSpaceNotesDir: (oldName: string, newName: string) => ipcRenderer.invoke('senku:rename-space-notes-dir', oldName, newName),
   deleteSpaceNotesDir: (spaceName: string) => ipcRenderer.invoke('senku:delete-space-notes-dir', spaceName),
+  trashSpaceNotesDir: (spaceName: string) => ipcRenderer.invoke('senku:trash-space-notes-dir', spaceName),
   minimize: () => ipcRenderer.send('senku:minimize'),
   toggleMaximize: () => ipcRenderer.invoke('senku:toggle-maximize'),
   isMaximized: () => ipcRenderer.invoke('senku:is-maximized'),

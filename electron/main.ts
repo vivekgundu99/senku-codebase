@@ -384,8 +384,25 @@ function deleteSpaceNotesDir(spaceName: string): boolean {
   }
 }
 
+async function trashSpaceNotesDir(spaceName: string): Promise<boolean> {
+  try {
+    const docs = app.getPath('documents');
+    const safeName = spaceName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'default';
+    const dir = path.join(docs, 'Senku Notes', 'spaces', safeName);
+    if (fs.existsSync(dir)) {
+      await shell.trashItem(dir);
+      return true;
+    }
+    return true;
+  } catch (err) {
+    console.error('[trashSpaceNotesDir]', err);
+    return false;
+  }
+}
+
 ipcMain.handle('senku:rename-space-notes-dir', (_event, oldName: string, newName: string) => renameSpaceNotesDir(oldName, newName));
 ipcMain.handle('senku:delete-space-notes-dir', (_event, spaceName: string) => deleteSpaceNotesDir(spaceName));
+ipcMain.handle('senku:trash-space-notes-dir', (_event, spaceName: string) => trashSpaceNotesDir(spaceName));
 
 ipcMain.on('senku:minimize', () => {
   mainWindow?.minimize();

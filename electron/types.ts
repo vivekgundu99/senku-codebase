@@ -63,6 +63,7 @@ export interface SenkuAPI {
   writeNote: (filePath: string, content: string) => Promise<boolean>;
   renameSpaceNotesDir: (oldName: string, newName: string) => Promise<boolean>;
   deleteSpaceNotesDir: (spaceName: string) => Promise<boolean>;
+  trashSpaceNotesDir: (spaceName: string) => Promise<boolean>;
   minimize: () => void;
   toggleMaximize: () => Promise<boolean>;
   isMaximized: () => Promise<boolean>;

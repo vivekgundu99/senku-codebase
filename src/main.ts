@@ -318,18 +318,14 @@ function buildShell() {
       <!-- LEFT HEMISPHERE: Local Space Context -->
       <section class="cockpit-panel" id="cockpit-panel">
         <div class="space-header">
-          <div class="space-title-row">
-            <div class="space-title-group">
-              <input class="space-name-input" id="space-name-input" placeholder="Space Name" />
-              <button class="btn-secondary btn-icon" id="btn-edit-space" title="Edit Space Name">✎</button>
-            </div>
-            <button class="btn-danger" id="btn-del-space" title="Unlink space">Delete</button>
-          </div>
-          <div class="space-action-strip" id="space-path-click" title="Click to open folder in File Explorer">
-            <div class="path-display">
+          <div class="space-strip">
+            <input class="space-name-input" id="space-name-input" placeholder="Space Name" title="Click to rename space" spellcheck="false" />
+            <div class="space-strip-divider"></div>
+            <div class="path-display" id="space-path-click" title="Click to open folder in File Explorer">
               <span class="path-icon">📁</span>
               <span id="space-path-text" class="path-text">...</span>
             </div>
+            <button class="btn-danger btn-del-space" id="btn-del-space" title="Delete space & move notes to Windows Recycle Bin">Delete</button>
           </div>
         </div>
 
@@ -521,7 +517,10 @@ function updateSpaceHeader() {
   const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
   const pathText = document.getElementById('space-path-text');
   if (activeSpace) {
-    if (nameInput) nameInput.value = activeSpace.name;
+    if (nameInput) {
+      nameInput.value = activeSpace.name;
+      nameInput.size = Math.max(activeSpace.name.length, 6);
+    }
     if (pathText) pathText.textContent = activeSpace.path;
   }
 }
@@ -659,6 +658,15 @@ function getAvailablePaletteItems(query = ''): PaletteItem[] {
     category: 'Action',
     label: '+ Create New Space',
     action: () => handleAddNewSpace(),
+  });
+  items.push({
+    id: 'act-rename-space',
+    category: 'Action',
+    label: 'Rename Active Space',
+    action: () => {
+      const s = getActiveSpace();
+      if (s) handleRenameSpace(s);
+    },
   });
   items.push({
     id: 'act-theme',
@@ -1009,6 +1017,12 @@ function bindPersistentEvents() {
     }
   });
 
+  nameInput?.addEventListener('input', () => {
+    if (nameInput) {
+      nameInput.size = Math.max(nameInput.value.length, 6);
+    }
+  });
+
   nameInput?.addEventListener('change', async () => {
     const activeSpace = getActiveSpace();
     if (!activeSpace) return;
@@ -1023,37 +1037,46 @@ function bindPersistentEvents() {
     } else {
       nameInput.value = activeSpace.name;
     }
+    nameInput.size = Math.max(nameInput.value.length, 6);
   });
 
-  // Edit Button focuses and selects name input
-  document.getElementById('btn-edit-space')?.addEventListener('click', () => {
-    const activeSpace = getActiveSpace();
-    if (activeSpace) handleRenameSpace(activeSpace);
-  });
-
-  // Safe 2-Step Space Delete / Unlink
+  // Safe 2-Step Space Delete with 400ms Anti-Double-Click Guard & Windows Recycle Bin Notes Trash
   let deleteConfirmTimeout: any = null;
   let isDeletePending = false;
+  let deleteArmedAt = 0;
   const delBtn = document.getElementById('btn-del-space');
   delBtn?.addEventListener('click', async () => {
     const activeSpace = getActiveSpace();
     if (!activeSpace) return;
 
+    const now = Date.now();
+
     if (!isDeletePending) {
+      // Step 1: Arm delete
       isDeletePending = true;
-      delBtn.textContent = 'Confirm Delete?';
+      deleteArmedAt = now;
+      delBtn.textContent = 'Confirm?';
       delBtn.classList.add('btn-confirm-delete');
       if (deleteConfirmTimeout) clearTimeout(deleteConfirmTimeout);
       deleteConfirmTimeout = setTimeout(() => {
         isDeletePending = false;
         delBtn.textContent = 'Delete';
         delBtn.classList.remove('btn-confirm-delete');
-      }, 3000);
+      }, 3500);
     } else {
+      // Step 2: Confirmation click.
+      // Guard against accidental double-clicks / rapid jitter (<400ms)
+      if (now - deleteArmedAt < 400) {
+        return;
+      }
+
       clearTimeout(deleteConfirmTimeout);
       isDeletePending = false;
       delBtn.textContent = 'Delete';
       delBtn.classList.remove('btn-confirm-delete');
+
+      // Move space notes directory to Windows Recycle Bin (restorable, no data loss!)
+      await window.senku.trashSpaceNotesDir(activeSpace.name);
 
       const targetId = activeSpace.id;
       state.spaces = state.spaces.filter((s) => s.id !== targetId);
