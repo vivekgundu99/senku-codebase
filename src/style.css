@@ -289,8 +289,8 @@ input, button, textarea, select {
 .cockpit-panel {
   display: flex;
   flex-direction: column;
-  padding: 8px 18px 14px 18px;
-  gap: 6px;
+  padding: 16px 20px;
+  gap: 12px;
   overflow: hidden;
   border-right: 1px solid var(--border);
   height: 100%;
@@ -307,27 +307,25 @@ input, button, textarea, select {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1px 6px 1px 8px;
+  border-radius: 7px;
+  padding: 3px 6px 3px 10px;
   gap: 8px;
-  min-height: 28px;
+  min-height: 32px;
 }
 
 .space-name-input {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
   border: 1px solid transparent;
-  padding: 1px 5px;
+  padding: 2px 6px;
   user-select: text;
   background: transparent;
   border-radius: 4px;
-  max-width: 200px;
-  min-width: 50px;
+  max-width: 220px;
+  min-width: 60px;
   transition: all 0.15s ease;
   cursor: text;
-  height: 24px;
-  line-height: 22px;
 }
 .space-name-input:hover {
   background: var(--hover);
@@ -340,7 +338,7 @@ input, button, textarea, select {
 
 .space-strip-divider {
   width: 1px;
-  height: 14px;
+  height: 16px;
   background: var(--border);
   flex-shrink: 0;
 }
@@ -349,18 +347,16 @@ input, button, textarea, select {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-dim);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
-  padding: 1px 4px;
+  padding: 2px 6px;
   border-radius: 4px;
   transition: background 0.15s ease, color 0.15s ease;
-  height: 24px;
-  line-height: 24px;
 }
 .path-display:hover {
   background: var(--hover);
@@ -379,12 +375,10 @@ input, button, textarea, select {
 }
 
 .btn-del-space {
-  padding: 2px 8px;
-  font-size: 10.5px;
+  padding: 3px 8px;
+  font-size: 11px;
   border-radius: 4px;
   flex-shrink: 0;
-  height: 22px;
-  line-height: 16px;
 }
 
 .btn-secondary {
