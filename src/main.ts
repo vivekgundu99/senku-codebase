@@ -318,12 +318,18 @@ function buildShell() {
       <!-- LEFT HEMISPHERE: Local Space Context -->
       <section class="cockpit-panel" id="cockpit-panel">
         <div class="space-header">
-          <div class="space-action-strip">
-            <div class="path-display" id="space-path-click" title="Click to open folder in File Explorer">
+          <div class="space-title-row">
+            <div class="space-title-group">
+              <input class="space-name-input" id="space-name-input" placeholder="Space Name" />
+              <button class="btn-secondary btn-icon" id="btn-edit-space" title="Edit Space Name">✎</button>
+            </div>
+            <button class="btn-danger" id="btn-del-space" title="Unlink space">Delete</button>
+          </div>
+          <div class="space-action-strip" id="space-path-click" title="Click to open folder in File Explorer">
+            <div class="path-display">
               <span class="path-icon">📁</span>
               <span id="space-path-text" class="path-text">...</span>
             </div>
-            <button class="btn-secondary btn-icon" id="btn-edit-space" title="Rename space">✎</button>
           </div>
         </div>
 
@@ -512,9 +518,11 @@ function updateSpaceTabs() {
 
 function updateSpaceHeader() {
   const activeSpace = getActiveSpace();
+  const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
   const pathText = document.getElementById('space-path-text');
-  if (activeSpace && pathText) {
-    pathText.textContent = activeSpace.path;
+  if (activeSpace) {
+    if (nameInput) nameInput.value = activeSpace.name;
+    if (pathText) pathText.textContent = activeSpace.path;
   }
 }
 
@@ -561,14 +569,16 @@ async function handleAddNewSpace() {
 }
 
 async function handleRenameSpace(space: Workspace) {
-  const newName = prompt('Rename space:', space.name);
-  if (newName && newName.trim() && newName.trim() !== space.name) {
-    const cleanName = newName.trim();
-    await window.senku.renameSpaceNotesDir(space.name, cleanName);
-    space.name = cleanName;
-    await saveCurrentState();
+  if (space.id !== state.activeSpaceId) {
+    state.activeSpaceId = space.id;
     updateSpaceTabs();
+    updateSpaceHeader();
     await loadNoteForActiveSlot();
+  }
+  const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
+  if (nameInput) {
+    nameInput.focus();
+    nameInput.select();
   }
 }
 
@@ -991,9 +1001,86 @@ function bindPersistentEvents() {
   // Space Actions
   document.getElementById('btn-add-space')?.addEventListener('click', handleAddNewSpace);
 
+  // Space Name Inline Edit (with safe Documents folder renaming)
+  const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
+  nameInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      nameInput.blur();
+    }
+  });
+
+  nameInput?.addEventListener('change', async () => {
+    const activeSpace = getActiveSpace();
+    if (!activeSpace) return;
+    const newName = nameInput.value.trim();
+    if (newName && newName !== activeSpace.name) {
+      const oldName = activeSpace.name;
+      await window.senku.renameSpaceNotesDir(oldName, newName);
+      activeSpace.name = newName;
+      await saveCurrentState();
+      updateSpaceTabs();
+      await loadNoteForActiveSlot();
+    } else {
+      nameInput.value = activeSpace.name;
+    }
+  });
+
+  // Edit Button focuses and selects name input
   document.getElementById('btn-edit-space')?.addEventListener('click', () => {
     const activeSpace = getActiveSpace();
     if (activeSpace) handleRenameSpace(activeSpace);
+  });
+
+  // Safe 2-Step Space Delete / Unlink
+  let deleteConfirmTimeout: any = null;
+  let isDeletePending = false;
+  const delBtn = document.getElementById('btn-del-space');
+  delBtn?.addEventListener('click', async () => {
+    const activeSpace = getActiveSpace();
+    if (!activeSpace) return;
+
+    if (!isDeletePending) {
+      isDeletePending = true;
+      delBtn.textContent = 'Confirm Delete?';
+      delBtn.classList.add('btn-confirm-delete');
+      if (deleteConfirmTimeout) clearTimeout(deleteConfirmTimeout);
+      deleteConfirmTimeout = setTimeout(() => {
+        isDeletePending = false;
+        delBtn.textContent = 'Delete';
+        delBtn.classList.remove('btn-confirm-delete');
+      }, 3000);
+    } else {
+      clearTimeout(deleteConfirmTimeout);
+      isDeletePending = false;
+      delBtn.textContent = 'Delete';
+      delBtn.classList.remove('btn-confirm-delete');
+
+      const targetId = activeSpace.id;
+      state.spaces = state.spaces.filter((s) => s.id !== targetId);
+      if (state.settings.openSpaceIds) {
+        state.settings.openSpaceIds = state.settings.openSpaceIds.filter((id) => id !== targetId);
+      }
+
+      if (state.spaces.length === 0) {
+        const defaultSpace: Workspace = {
+          id: crypto.randomUUID(),
+          name: 'General',
+          path: appPaths.home || appPaths.documents,
+          objective: '',
+          createdAt: Date.now(),
+        };
+        state.spaces.push(defaultSpace);
+        state.settings.openSpaceIds = [defaultSpace.id];
+        state.activeSpaceId = defaultSpace.id;
+      } else {
+        state.activeSpaceId = state.settings.openSpaceIds?.[0] || state.spaces[0].id;
+      }
+
+      await saveCurrentState();
+      updateSpaceTabs();
+      updateSpaceHeader();
+      await loadNoteForActiveSlot();
+    }
   });
 
   document.getElementById('space-path-click')?.addEventListener('click', () => {

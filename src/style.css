@@ -299,19 +299,62 @@ input, button, textarea, select {
 .space-header {
   display: flex;
   flex-direction: column;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-/* Compact Path & Action Strip */
-.space-action-strip {
+.space-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+}
+
+.space-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.space-name-input {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  border-bottom: 1px solid transparent;
+  padding: 2px 4px;
+  user-select: text;
+  background: transparent;
+  border-radius: 4px;
+  max-width: 320px;
+}
+.space-name-input:focus {
+  background: var(--surface);
+  border-bottom-color: var(--primary);
+}
+
+.btn-confirm-delete {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+  font-weight: 700;
+}
+
+/* Compact Path Strip */
+.space-action-strip {
+  display: flex;
+  align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 6px 12px;
-  gap: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+.space-action-strip:hover {
+  background: var(--hover);
+  border-color: var(--primary);
 }
 
 .path-display {
@@ -327,7 +370,7 @@ input, button, textarea, select {
   flex: 1;
   transition: color 0.15s ease;
 }
-.path-display:hover {
+.space-action-strip:hover .path-display {
   color: var(--text);
 }
 .path-display .path-icon {
