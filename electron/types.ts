@@ -51,7 +51,7 @@ export interface SenkuAPI {
   saveState: (patch: Partial<SenkuState>) => Promise<SenkuState>;
   getAppPaths: () => Promise<{ userData: string; documents: string; home: string }>;
   readLogs: () => Promise<string>;
-  appendLog: (text: string, spaceName?: string) => Promise<boolean>;
+  appendLog: (text: string) => Promise<boolean>;
   getLogsPath: () => Promise<string>;
   openFolder: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;
   openTerminal: (targetPath: string) => Promise<{ ok: boolean; error?: string }>;

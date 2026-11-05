@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import senkuIcon from './assets/senku.ico';
 import type { SenkuState, Workspace, FocusRecord } from '../electron/types';
 
 type NoteSlot = 'global' | 'main' | 'tasks' | 'scratch' | 'links';
@@ -299,7 +300,7 @@ function buildShell() {
     <header class="titlebar">
       <div class="titlebar-left">
         <div class="brand">
-          <img src="./assets/senku.ico" class="brand-icon" alt="Senku" />
+          <img src="${senkuIcon}" class="brand-icon" alt="Senku" onerror="this.src='./senku.ico'" />
           <span>SENKU</span>
         </div>
         <div class="space-tabs" id="space-tabs-container"></div>
@@ -327,21 +328,11 @@ function buildShell() {
             </div>
           </div>
 
-          <!-- Compact Action & Path Strip -->
-          <div class="space-action-strip">
-            <div class="path-display" id="space-path-click" title="Click to open folder in Explorer">
-              📁 <span id="space-path-text">...</span>
-            </div>
-            <div class="quick-launch-group">
-              <button class="action-pill code" id="btn-launch-code" title="Launch VS Code">
-                💻 VS Code
-              </button>
-              <button class="action-pill terminal" id="btn-launch-terminal" title="Launch Terminal">
-                ⌨️ Terminal
-              </button>
-              <button class="action-pill folder" id="btn-launch-explorer" title="Open in Explorer">
-                📂 Explorer
-              </button>
+          <!-- Compact Path Strip (Click to open folder in File Explorer) -->
+          <div class="space-action-strip" id="space-action-strip" title="Click to open folder in File Explorer">
+            <div class="path-display" id="space-path-click">
+              <span class="path-icon">📁</span>
+              <span id="space-path-text" class="path-text">...</span>
             </div>
           </div>
         </div>
@@ -670,28 +661,29 @@ async function updateLogsStream() {
       return;
     }
 
-    // Latest 30 entries in descending order (logs.md prepends newest on top)
-    const recent = lines.slice(0, 30);
+    // Top 15 entries in descending order (logs.md prepends newest on top)
+    const recent = lines.slice(0, 15);
+
+    const escapeHtml = (str: string) =>
+      str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     container.innerHTML = recent
       .map((line) => {
-        // Line format: - 16:45 [Space] Text
-        const match = line.match(/^-\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(?:\[(.*?)\]\s+)?(.*)$/);
+        // Line format: - 21.30 Text or legacy - 16:45 [Space] Text
+        const match = line.match(/^-\s+(\d{1,2}[.:]\d{2}(?:\s*[aApP][mM])?)\s+(?:\[.*?\]\s+)?(.*)$/);
         if (match) {
           const time = match[1];
-          const tag = match[2] || '';
-          const text = match[3];
+          const text = escapeHtml(match[2].trim());
           return `
             <div class="log-stream-entry">
               <span class="log-stream-time">${time}</span>
-              ${tag ? `<span class="log-stream-tag">${tag}</span>` : ''}
               <span class="log-stream-text">${text}</span>
             </div>
           `;
         }
         return `
           <div class="log-stream-entry">
-            <span class="log-stream-text">${line.replace(/^-\s*/, '')}</span>
+            <span class="log-stream-text">${escapeHtml(line.replace(/^-\s*/, ''))}</span>
           </div>
         `;
       })
@@ -830,23 +822,13 @@ function bindPersistentEvents() {
     }
   });
 
-  // Launchpad Buttons
-  document.getElementById('btn-launch-code')?.addEventListener('click', () => {
-    const activeSpace = getActiveSpace();
-    if (activeSpace) window.senku.openCode(activeSpace.path);
-  });
-  document.getElementById('btn-launch-terminal')?.addEventListener('click', () => {
-    const activeSpace = getActiveSpace();
-    if (activeSpace) window.senku.openTerminal(activeSpace.path);
-  });
-  document.getElementById('btn-launch-explorer')?.addEventListener('click', () => {
+  // Open Space Folder in File Explorer
+  const openActiveSpaceFolder = () => {
     const activeSpace = getActiveSpace();
     if (activeSpace) window.senku.openFolder(activeSpace.path);
-  });
-  document.getElementById('space-path-click')?.addEventListener('click', () => {
-    const activeSpace = getActiveSpace();
-    if (activeSpace) window.senku.openFolder(activeSpace.path);
-  });
+  };
+  document.getElementById('space-action-strip')?.addEventListener('click', openActiveSpaceFolder);
+  document.getElementById('space-path-click')?.addEventListener('click', openActiveSpaceFolder);
 
   // Objective Change
   const objInput = document.getElementById('space-objective-input') as HTMLInputElement | null;
@@ -903,9 +885,8 @@ function bindPersistentEvents() {
   const quickLog = document.getElementById('quick-log-input') as HTMLInputElement | null;
   quickLog?.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter' && quickLog.value.trim()) {
-      const activeSpace = getActiveSpace();
       const text = quickLog.value.trim();
-      await window.senku.appendLog(text, activeSpace?.name);
+      await window.senku.appendLog(text);
       quickLog.value = '';
       updateLogsStream();
     }
@@ -1184,7 +1165,7 @@ function startTimerLoop() {
         // ONLY append to logs.md if user explicitly typed a goal!
         if (mode === 'work' && rawGoal.length > 0) {
           const logMsg = `(Work ${durationMins}m) ${rawGoal}`;
-          await window.senku.appendLog(logMsg, activeSpace?.name);
+          await window.senku.appendLog(logMsg);
         }
 
         playChime();

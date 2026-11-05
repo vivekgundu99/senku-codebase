@@ -55,13 +55,19 @@ function createWindow() {
   const state = loadState();
   const savedBounds = state.settings?.windowBounds;
 
+  const defaultWidth = 960;
+  const defaultHeight = 620;
+  const initialWidth = (savedBounds?.width && savedBounds.width !== 1280) ? savedBounds.width : defaultWidth;
+  const initialHeight = (savedBounds?.height && savedBounds.height !== 820 && savedBounds.height !== 752) ? savedBounds.height : defaultHeight;
+
   mainWindow = new BrowserWindow({
-    width: savedBounds?.width || 1280,
-    height: savedBounds?.height || 820,
+    width: initialWidth,
+    height: initialHeight,
     x: savedBounds?.x,
     y: savedBounds?.y,
-    minWidth: 900,
-    minHeight: 580,
+    minWidth: 880,
+    minHeight: 560,
+    icon: path.join(__dirname, '../../assets/senku.ico'),
     frame: false,
     backgroundColor: '#0c0e12',
     show: false,
@@ -158,16 +164,17 @@ function readLogsContent(): string {
   }
 }
 
-function appendLogEntry(text: string, spaceName?: string): boolean {
+function appendLogEntry(text: string): boolean {
   try {
     const file = getLogsFilePath();
     let content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '# Senku Work Logs\n\n';
 
     const now = new Date();
     const todayHeader = `## ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const tag = spaceName ? `[${spaceName}] ` : '';
-    const line = `- ${timeStr} ${tag}${text}\n`;
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}.${minutes}`;
+    const line = `- ${timeStr} ${text.trim()}\n`;
 
     if (content.includes(todayHeader)) {
       const parts = content.split(todayHeader);
@@ -288,7 +295,7 @@ ipcMain.handle('senku:get-app-paths', () => ({
 
 ipcMain.handle('senku:read-logs', () => readLogsContent());
 
-ipcMain.handle('senku:append-log', (_event, text: string, spaceName?: string) => appendLogEntry(text, spaceName));
+ipcMain.handle('senku:append-log', (_event, text: string) => appendLogEntry(text));
 
 ipcMain.handle('senku:get-logs-path', () => getLogsFilePath());
 
