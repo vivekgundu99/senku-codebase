@@ -80,15 +80,16 @@ npm run dev
 `,
 
   scratch: () => `# Scratchpad
-> Temporary thinking canvas. Dump logs, test commands, or WIP snippets. Hit [Clear] anytime to wipe.
+> Temporary thinking canvas. Dump logs, test commands, or WIP snippets.
 
 `,
 
-  links: (name) => `# ${name} — Pinned Links & Docs
-> Click any link in Preview mode to open it in your browser.
+  links: () => `# Global Pinned Links & Docs
+> Universal bookmarks across all your projects. Click any link in Preview mode to open.
 
-- [GitHub Repository](https://github.com)
-- [Documentation](https://developer.mozilla.org)
+- [GitHub](https://github.com)
+- [ChatGPT / Claude](https://chatgpt.com)
+- [MDN Web Docs](https://developer.mozilla.org)
 - [Localhost Dev](http://localhost:5173)
 `,
 };
@@ -107,6 +108,9 @@ function getSlotPath(slot: NoteSlot): string {
   if (slot === 'global') {
     return `${base}\\Senku Notes\\senku-global.md`;
   }
+  if (slot === 'links') {
+    return `${base}\\Senku Notes\\links.md`;
+  }
   const space = getActiveSpace();
   if (!space) {
     return `${base}\\Senku Notes\\senku-fallback.md`;
@@ -120,8 +124,6 @@ function getSlotPath(slot: NoteSlot): string {
       return `${spaceNotesDir}\\tasks.md`;
     case 'scratch':
       return `${spaceNotesDir}\\scratch.md`;
-    case 'links':
-      return `${spaceNotesDir}\\links.md`;
     default:
       return `${spaceNotesDir}\\senku.md`;
   }
@@ -156,22 +158,45 @@ function getTodayFocusStats(): { workText: string; restText: string; totalSessio
   };
 }
 
-// Gentle Web Audio API Chime on Timer Complete
+// Rich Resonant Dual-Tone Harmonic Bell Chime
 function playChime() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.25); // A5
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.9);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.9);
-  } catch {}
+    const playBellTone = (freq: number, startTime: number, duration: number, gainLevel: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const overtone = ctx.createOscillator();
+      const overtoneGain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      overtone.type = 'sine';
+      overtone.frequency.setValueAtTime(freq * 2, startTime);
+
+      gain.gain.setValueAtTime(gainLevel, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+      overtoneGain.gain.setValueAtTime(gainLevel * 0.35, startTime);
+      overtoneGain.gain.exponentialRampToValueAtTime(0.0001, startTime + (duration * 0.6));
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      overtone.connect(overtoneGain);
+      overtoneGain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+      overtone.start(startTime);
+      overtone.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    playBellTone(880, now, 1.1, 0.45);        // Stroke 1: A5 (880 Hz)
+    playBellTone(1046.5, now + 0.16, 1.3, 0.5); // Stroke 2: C6 (1046.5 Hz)
+  } catch (err) {
+    console.error('[chime]', err);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -282,7 +307,9 @@ function buildShell() {
       </div>
 
       <div class="titlebar-right">
+        <button class="window-btn theme-toggle" id="btn-theme-toggle" title="Toggle Light/Dark Theme">☀️</button>
         <button class="window-btn" id="win-min" title="Minimize">—</button>
+        <button class="window-btn" id="win-max" title="Maximize">□</button>
         <button class="window-btn close" id="win-close" title="Close">✕</button>
       </div>
     </header>
@@ -295,7 +322,7 @@ function buildShell() {
           <div class="space-title-row">
             <input class="space-name-input" id="space-name-input" placeholder="Space Name" />
             <div class="space-actions-meta">
-              <button class="btn-secondary" id="btn-change-folder" title="Change folder path">Change Folder</button>
+              <button class="btn-secondary btn-icon" id="btn-change-folder" title="Change space folder path">✎</button>
               <button class="btn-danger" id="btn-del-space" title="Delete space">Delete</button>
             </div>
           </div>
@@ -328,20 +355,24 @@ function buildShell() {
         <!-- Full-Height 5-Slot Note Workbench Canvas -->
         <div class="note-section">
           <div class="note-header-bar">
-            <div class="note-slot-tabs" id="note-slot-tabs">
-              <button class="slot-tab" data-slot="global">🌐 Global</button>
-              <button class="slot-tab" data-slot="main">📝 Main</button>
-              <button class="slot-tab" data-slot="tasks">🎯 Tasks</button>
-              <button class="slot-tab" data-slot="scratch">💡 Scratch</button>
-              <button class="slot-tab" data-slot="links">📌 Links</button>
+            <div class="note-slot-bar">
+              <!-- Global Notes Cluster -->
+              <div class="note-slot-tabs" title="Global notes (shared across all spaces)">
+                <button class="slot-tab" data-slot="global">Global</button>
+                <button class="slot-tab" data-slot="links">Links</button>
+              </div>
+              <div class="note-slot-divider"></div>
+              <!-- Space Notes Cluster -->
+              <div class="note-slot-tabs" title="Space notes (specific to this workspace)">
+                <button class="slot-tab" data-slot="main">Notes</button>
+                <button class="slot-tab" data-slot="tasks">Tasks</button>
+                <button class="slot-tab" data-slot="scratch">Scratch</button>
+              </div>
             </div>
             <div class="note-actions">
-              <button class="btn-secondary" id="btn-clear-slot" title="Clear this slot">Clear</button>
-              <button class="btn-secondary" id="btn-open-note-code" title="Open active note in VS Code">
-                💻 VS Code
-              </button>
-              <button class="btn-secondary" id="toggle-note-mode">
-                Preview (Ctrl+Enter)
+              <button class="btn-secondary btn-icon" id="btn-open-note-code" title="Open active note in VS Code">&lt; &gt;</button>
+              <button class="btn-secondary" id="toggle-note-mode" title="Toggle Preview (Ctrl+Enter)">
+                Preview
               </button>
             </div>
           </div>
@@ -375,6 +406,7 @@ function buildShell() {
           <div class="mode-toggle-group">
             <button class="mode-btn active work" id="btn-mode-work">Work</button>
             <button class="mode-btn rest" id="btn-mode-rest">Rest</button>
+            <button class="btn-icon-subtle" id="btn-test-chime" title="Test focus end chime">🔔</button>
           </div>
 
           <div class="focus-timer-container">
@@ -486,7 +518,7 @@ function updateNoteCanvas() {
   const toggleBtn = document.getElementById('toggle-note-mode');
 
   if (toggleBtn) {
-    toggleBtn.textContent = isNotePreview ? 'Edit (Ctrl+Enter)' : 'Preview (Ctrl+Enter)';
+    toggleBtn.textContent = isNotePreview ? 'Edit' : 'Preview';
   }
 
   if (isNotePreview) {
@@ -678,6 +710,51 @@ function bindPersistentEvents() {
   document.getElementById('win-min')?.addEventListener('click', () => window.senku.minimize());
   document.getElementById('win-close')?.addEventListener('click', () => window.senku.close());
 
+  const winMaxBtn = document.getElementById('win-max');
+  const updateMaximizeUI = async () => {
+    const isMax = await window.senku.isMaximized();
+    if (winMaxBtn) winMaxBtn.textContent = isMax ? '❐' : '□';
+    const app = document.getElementById('app');
+    if (isMax) app?.classList.add('maximized');
+    else app?.classList.remove('maximized');
+  };
+
+  winMaxBtn?.addEventListener('click', async () => {
+    await window.senku.toggleMaximize();
+    await updateMaximizeUI();
+  });
+
+  // Double-click titlebar to maximize / restore
+  document.querySelector('.titlebar')?.addEventListener('dblclick', async (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.window-btn') || target.closest('.space-tab') || target.closest('.btn-add-space')) return;
+    await window.senku.toggleMaximize();
+    await updateMaximizeUI();
+  });
+
+  // Theme Toggle: Dark vs Light (OG Warm Paper)
+  const applyTheme = (theme: 'dark' | 'light') => {
+    document.documentElement.setAttribute('data-theme', theme);
+    const themeBtn = document.getElementById('btn-theme-toggle');
+    if (themeBtn) {
+      themeBtn.textContent = theme === 'light' ? '🌙' : '☀️';
+      themeBtn.title = theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode (OG Paper)';
+    }
+  };
+
+  document.getElementById('btn-theme-toggle')?.addEventListener('click', async () => {
+    const current = (document.documentElement.getAttribute('data-theme') as 'dark' | 'light') || 'dark';
+    const nextTheme: 'dark' | 'light' = current === 'light' ? 'dark' : 'light';
+    applyTheme(nextTheme);
+    state.settings.theme = nextTheme;
+    await saveCurrentState();
+  });
+
+  // Test Bell Chime
+  document.getElementById('btn-test-chime')?.addEventListener('click', () => {
+    playChime();
+  });
+
   // Add Space
   document.getElementById('btn-add-space')?.addEventListener('click', async () => {
     const folder = await window.senku.pickFolder();
@@ -789,15 +866,6 @@ function bindPersistentEvents() {
         switchSlot(slot);
       }
     });
-  });
-
-  // Clear Slot
-  document.getElementById('btn-clear-slot')?.addEventListener('click', async () => {
-    if (isViewingLogsInCanvas) return;
-    activeNoteContent = '';
-    const path = getSlotPath(activeSlot);
-    await window.senku.writeNote(path, '');
-    updateNoteCanvas();
   });
 
   // Open active note in VS Code
@@ -1162,6 +1230,24 @@ async function init() {
     state = await window.senku.getState();
 
     buildShell();
+
+    // Apply saved theme
+    if (state.settings?.theme) {
+      document.documentElement.setAttribute('data-theme', state.settings.theme);
+      const themeBtn = document.getElementById('btn-theme-toggle');
+      if (themeBtn) {
+        themeBtn.textContent = state.settings.theme === 'light' ? '🌙' : '☀️';
+        themeBtn.title = state.settings.theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode (OG Paper)';
+      }
+    }
+
+    // Apply initial window maximize state
+    const isMax = await window.senku.isMaximized();
+    const winMaxBtn = document.getElementById('win-max');
+    if (winMaxBtn) winMaxBtn.textContent = isMax ? '❐' : '□';
+    const app = document.getElementById('app');
+    if (isMax) app?.classList.add('maximized');
+
     updateSpaceTabs();
     updateSpaceHeader();
     updateNoteSlotTabs();

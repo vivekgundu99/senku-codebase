@@ -39,6 +39,51 @@
   --danger: #ef4444;
 }
 
+/* OG Senku Warm Paper Light Theme */
+[data-theme="light"] {
+  --bg: #f6f4ee;
+  --surface: #edeae0;
+  --card: #ffffff;
+  --hover: rgba(0, 0, 0, 0.05);
+  --border: rgba(0, 0, 0, 0.09);
+  --border-focus: rgba(45, 106, 79, 0.5);
+  --primary: #2d6a4f;
+  --primary-hover: #22543d;
+  --success: #16a34a;
+  --text: #1f2421;
+  --text-muted: #5c645e;
+  --text-dim: #8c948e;
+  --danger: #dc2626;
+}
+
+[data-theme="light"] .note-preview pre {
+  background: #f1ede3;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+[data-theme="light"] .note-preview p code,
+[data-theme="light"] .note-preview li code,
+[data-theme="light"] .note-preview td code {
+  background: rgba(0, 0, 0, 0.06);
+  color: #2d6a4f;
+}
+[data-theme="light"] .focus-timer-text,
+[data-theme="light"] .metric-value {
+  color: #1f2421;
+}
+[data-theme="light"] .metric-label.work { color: #2d6a4f; }
+[data-theme="light"] .metric-label.rest { color: #059669; }
+[data-theme="light"] .focus-hero-card {
+  background: linear-gradient(135deg, rgba(45, 106, 79, 0.12), rgba(22, 163, 74, 0.08));
+  border-color: rgba(45, 106, 79, 0.25);
+}
+[data-theme="light"] .focus-box.running.work {
+  background: rgba(45, 106, 79, 0.06);
+}
+[data-theme="light"] .focus-hero-badge {
+  background: rgba(0, 0, 0, 0.07);
+  color: #4b5563;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -85,6 +130,17 @@ input, button, textarea, select {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#app:not(.maximized) {
+  border: 1px solid var(--border);
+}
+
+#app.maximized {
+  border: none;
 }
 
 /* Titlebar */
@@ -158,6 +214,12 @@ input, button, textarea, select {
   border: 1px solid var(--primary);
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
   font-weight: 700;
+}
+[data-theme="light"] .space-tab.active {
+  color: #ffffff;
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 8px rgba(45, 106, 79, 0.35);
 }
 
 .btn-add-space {
@@ -412,18 +474,31 @@ input, button, textarea, select {
 }
 
 /* 5 Desk-Pad Slot Tabs */
+.note-slot-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .note-slot-tabs {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   background: var(--surface);
   padding: 3px;
   border-radius: 6px;
   border: 1px solid var(--border);
 }
 
+.note-slot-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 1px;
+}
+
 .slot-tab {
-  padding: 4px 10px;
+  padding: 4px 9px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
@@ -445,6 +520,37 @@ input, button, textarea, select {
   border: 1px solid var(--primary);
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
   font-weight: 700;
+}
+[data-theme="light"] .slot-tab.active {
+  color: #ffffff;
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 8px rgba(45, 106, 79, 0.35);
+}
+
+.btn-icon {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 4px 8px;
+  letter-spacing: 0.5px;
+}
+
+.btn-icon-subtle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+.btn-icon-subtle:hover {
+  color: var(--text);
+  background: var(--hover);
 }
 
 .note-actions {

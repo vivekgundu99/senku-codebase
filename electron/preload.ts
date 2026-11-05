@@ -16,6 +16,8 @@ const api: SenkuAPI = {
   readNote: (filePath: string) => ipcRenderer.invoke('senku:read-note', filePath),
   writeNote: (filePath: string, content: string) => ipcRenderer.invoke('senku:write-note', filePath, content),
   minimize: () => ipcRenderer.send('senku:minimize'),
+  toggleMaximize: () => ipcRenderer.invoke('senku:toggle-maximize'),
+  isMaximized: () => ipcRenderer.invoke('senku:is-maximized'),
   close: () => ipcRenderer.send('senku:close'),
 };
 

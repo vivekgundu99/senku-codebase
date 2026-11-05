@@ -35,6 +35,7 @@ export interface SenkuState {
   focus: FocusSession;
   settings: {
     userName: string;
+    theme?: 'dark' | 'light';
     windowBounds?: {
       x: number;
       y: number;
@@ -60,5 +61,7 @@ export interface SenkuAPI {
   readNote: (filePath: string) => Promise<string>;
   writeNote: (filePath: string, content: string) => Promise<boolean>;
   minimize: () => void;
+  toggleMaximize: () => Promise<boolean>;
+  isMaximized: () => Promise<boolean>;
   close: () => void;
 }

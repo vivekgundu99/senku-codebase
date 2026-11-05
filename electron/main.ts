@@ -102,6 +102,16 @@ function createWindow() {
     boundsTimer = setTimeout(saveBounds, 500);
   };
 
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('senku:window-maximized-change', true);
+    scheduleSaveBounds();
+  });
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('senku:window-maximized-change', false);
+    scheduleSaveBounds();
+  });
+
   mainWindow.on('resize', scheduleSaveBounds);
   mainWindow.on('move', scheduleSaveBounds);
 
@@ -332,6 +342,21 @@ ipcMain.handle('senku:write-note', (_event, filePath: string, content: string) =
 
 ipcMain.on('senku:minimize', () => {
   mainWindow?.minimize();
+});
+
+ipcMain.handle('senku:toggle-maximize', () => {
+  if (!mainWindow) return false;
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+    return false;
+  } else {
+    mainWindow.maximize();
+    return true;
+  }
+});
+
+ipcMain.handle('senku:is-maximized', () => {
+  return mainWindow?.isMaximized() ?? false;
 });
 
 ipcMain.on('senku:close', () => {
