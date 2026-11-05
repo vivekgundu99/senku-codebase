@@ -368,31 +368,30 @@ function renameSpaceNotesDir(oldName: string, newName: string): boolean {
   }
 }
 
-function deleteSpaceNotesDir(spaceName: string): boolean {
+function trashSpaceNotesDir(spaceName: string): boolean {
   try {
     const docs = app.getPath('documents');
     const safeName = spaceName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'default';
-    const dir = path.join(docs, 'Senku Notes', 'spaces', safeName);
-    if (fs.existsSync(dir)) {
-      fs.rmSync(dir, { recursive: true, force: true });
-      return true;
-    }
-    return true;
-  } catch (err) {
-    console.error('[deleteSpaceNotesDir]', err);
-    return false;
-  }
-}
+    const sourceDir = path.join(docs, 'Senku Notes', 'spaces', safeName);
+    const trashBase = path.join(docs, 'Senku Notes', 'trash');
 
-async function trashSpaceNotesDir(spaceName: string): Promise<boolean> {
-  try {
-    const docs = app.getPath('documents');
-    const safeName = spaceName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'default';
-    const dir = path.join(docs, 'Senku Notes', 'spaces', safeName);
-    if (fs.existsSync(dir)) {
-      await shell.trashItem(dir);
+    if (!fs.existsSync(sourceDir)) {
       return true;
     }
+
+    if (!fs.existsSync(trashBase)) {
+      fs.mkdirSync(trashBase, { recursive: true });
+    }
+
+    let targetDir = path.join(trashBase, safeName);
+    if (fs.existsSync(targetDir)) {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      targetDir = path.join(trashBase, `${safeName}_${stamp}`);
+    }
+
+    fs.renameSync(sourceDir, targetDir);
     return true;
   } catch (err) {
     console.error('[trashSpaceNotesDir]', err);
@@ -401,7 +400,7 @@ async function trashSpaceNotesDir(spaceName: string): Promise<boolean> {
 }
 
 ipcMain.handle('senku:rename-space-notes-dir', (_event, oldName: string, newName: string) => renameSpaceNotesDir(oldName, newName));
-ipcMain.handle('senku:delete-space-notes-dir', (_event, spaceName: string) => deleteSpaceNotesDir(spaceName));
+ipcMain.handle('senku:delete-space-notes-dir', (_event, spaceName: string) => trashSpaceNotesDir(spaceName));
 ipcMain.handle('senku:trash-space-notes-dir', (_event, spaceName: string) => trashSpaceNotesDir(spaceName));
 
 ipcMain.on('senku:minimize', () => {

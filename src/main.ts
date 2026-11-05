@@ -325,7 +325,7 @@ function buildShell() {
               <span class="path-icon">📁</span>
               <span id="space-path-text" class="path-text">...</span>
             </div>
-            <button class="btn-danger btn-del-space" id="btn-del-space" title="Delete space & move notes to Windows Recycle Bin">Delete</button>
+            <button class="btn-danger btn-del-space" id="btn-del-space" title="Delete space (moves notes to Senku Notes/trash)">Delete</button>
           </div>
         </div>
 
@@ -347,7 +347,7 @@ function buildShell() {
               </div>
             </div>
             <div class="note-actions">
-              <button class="btn-secondary btn-icon" id="btn-open-note-code" title="Open active note in VS Code">&lt; &gt;</button>
+              <button class="btn-secondary btn-icon" id="btn-open-note-code" title="Open active note in VS Code">&lt;&gt;</button>
               <button class="btn-secondary" id="toggle-note-mode" title="Toggle Preview (Ctrl+Enter)">
                 Preview
               </button>
@@ -412,7 +412,7 @@ function buildShell() {
         <!-- Global Work Logs Section -->
         <div class="global-logs-card">
           <div class="logs-header-row">
-            <span class="section-label">Global logs.md</span>
+            <span class="section-label">logs.md</span>
             <div class="logs-header-actions">
               <button class="btn-secondary" id="btn-view-logs-md" title="View full logs.md inside Senku viewer">View</button>
               <button class="btn-secondary" id="btn-open-logs-code" title="Open logs.md in VS Code">Code</button>
@@ -510,18 +510,42 @@ function updateSpaceTabs() {
       updateSpaceHeader();
     });
   });
+  updateSpaceHeader();
+}
+
+function canDeleteActiveSpace(): boolean {
+  if (state.spaces.length <= 1) return false;
+  const openSpaces = state.spaces.filter((s) => state.settings.openSpaceIds?.includes(s.id));
+  if (openSpaces.length <= 1) return false;
+  return true;
 }
 
 function updateSpaceHeader() {
   const activeSpace = getActiveSpace();
   const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
   const pathText = document.getElementById('space-path-text');
+  const delBtn = document.getElementById('btn-del-space') as HTMLButtonElement | null;
+
   if (activeSpace) {
     if (nameInput) {
       nameInput.value = activeSpace.name;
       nameInput.size = Math.max(activeSpace.name.length, 6);
     }
     if (pathText) pathText.textContent = activeSpace.path;
+  }
+
+  if (delBtn) {
+    if (!canDeleteActiveSpace()) {
+      delBtn.disabled = true;
+      delBtn.style.opacity = '0.35';
+      delBtn.style.cursor = 'not-allowed';
+      delBtn.title = 'Cannot delete when only one space tab is active';
+    } else {
+      delBtn.disabled = false;
+      delBtn.style.opacity = '1';
+      delBtn.style.cursor = 'pointer';
+      delBtn.title = 'Delete space (moves notes to Senku Notes/trash)';
+    }
   }
 }
 
@@ -637,11 +661,11 @@ function getAvailablePaletteItems(query = ''): PaletteItem[] {
 
   // Notes navigation
   const slots: { slot: NoteSlot; label: string }[] = [
-    { slot: 'global', label: 'Global Note' },
-    { slot: 'links', label: 'Links Note' },
-    { slot: 'main', label: 'Notes (Space)' },
-    { slot: 'tasks', label: 'Tasks (Space)' },
-    { slot: 'scratch', label: 'Scratch (Space)' },
+    { slot: 'global', label: 'Global.md' },
+    { slot: 'links', label: 'Links.md' },
+    { slot: 'main', label: 'Notes.md' },
+    { slot: 'tasks', label: 'Tasks.md' },
+    { slot: 'scratch', label: 'Scratch.md' },
   ];
   slots.forEach((s) => {
     items.push({
@@ -677,7 +701,7 @@ function getAvailablePaletteItems(query = ''): PaletteItem[] {
   items.push({
     id: 'act-explorer',
     category: 'Action',
-    label: 'Open Space in Explorer',
+    label: 'Open in Explorer',
     action: () => {
       const s = getActiveSpace();
       if (s) window.senku.openFolder(s.path);
@@ -686,7 +710,7 @@ function getAvailablePaletteItems(query = ''): PaletteItem[] {
   items.push({
     id: 'act-code',
     category: 'Action',
-    label: 'Open Space in VS Code',
+    label: 'Open in VS Code',
     action: () => {
       const s = getActiveSpace();
       if (s) window.senku.openCode(s.path);
@@ -695,7 +719,7 @@ function getAvailablePaletteItems(query = ''): PaletteItem[] {
   items.push({
     id: 'act-terminal',
     category: 'Action',
-    label: 'Open Space in Terminal',
+    label: 'Open in Terminal',
     action: () => {
       const s = getActiveSpace();
       if (s) window.senku.openTerminal(s.path);
@@ -704,7 +728,7 @@ function getAvailablePaletteItems(query = ''): PaletteItem[] {
   items.push({
     id: 'act-logs',
     category: 'Action',
-    label: 'View Global logs.md',
+    label: 'View logs.md',
     action: () => {
       document.getElementById('btn-view-logs-md')?.click();
     },
@@ -1040,21 +1064,18 @@ function bindPersistentEvents() {
     nameInput.size = Math.max(nameInput.value.length, 6);
   });
 
-  // Safe 2-Step Space Delete with 400ms Anti-Double-Click Guard & Windows Recycle Bin Notes Trash
+  // Safe 2-Step Space Delete (moves notes to Documents/Senku Notes/trash)
   let deleteConfirmTimeout: any = null;
   let isDeletePending = false;
-  let deleteArmedAt = 0;
   const delBtn = document.getElementById('btn-del-space');
   delBtn?.addEventListener('click', async () => {
+    if (!canDeleteActiveSpace()) return;
     const activeSpace = getActiveSpace();
     if (!activeSpace) return;
-
-    const now = Date.now();
 
     if (!isDeletePending) {
       // Step 1: Arm delete
       isDeletePending = true;
-      deleteArmedAt = now;
       delBtn.textContent = 'Confirm?';
       delBtn.classList.add('btn-confirm-delete');
       if (deleteConfirmTimeout) clearTimeout(deleteConfirmTimeout);
@@ -1062,48 +1083,49 @@ function bindPersistentEvents() {
         isDeletePending = false;
         delBtn.textContent = 'Delete';
         delBtn.classList.remove('btn-confirm-delete');
-      }, 3500);
-    } else {
-      // Step 2: Confirmation click.
-      // Guard against accidental double-clicks / rapid jitter (<400ms)
-      if (now - deleteArmedAt < 400) {
-        return;
-      }
-
-      clearTimeout(deleteConfirmTimeout);
-      isDeletePending = false;
-      delBtn.textContent = 'Delete';
-      delBtn.classList.remove('btn-confirm-delete');
-
-      // Move space notes directory to Windows Recycle Bin (restorable, no data loss!)
-      await window.senku.trashSpaceNotesDir(activeSpace.name);
-
-      const targetId = activeSpace.id;
-      state.spaces = state.spaces.filter((s) => s.id !== targetId);
-      if (state.settings.openSpaceIds) {
-        state.settings.openSpaceIds = state.settings.openSpaceIds.filter((id) => id !== targetId);
-      }
-
-      if (state.spaces.length === 0) {
-        const defaultSpace: Workspace = {
-          id: crypto.randomUUID(),
-          name: 'General',
-          path: appPaths.home || appPaths.documents,
-          objective: '',
-          createdAt: Date.now(),
-        };
-        state.spaces.push(defaultSpace);
-        state.settings.openSpaceIds = [defaultSpace.id];
-        state.activeSpaceId = defaultSpace.id;
-      } else {
-        state.activeSpaceId = state.settings.openSpaceIds?.[0] || state.spaces[0].id;
-      }
-
-      await saveCurrentState();
-      updateSpaceTabs();
-      updateSpaceHeader();
-      await loadNoteForActiveSlot();
+      }, 3000);
+      return;
     }
+
+    // Step 2: Confirm click
+    clearTimeout(deleteConfirmTimeout);
+    isDeletePending = false;
+    delBtn.textContent = 'Delete';
+    delBtn.classList.remove('btn-confirm-delete');
+
+    const targetId = activeSpace.id;
+    const targetName = activeSpace.name;
+
+    // Safely move space notes directory to Documents/Senku Notes/trash
+    try {
+      if (window.senku?.trashSpaceNotesDir) {
+        await window.senku.trashSpaceNotesDir(targetName);
+      } else if (window.senku?.deleteSpaceNotesDir) {
+        await window.senku.deleteSpaceNotesDir(targetName);
+      }
+    } catch (err) {
+      console.warn('Failed moving space notes to trash:', err);
+    }
+
+    // Remove target space from spaces & openSpaceIds
+    state.spaces = state.spaces.filter((s) => s.id !== targetId);
+    if (state.settings.openSpaceIds) {
+      state.settings.openSpaceIds = state.settings.openSpaceIds.filter((id) => id !== targetId);
+    }
+
+    // Safely fallback to the other remaining open space tab
+    const remainingOpenIds = state.settings.openSpaceIds || [];
+    if (remainingOpenIds.length > 0) {
+      state.activeSpaceId = remainingOpenIds[0];
+    } else if (state.spaces.length > 0) {
+      state.settings.openSpaceIds = [state.spaces[0].id];
+      state.activeSpaceId = state.spaces[0].id;
+    }
+
+    await saveCurrentState();
+    updateSpaceTabs();
+    updateSpaceHeader();
+    await loadNoteForActiveSlot();
   });
 
   document.getElementById('space-path-click')?.addEventListener('click', () => {
