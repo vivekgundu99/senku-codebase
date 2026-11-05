@@ -34,8 +34,7 @@ let isNotePreview = false;
 let isViewingLogsInCanvas = false;
 let saveNoteTimeout: any = null;
 let timerInterval: any = null;
-let deleteConfirmTimeout: any = null;
-let isDeletePending = false;
+let targetSpaceForAction: Workspace | null = null;
 
 // Configure marked
 marked.setOptions({
@@ -304,7 +303,8 @@ function buildShell() {
           <span>SENKU</span>
         </div>
         <div class="space-tabs" id="space-tabs-container"></div>
-        <button class="btn-add-space" id="btn-add-space" title="Add Space (+)">+</button>
+        <button class="btn-add-space" id="btn-add-space" title="Create Space (+)">+</button>
+        <button class="btn-all-spaces" id="btn-all-spaces" title="All Workspaces Manager">🗂️ Spaces</button>
       </div>
 
       <div class="titlebar-right">
@@ -320,27 +320,18 @@ function buildShell() {
       <!-- LEFT HEMISPHERE: Local Space Context -->
       <section class="cockpit-panel" id="cockpit-panel">
         <div class="space-header">
-          <div class="space-title-row">
-            <input class="space-name-input" id="space-name-input" placeholder="Space Name" />
-            <div class="space-actions-meta">
-              <button class="btn-secondary btn-icon" id="btn-change-folder" title="Change space folder path">✎</button>
-              <button class="btn-danger" id="btn-del-space" title="Delete space">Delete</button>
-            </div>
-          </div>
-
-          <!-- Compact Path Strip (Click to open folder in File Explorer) -->
-          <div class="space-action-strip" id="space-action-strip" title="Click to open folder in File Explorer">
-            <div class="path-display" id="space-path-click">
+          <!-- Compact Path & Action Strip -->
+          <div class="space-action-strip">
+            <div class="path-display" id="space-path-click" title="Click to open folder in File Explorer">
               <span class="path-icon">📁</span>
               <span id="space-path-text" class="path-text">...</span>
             </div>
+            <div class="space-header-actions">
+              <button class="space-header-btn" id="btn-rename-active-space" title="Rename space">✎ Rename</button>
+              <button class="space-header-btn" id="btn-change-folder" title="Change folder path">📁 Path</button>
+              <button class="space-header-btn danger" id="btn-del-space" title="Delete space">Delete</button>
+            </div>
           </div>
-        </div>
-
-        <!-- Objective Strip -->
-        <div class="objective-strip">
-          <span class="objective-label">Active Target</span>
-          <input class="objective-input" id="space-objective-input" placeholder="What single problem are you solving here today?" />
         </div>
 
         <!-- Full-Height 5-Slot Note Workbench Canvas -->
@@ -440,6 +431,67 @@ function buildShell() {
         </div>
       </aside>
     </main>
+
+    <!-- All Spaces Manager Modal -->
+    <div class="modal-backdrop" id="spaces-modal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>🗂️</span>
+            <h3>All Workspaces</h3>
+          </div>
+          <div class="modal-header-actions">
+            <button class="btn-primary" id="btn-modal-new-space">+ New Space</button>
+            <button class="modal-close-btn" id="btn-close-spaces-modal">✕</button>
+          </div>
+        </div>
+        <div class="modal-search-row">
+          <input class="modal-search-input" id="spaces-search-input" placeholder="Search spaces by name or path..." />
+        </div>
+        <div class="modal-body-spaces" id="all-spaces-list"></div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-backdrop" id="delete-space-modal" style="display: none;">
+      <div class="modal-card delete-card">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span style="color: #ef4444;">⚠️</span>
+            <h3>Delete Space</h3>
+          </div>
+          <button class="modal-close-btn" id="btn-close-del-modal">✕</button>
+        </div>
+        <p class="modal-delete-desc">Are you sure you want to delete workspace <strong id="delete-space-name-label"></strong>?</p>
+        <label class="modal-checkbox-row">
+          <input type="checkbox" id="delete-notes-checkbox" checked />
+          <span>Also permanently delete notes in <code>Documents/Senku Notes/spaces/...</code></span>
+        </label>
+        <div class="modal-footer-actions">
+          <button class="btn-secondary" id="btn-cancel-del-space">Cancel</button>
+          <button class="btn-danger" id="btn-confirm-del-space">Delete Workspace</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rename Space Modal -->
+    <div class="modal-backdrop" id="rename-space-modal" style="display: none;">
+      <div class="modal-card rename-card">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>✎</span>
+            <h3>Rename Workspace</h3>
+          </div>
+          <button class="modal-close-btn" id="btn-close-rename-modal">✕</button>
+        </div>
+        <p class="modal-desc">All existing notes in Documents will be automatically renamed to preserve your data.</p>
+        <input class="modal-input" id="rename-space-input" placeholder="New Space Name" />
+        <div class="modal-footer-actions">
+          <button class="btn-secondary" id="btn-cancel-rename-space">Cancel</button>
+          <button class="btn-primary" id="btn-confirm-rename-space">Save Name</button>
+        </div>
+      </div>
+    </div>
   `;
 
   bindPersistentEvents();
@@ -453,12 +505,30 @@ function updateSpaceTabs() {
   const container = document.getElementById('space-tabs-container');
   if (!container) return;
 
+  if (!state.settings) state.settings = { userName: '' };
+  if (!state.settings.openSpaceIds || state.settings.openSpaceIds.length === 0) {
+    state.settings.openSpaceIds = state.spaces.map((s) => s.id);
+  }
+
+  // Ensure active space is in openSpaceIds
   const activeSpace = getActiveSpace();
-  container.innerHTML = state.spaces
+  if (activeSpace && !state.settings.openSpaceIds.includes(activeSpace.id)) {
+    state.settings.openSpaceIds.push(activeSpace.id);
+  }
+
+  let openSpaces = state.spaces.filter((s) => state.settings.openSpaceIds?.includes(s.id));
+  if (openSpaces.length === 0 && state.spaces.length > 0) {
+    openSpaces = [state.spaces[0]];
+    state.settings.openSpaceIds = [state.spaces[0].id];
+    state.activeSpaceId = state.spaces[0].id;
+  }
+
+  container.innerHTML = openSpaces
     .map(
       (s) => `
-    <div class="space-tab ${s.id === activeSpace?.id ? 'active' : ''}" data-space-id="${s.id}" title="${s.name}">
-      ${s.name}
+    <div class="space-tab ${s.id === activeSpace?.id ? 'active' : ''}" data-space-id="${s.id}" title="${s.name} (${s.path})">
+      <span class="space-tab-label">${s.name}</span>
+      <span class="space-tab-close" data-close-id="${s.id}" title="Close tab">✕</span>
     </div>
   `,
     )
@@ -477,19 +547,261 @@ function updateSpaceTabs() {
       }
     });
   });
+
+  container.querySelectorAll('.space-tab-close').forEach((closeBtn) => {
+    closeBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const closeId = closeBtn.getAttribute('data-close-id');
+      if (!closeId || !state.settings.openSpaceIds) return;
+
+      if (state.settings.openSpaceIds.length <= 1) {
+        return; // Keep at least one tab open
+      }
+
+      state.settings.openSpaceIds = state.settings.openSpaceIds.filter((id) => id !== closeId);
+      if (state.activeSpaceId === closeId) {
+        state.activeSpaceId = state.settings.openSpaceIds[state.settings.openSpaceIds.length - 1];
+        await loadNoteForActiveSlot();
+      }
+      await saveCurrentState();
+      updateSpaceTabs();
+      updateSpaceHeader();
+    });
+  });
 }
 
 function updateSpaceHeader() {
   const activeSpace = getActiveSpace();
-  const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
   const pathText = document.getElementById('space-path-text');
-  const objInput = document.getElementById('space-objective-input') as HTMLInputElement | null;
-
-  if (activeSpace) {
-    if (nameInput) nameInput.value = activeSpace.name;
-    if (pathText) pathText.textContent = activeSpace.path;
-    if (objInput) objInput.value = activeSpace.objective || '';
+  if (activeSpace && pathText) {
+    pathText.textContent = activeSpace.path;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Space Modals & Management Helpers
+// ---------------------------------------------------------------------------
+
+async function handleAddNewSpace() {
+  const folder = await window.senku.pickFolder();
+  if (!folder) return;
+  const name = folder.split(/[\\/]/).filter(Boolean).pop() || 'New Space';
+  const newSpace: Workspace = {
+    id: crypto.randomUUID(),
+    name,
+    path: folder,
+    objective: '',
+    createdAt: Date.now(),
+  };
+  state.spaces.push(newSpace);
+  if (!state.settings.openSpaceIds) state.settings.openSpaceIds = [];
+  state.settings.openSpaceIds.push(newSpace.id);
+  state.activeSpaceId = newSpace.id;
+  await saveCurrentState();
+  updateSpaceTabs();
+  updateSpaceHeader();
+  await loadNoteForActiveSlot();
+  closeAllSpacesModal();
+}
+
+async function openSpaceInWorkspace(spaceId: string) {
+  if (!state.settings.openSpaceIds) state.settings.openSpaceIds = [];
+  if (!state.settings.openSpaceIds.includes(spaceId)) {
+    state.settings.openSpaceIds.push(spaceId);
+  }
+  await flushSaveNote();
+  state.activeSpaceId = spaceId;
+  await saveCurrentState();
+  updateSpaceTabs();
+  updateSpaceHeader();
+  await loadNoteForActiveSlot();
+}
+
+function openAllSpacesModal() {
+  const modal = document.getElementById('spaces-modal');
+  const searchInput = document.getElementById('spaces-search-input') as HTMLInputElement | null;
+  if (modal) {
+    modal.style.display = 'flex';
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+    }
+    renderAllSpacesList();
+  }
+}
+
+function closeAllSpacesModal() {
+  const modal = document.getElementById('spaces-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderAllSpacesList(filterText = '') {
+  const container = document.getElementById('all-spaces-list');
+  if (!container) return;
+
+  const query = filterText.toLowerCase().trim();
+  const filtered = state.spaces.filter(
+    (s) => s.name.toLowerCase().includes(query) || s.path.toLowerCase().includes(query),
+  );
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: var(--text-dim); padding: 30px 0; font-size: 13px;">No workspaces found.</div>`;
+    return;
+  }
+
+  const openIds = new Set(state.settings.openSpaceIds || []);
+
+  container.innerHTML = filtered
+    .map((s) => {
+      const isOpen = openIds.has(s.id);
+      const isActive = s.id === state.activeSpaceId;
+      return `
+        <div class="space-list-item ${isActive ? 'active-item' : ''}" data-space-id="${s.id}">
+          <div class="space-item-info">
+            <div class="space-item-name-row">
+              <span class="space-item-name">${s.name}</span>
+              ${isOpen ? '<span class="space-status-badge">Open in Tabs</span>' : ''}
+              ${isActive ? '<span class="space-status-badge active-badge">Current</span>' : ''}
+            </div>
+            <div class="space-item-path" title="${s.path}">📁 ${s.path}</div>
+          </div>
+          <div class="space-item-actions">
+            <button class="space-btn-action" data-action="open" data-space-id="${s.id}" title="Open space">Open</button>
+            <button class="space-btn-action" data-action="rename" data-space-id="${s.id}" title="Rename space">✎</button>
+            <button class="space-btn-action danger" data-action="delete" data-space-id="${s.id}" title="Delete space">🗑️</button>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  container.querySelectorAll('.space-btn-action').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const action = btn.getAttribute('data-action');
+      const spaceId = btn.getAttribute('data-space-id');
+      const space = state.spaces.find((s) => s.id === spaceId);
+      if (!space) return;
+
+      if (action === 'open') {
+        await openSpaceInWorkspace(space.id);
+        closeAllSpacesModal();
+      } else if (action === 'rename') {
+        openRenameModal(space);
+      } else if (action === 'delete') {
+        openDeleteModal(space);
+      }
+    });
+  });
+
+  container.querySelectorAll('.space-list-item').forEach((item) => {
+    item.addEventListener('click', async () => {
+      const spaceId = item.getAttribute('data-space-id');
+      if (spaceId) {
+        await openSpaceInWorkspace(spaceId);
+        closeAllSpacesModal();
+      }
+    });
+  });
+}
+
+function openRenameModal(space: Workspace) {
+  targetSpaceForAction = space;
+  const modal = document.getElementById('rename-space-modal');
+  const input = document.getElementById('rename-space-input') as HTMLInputElement | null;
+  if (modal && input) {
+    input.value = space.name;
+    modal.style.display = 'flex';
+    input.focus();
+    input.select();
+  }
+}
+
+function closeRenameModal() {
+  const modal = document.getElementById('rename-space-modal');
+  if (modal) modal.style.display = 'none';
+  targetSpaceForAction = null;
+}
+
+async function handleRenameConfirm() {
+  if (!targetSpaceForAction) return;
+  const input = document.getElementById('rename-space-input') as HTMLInputElement | null;
+  const newName = input?.value.trim();
+  if (!newName || newName === targetSpaceForAction.name) {
+    closeRenameModal();
+    return;
+  }
+
+  const oldName = targetSpaceForAction.name;
+  // 1. Rename folder on disk in Documents/Senku Notes/spaces/<oldName> -> <newName>
+  await window.senku.renameSpaceNotesDir(oldName, newName);
+
+  // 2. Update memory & state
+  targetSpaceForAction.name = newName;
+  await saveCurrentState();
+
+  closeRenameModal();
+  updateSpaceTabs();
+  updateSpaceHeader();
+  renderAllSpacesList((document.getElementById('spaces-search-input') as HTMLInputElement)?.value || '');
+  await loadNoteForActiveSlot();
+}
+
+function openDeleteModal(space: Workspace) {
+  targetSpaceForAction = space;
+  const modal = document.getElementById('delete-space-modal');
+  const nameLabel = document.getElementById('delete-space-name-label');
+  if (modal && nameLabel) {
+    nameLabel.textContent = `"${space.name}"`;
+    modal.style.display = 'flex';
+  }
+}
+
+function closeDeleteModal() {
+  const modal = document.getElementById('delete-space-modal');
+  if (modal) modal.style.display = 'none';
+  targetSpaceForAction = null;
+}
+
+async function handleDeleteConfirm() {
+  if (!targetSpaceForAction) return;
+  const targetId = targetSpaceForAction.id;
+  const targetName = targetSpaceForAction.name;
+  const deleteNotes = (document.getElementById('delete-notes-checkbox') as HTMLInputElement)?.checked ?? true;
+
+  // 1. Optionally delete notes on disk
+  if (deleteNotes) {
+    await window.senku.deleteSpaceNotesDir(targetName);
+  }
+
+  // 2. Remove space from state
+  state.spaces = state.spaces.filter((s) => s.id !== targetId);
+  if (state.settings.openSpaceIds) {
+    state.settings.openSpaceIds = state.settings.openSpaceIds.filter((id) => id !== targetId);
+  }
+
+  // 3. Ensure at least one space exists
+  if (state.spaces.length === 0) {
+    const defaultSpace: Workspace = {
+      id: crypto.randomUUID(),
+      name: 'General',
+      path: appPaths.home || appPaths.documents,
+      objective: '',
+      createdAt: Date.now(),
+    };
+    state.spaces.push(defaultSpace);
+    state.settings.openSpaceIds = [defaultSpace.id];
+    state.activeSpaceId = defaultSpace.id;
+  } else if (state.activeSpaceId === targetId) {
+    state.activeSpaceId = state.settings.openSpaceIds?.[0] || state.spaces[0].id;
+  }
+
+  await saveCurrentState();
+  closeDeleteModal();
+  updateSpaceTabs();
+  updateSpaceHeader();
+  renderAllSpacesList((document.getElementById('spaces-search-input') as HTMLInputElement)?.value || '');
+  await loadNoteForActiveSlot();
 }
 
 function updateNoteSlotTabs() {
@@ -719,7 +1031,7 @@ function bindPersistentEvents() {
   // Double-click titlebar to maximize / restore
   document.querySelector('.titlebar')?.addEventListener('dblclick', async (e) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.window-btn') || target.closest('.space-tab') || target.closest('.btn-add-space')) return;
+    if (target.closest('.window-btn') || target.closest('.space-tab') || target.closest('.btn-add-space') || target.closest('.btn-all-spaces')) return;
     await window.senku.toggleMaximize();
     await updateMaximizeUI();
   });
@@ -747,35 +1059,57 @@ function bindPersistentEvents() {
     playChime();
   });
 
-  // Add Space
-  document.getElementById('btn-add-space')?.addEventListener('click', async () => {
-    const folder = await window.senku.pickFolder();
-    if (!folder) return;
-    const name = folder.split(/[\\/]/).filter(Boolean).pop() || 'New Space';
-    const newSpace: Workspace = {
-      id: crypto.randomUUID(),
-      name,
-      path: folder,
-      objective: '',
-      createdAt: Date.now(),
-    };
-    state.spaces.push(newSpace);
-    state.activeSpaceId = newSpace.id;
-    await saveCurrentState();
-    updateSpaceTabs();
-    updateSpaceHeader();
-    await loadNoteForActiveSlot();
+  // Space Management Actions
+  document.getElementById('btn-add-space')?.addEventListener('click', handleAddNewSpace);
+  document.getElementById('btn-modal-new-space')?.addEventListener('click', handleAddNewSpace);
+
+  document.getElementById('btn-all-spaces')?.addEventListener('click', openAllSpacesModal);
+  document.getElementById('btn-close-spaces-modal')?.addEventListener('click', closeAllSpacesModal);
+
+  const spacesSearch = document.getElementById('spaces-search-input') as HTMLInputElement | null;
+  spacesSearch?.addEventListener('input', () => {
+    renderAllSpacesList(spacesSearch.value);
   });
 
-  // Space Name Inline Edit
-  const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
-  nameInput?.addEventListener('change', async () => {
+  // Rename Space (from Header and Modal)
+  document.getElementById('btn-rename-active-space')?.addEventListener('click', () => {
     const activeSpace = getActiveSpace();
-    if (activeSpace && nameInput.value.trim()) {
-      activeSpace.name = nameInput.value.trim();
-      await saveCurrentState();
-      updateSpaceTabs();
+    if (activeSpace) openRenameModal(activeSpace);
+  });
+  document.getElementById('btn-close-rename-modal')?.addEventListener('click', closeRenameModal);
+  document.getElementById('btn-cancel-rename-space')?.addEventListener('click', closeRenameModal);
+  document.getElementById('btn-confirm-rename-space')?.addEventListener('click', handleRenameConfirm);
+  document.getElementById('rename-space-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleRenameConfirm();
+    if (e.key === 'Escape') closeRenameModal();
+  });
+
+  // Delete Space (from Header and Modal)
+  document.getElementById('btn-del-space')?.addEventListener('click', () => {
+    const activeSpace = getActiveSpace();
+    if (activeSpace) openDeleteModal(activeSpace);
+  });
+  document.getElementById('btn-close-del-modal')?.addEventListener('click', closeDeleteModal);
+  document.getElementById('btn-cancel-del-space')?.addEventListener('click', closeDeleteModal);
+  document.getElementById('btn-confirm-del-space')?.addEventListener('click', handleDeleteConfirm);
+
+  // Close modals on Escape key or backdrop click
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeAllSpacesModal();
+      closeRenameModal();
+      closeDeleteModal();
     }
+  });
+
+  document.querySelectorAll('.modal-backdrop').forEach((modal) => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeAllSpacesModal();
+        closeRenameModal();
+        closeDeleteModal();
+      }
+    });
   });
 
   // Change Space Folder
@@ -791,53 +1125,10 @@ function bindPersistentEvents() {
     }
   });
 
-  // Safe 2-Step Space Delete
-  const delBtn = document.getElementById('btn-del-space');
-  delBtn?.addEventListener('click', async () => {
-    const activeSpace = getActiveSpace();
-    if (!activeSpace) return;
-
-    if (!isDeletePending) {
-      isDeletePending = true;
-      delBtn.textContent = 'Confirm Delete?';
-      delBtn.classList.add('btn-confirm-delete');
-      if (deleteConfirmTimeout) clearTimeout(deleteConfirmTimeout);
-      deleteConfirmTimeout = setTimeout(() => {
-        isDeletePending = false;
-        delBtn.textContent = 'Delete';
-        delBtn.classList.remove('btn-confirm-delete');
-      }, 3000);
-    } else {
-      clearTimeout(deleteConfirmTimeout);
-      isDeletePending = false;
-      delBtn.textContent = 'Delete';
-      delBtn.classList.remove('btn-confirm-delete');
-
-      state.spaces = state.spaces.filter((s) => s.id !== activeSpace.id);
-      state.activeSpaceId = state.spaces[0]?.id || null;
-      await saveCurrentState();
-      updateSpaceTabs();
-      updateSpaceHeader();
-      await loadNoteForActiveSlot();
-    }
-  });
-
   // Open Space Folder in File Explorer
-  const openActiveSpaceFolder = () => {
+  document.getElementById('space-path-click')?.addEventListener('click', () => {
     const activeSpace = getActiveSpace();
     if (activeSpace) window.senku.openFolder(activeSpace.path);
-  };
-  document.getElementById('space-action-strip')?.addEventListener('click', openActiveSpaceFolder);
-  document.getElementById('space-path-click')?.addEventListener('click', openActiveSpaceFolder);
-
-  // Objective Change
-  const objInput = document.getElementById('space-objective-input') as HTMLInputElement | null;
-  objInput?.addEventListener('change', async () => {
-    const activeSpace = getActiveSpace();
-    if (activeSpace) {
-      activeSpace.objective = objInput.value.trim();
-      await saveCurrentState();
-    }
   });
 
   // 5 Desk-Pad Slot Tabs

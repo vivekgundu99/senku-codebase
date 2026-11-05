@@ -36,6 +36,7 @@ export interface SenkuState {
   settings: {
     userName: string;
     theme?: 'dark' | 'light';
+    openSpaceIds?: string[];
     windowBounds?: {
       x: number;
       y: number;
@@ -60,6 +61,8 @@ export interface SenkuAPI {
   pickFolder: () => Promise<string | null>;
   readNote: (filePath: string) => Promise<string>;
   writeNote: (filePath: string, content: string) => Promise<boolean>;
+  renameSpaceNotesDir: (oldName: string, newName: string) => Promise<boolean>;
+  deleteSpaceNotesDir: (spaceName: string) => Promise<boolean>;
   minimize: () => void;
   toggleMaximize: () => Promise<boolean>;
   isMaximized: () => Promise<boolean>;

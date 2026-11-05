@@ -347,6 +347,46 @@ ipcMain.handle('senku:write-note', (_event, filePath: string, content: string) =
   }
 });
 
+function renameSpaceNotesDir(oldName: string, newName: string): boolean {
+  try {
+    const docs = app.getPath('documents');
+    const base = path.join(docs, 'Senku Notes', 'spaces');
+    const safeOld = oldName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'default';
+    const safeNew = newName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'default';
+    if (safeOld === safeNew) return true;
+    const oldDir = path.join(base, safeOld);
+    const newDir = path.join(base, safeNew);
+    if (fs.existsSync(oldDir)) {
+      if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+      fs.renameSync(oldDir, newDir);
+      return true;
+    }
+    return true;
+  } catch (err) {
+    console.error('[renameSpaceNotesDir]', err);
+    return false;
+  }
+}
+
+function deleteSpaceNotesDir(spaceName: string): boolean {
+  try {
+    const docs = app.getPath('documents');
+    const safeName = spaceName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'default';
+    const dir = path.join(docs, 'Senku Notes', 'spaces', safeName);
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return true;
+    }
+    return true;
+  } catch (err) {
+    console.error('[deleteSpaceNotesDir]', err);
+    return false;
+  }
+}
+
+ipcMain.handle('senku:rename-space-notes-dir', (_event, oldName: string, newName: string) => renameSpaceNotesDir(oldName, newName));
+ipcMain.handle('senku:delete-space-notes-dir', (_event, spaceName: string) => deleteSpaceNotesDir(spaceName));
+
 ipcMain.on('senku:minimize', () => {
   mainWindow?.minimize();
 });
