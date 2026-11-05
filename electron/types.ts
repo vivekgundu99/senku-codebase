@@ -9,19 +9,16 @@ export interface Workspace {
 export interface FocusRecord {
   id: string;
   type: 'work' | 'rest';
-  spaceId?: string | null;
-  spaceName?: string;
   goal: string;
   durationMinutes: number;
   completedAt: number;
 }
 
 export interface FocusSession {
-  mode?: 'work' | 'rest';
+  mode: 'work' | 'rest';
   active: boolean;
   paused: boolean;
   remainingSeconds: number;
-  spaceId?: string | null;
   goal: string;
   startedAt: number | null;
   durationMinutes: number;

@@ -31,10 +31,10 @@ function createDefaultState(): SenkuState {
       mode: 'work',
       active: false,
       paused: false,
-      remainingSeconds: 25 * 60,
+      remainingSeconds: 30 * 60,
       goal: '',
       startedAt: null,
-      durationMinutes: 25,
+      durationMinutes: 30,
       history: [],
     },
     settings: {},
@@ -51,16 +51,20 @@ export function loadState(): SenkuState {
       if (data && Array.isArray(data.spaces)) {
         if (!data.focus) {
           data.focus = {
+            mode: 'work',
             active: false,
             paused: false,
-            remainingSeconds: 25 * 60,
+            remainingSeconds: 30 * 60,
             goal: '',
             startedAt: null,
-            durationMinutes: 25,
+            durationMinutes: 30,
             history: [],
           };
-        } else if (!Array.isArray(data.focus.history)) {
-          data.focus.history = [];
+        } else {
+          if (!data.focus.mode) data.focus.mode = 'work';
+          if (!Array.isArray(data.focus.history)) {
+            data.focus.history = [];
+          }
         }
         if (!data.settings) data.settings = {};
         stateCache = data;
