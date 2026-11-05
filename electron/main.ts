@@ -57,8 +57,8 @@ function createWindow() {
 
   const defaultWidth = 960;
   const defaultHeight = 620;
-  const initialWidth = (savedBounds?.width && savedBounds.width !== 1280) ? savedBounds.width : defaultWidth;
-  const initialHeight = (savedBounds?.height && savedBounds.height !== 820 && savedBounds.height !== 752) ? savedBounds.height : defaultHeight;
+  const initialWidth = savedBounds?.width || defaultWidth;
+  const initialHeight = savedBounds?.height || defaultHeight;
 
   mainWindow = new BrowserWindow({
     width: initialWidth,

@@ -19,7 +19,7 @@ let state: SenkuState = {
     durationMinutes: 30,
     history: [],
   },
-  settings: { userName: 'Vivek' },
+  settings: {},
 };
 
 let appPaths = {
@@ -448,7 +448,7 @@ function updateSpaceTabs() {
   const container = document.getElementById('space-tabs-container');
   if (!container) return;
 
-  if (!state.settings) state.settings = { userName: '' };
+  if (!state.settings) state.settings = {};
   if (!state.settings.openSpaceIds || state.settings.openSpaceIds.length === 0) {
     state.settings.openSpaceIds = state.spaces.map((s) => s.id);
   }
@@ -579,7 +579,6 @@ async function handleAddNewSpace() {
     id: crypto.randomUUID(),
     name,
     path: folder,
-    objective: '',
     createdAt: Date.now(),
   };
   state.spaces.push(newSpace);
@@ -945,6 +944,13 @@ function updateFocusUI() {
   }
 }
 
+function updateFocusTimerTick(remaining: number, progressPct: number) {
+  const display = document.getElementById('focus-display');
+  const bar = document.getElementById('focus-progress-bar');
+  if (display) display.textContent = formatDuration(remaining);
+  if (bar) bar.style.width = `${progressPct}%`;
+}
+
 // Lazy load & parse recent logs from documents/Senku Notes/logs.md
 async function updateLogsStream() {
   const container = document.getElementById('logs-stream-container');
@@ -1105,11 +1111,7 @@ function bindPersistentEvents() {
 
     // Safely move space notes directory to Documents/Senku Notes/trash
     try {
-      if (window.senku?.trashSpaceNotesDir) {
-        await window.senku.trashSpaceNotesDir(targetName);
-      } else if (window.senku?.deleteSpaceNotesDir) {
-        await window.senku.deleteSpaceNotesDir(targetName);
-      }
+      await window.senku.trashSpaceNotesDir(targetName);
     } catch (err) {
       console.warn('Failed moving space notes to trash:', err);
     }
@@ -1496,7 +1498,8 @@ function startTimerLoop() {
       const remaining = Math.max(0, totalSec - elapsed);
       state.focus.remainingSeconds = remaining;
 
-      updateFocusUI();
+      const progressPct = Math.min(100, Math.max(0, ((totalSec - remaining) / totalSec) * 100));
+      updateFocusTimerTick(remaining, progressPct);
 
       if (remaining === 0) {
         // Complete focus session!

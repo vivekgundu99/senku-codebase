@@ -20,7 +20,6 @@ function createDefaultState(): SenkuState {
     id: randomUUID(),
     name: 'Home',
     path: homePath,
-    objective: 'Welcome to Senku Reborn',
     createdAt: Date.now(),
   };
 
@@ -39,59 +38,8 @@ function createDefaultState(): SenkuState {
       durationMinutes: 25,
       history: [],
     },
-    settings: {
-      userName: 'Vivek',
-    },
+    settings: {},
   };
-}
-
-function tryMigrateLegacy(): SenkuState | null {
-  try {
-    const dataDir = getDataDir();
-    const wsFile = path.join(dataDir, 'workspaces.json');
-    if (!fs.existsSync(wsFile)) return null;
-
-    const raw = JSON.parse(fs.readFileSync(wsFile, 'utf8'));
-    if (!Array.isArray(raw) || raw.length === 0) return null;
-
-    const spaces: Workspace[] = raw.map((item: any) => ({
-      id: item.id || randomUUID(),
-      name: item.name || 'Workspace',
-      path: item.masterFolder || item.path || app.getPath('home'),
-      objective: item.activeObjective || '',
-      createdAt: typeof item.createdAt === 'string' ? new Date(item.createdAt).getTime() : Date.now(),
-    }));
-
-    let userName = 'Vivek';
-    const settingsFile = path.join(dataDir, 'settings.json');
-    if (fs.existsSync(settingsFile)) {
-      try {
-        const s = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
-        if (s.userName) userName = s.userName;
-      } catch {}
-    }
-
-    return {
-      version: 4,
-      activeSpaceId: spaces[0]?.id || null,
-      spaces,
-      focus: {
-        mode: 'work',
-        active: false,
-        paused: false,
-        remainingSeconds: 25 * 60,
-        spaceId: spaces[0]?.id || null,
-        goal: '',
-        startedAt: null,
-        durationMinutes: 25,
-        history: [],
-      },
-      settings: { userName },
-    };
-  } catch (err) {
-    console.warn('[store] Legacy migration skipped:', err);
-    return null;
-  }
 }
 
 export function loadState(): SenkuState {
@@ -102,7 +50,6 @@ export function loadState(): SenkuState {
     try {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (data && Array.isArray(data.spaces)) {
-        // Ensure focus.history exists
         if (!data.focus) {
           data.focus = {
             active: false,
@@ -117,6 +64,7 @@ export function loadState(): SenkuState {
         } else if (!Array.isArray(data.focus.history)) {
           data.focus.history = [];
         }
+        if (!data.settings) data.settings = {};
         stateCache = data;
         return stateCache!;
       }
@@ -128,9 +76,7 @@ export function loadState(): SenkuState {
     }
   }
 
-  // Attempt migration from legacy senku files, else defaults
-  const migrated = tryMigrateLegacy();
-  stateCache = migrated || createDefaultState();
+  stateCache = createDefaultState();
   saveState(stateCache);
   return stateCache;
 }

@@ -2,7 +2,7 @@ export interface Workspace {
   id: string;
   name: string;
   path: string;
-  objective: string;
+  objective?: string;
   createdAt: number;
 }
 
@@ -34,7 +34,6 @@ export interface SenkuState {
   spaces: Workspace[];
   focus: FocusSession;
   settings: {
-    userName: string;
     theme?: 'dark' | 'light';
     openSpaceIds?: string[];
     windowBounds?: {
@@ -62,8 +61,8 @@ export interface SenkuAPI {
   readNote: (filePath: string) => Promise<string>;
   writeNote: (filePath: string, content: string) => Promise<boolean>;
   renameSpaceNotesDir: (oldName: string, newName: string) => Promise<boolean>;
-  deleteSpaceNotesDir: (spaceName: string) => Promise<boolean>;
   trashSpaceNotesDir: (spaceName: string) => Promise<boolean>;
+  deleteSpaceNotesDir?: (spaceName: string) => Promise<boolean>;
   minimize: () => void;
   toggleMaximize: () => Promise<boolean>;
   isMaximized: () => Promise<boolean>;
