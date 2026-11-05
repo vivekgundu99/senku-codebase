@@ -13,7 +13,6 @@ let state: SenkuState = {
     active: false,
     paused: false,
     remainingSeconds: 30 * 60,
-    spaceId: null,
     goal: '',
     startedAt: null,
     durationMinutes: 30,
@@ -1361,7 +1360,6 @@ function bindPersistentEvents() {
 
   // Focus Timer Controls
   const toggleFocus = async () => {
-    const activeSpace = getActiveSpace();
     const goalInput = document.getElementById('focus-goal-input') as HTMLInputElement | null;
     const mode = state.focus.mode || 'work';
 
@@ -1372,7 +1370,6 @@ function bindPersistentEvents() {
         active: true,
         paused: false,
         remainingSeconds: (state.focus?.durationMinutes || 30) * 60,
-        spaceId: activeSpace?.id || null,
         goal: typedGoal,
         startedAt: Date.now(),
         durationMinutes: state.focus?.durationMinutes || 30,
@@ -1506,13 +1503,10 @@ function startTimerLoop() {
         const durationMins = state.focus.durationMinutes || 30;
         const mode = state.focus.mode || 'work';
         const rawGoal = (state.focus.goal || '').trim();
-        const activeSpace = getActiveSpace();
 
         const newRecord: FocusRecord = {
           id: crypto.randomUUID(),
           type: mode,
-          spaceId: mode === 'work' ? activeSpace?.id || null : null,
-          spaceName: mode === 'work' ? activeSpace?.name || 'General' : 'Break',
           goal: rawGoal || (mode === 'work' ? 'Deep Work' : 'Break'),
           durationMinutes: durationMins,
           completedAt: Date.now(),

@@ -21,7 +21,7 @@ export interface FocusSession {
   active: boolean;
   paused: boolean;
   remainingSeconds: number;
-  spaceId: string | null;
+  spaceId?: string | null;
   goal: string;
   startedAt: number | null;
   durationMinutes: number;
