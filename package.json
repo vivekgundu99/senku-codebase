@@ -7,13 +7,37 @@
   "scripts": {
     "dev": "tsc && concurrently -k \"vite --config vite.config.ts\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "tsc && vite build --config vite.config.ts",
+    "package:win": "npm run build && electron-builder --win",
     "start": "electron ."
+  },
+  "build": {
+    "appId": "com.senku.desktop",
+    "productName": "Senku",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/electron/**/*",
+      "dist/renderer/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/senku.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "concurrently": "^9.0.0",
     "cross-env": "^7.0.0",
     "electron": "^43.4.1",
+    "electron-builder": "^26.18.0",
     "typescript": "^5.7.0",
     "vite": "^7.0.0",
     "wait-on": "^8.0.0"
