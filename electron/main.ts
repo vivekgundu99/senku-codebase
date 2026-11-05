@@ -173,7 +173,7 @@ function appendLogEntry(text: string): boolean {
     const todayHeader = `## ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    const timeStr = `${hours}.${minutes}`;
+    const timeStr = `${hours}:${minutes}`;
     const line = `- ${timeStr} ${text.trim()}\n`;
 
     if (content.includes(todayHeader)) {
