@@ -302,6 +302,7 @@ function buildShell() {
           <span>SENKU</span>
         </div>
         <div class="space-tabs" id="space-tabs-container"></div>
+        <button class="btn-more-spaces" id="btn-more-spaces" title="All Spaces (⋯)">⋯</button>
         <button class="btn-add-space" id="btn-add-space" title="Create Space (+)">+</button>
       </div>
 
@@ -616,15 +617,18 @@ interface PaletteItem {
 let paletteItems: PaletteItem[] = [];
 let paletteSelectedIndex = 0;
 
-function openPalette() {
+function openPalette(initialQuery = '') {
   const overlay = document.getElementById('palette-overlay');
   const input = document.getElementById('palette-input') as HTMLInputElement | null;
   if (!overlay || !input) return;
 
   paletteSelectedIndex = 0;
-  input.value = '';
+  input.value = initialQuery;
   overlay.style.display = 'flex';
   input.focus();
+  if (initialQuery) {
+    input.select();
+  }
   renderPalette();
 }
 
@@ -1017,7 +1021,7 @@ function bindPersistentEvents() {
   // Double-click titlebar to maximize / restore
   document.querySelector('.titlebar')?.addEventListener('dblclick', async (e) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.window-btn') || target.closest('.space-tab') || target.closest('.btn-add-space')) return;
+    if (target.closest('.window-btn') || target.closest('.space-tab') || target.closest('.btn-add-space') || target.closest('.btn-more-spaces')) return;
     await window.senku.toggleMaximize();
     await updateMaximizeUI();
   });
@@ -1032,6 +1036,9 @@ function bindPersistentEvents() {
 
   // Space Actions
   document.getElementById('btn-add-space')?.addEventListener('click', handleAddNewSpace);
+  document.getElementById('btn-more-spaces')?.addEventListener('click', () => {
+    openPalette('space');
+  });
 
   // Space Name Inline Edit (with safe Documents folder renaming)
   const nameInput = document.getElementById('space-name-input') as HTMLInputElement | null;
@@ -1133,9 +1140,21 @@ function bindPersistentEvents() {
     if (activeSpace) window.senku.openFolder(activeSpace.path);
   });
 
-  // Command Palette Listeners (Ctrl+P / Ctrl+K)
+  // Command Palette Listeners (Ctrl+K or 'c')
   window.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'k' || e.key === 'P' || e.key === 'K')) {
+    // 1. Ctrl+K (or Cmd+K)
+    const isCtrlK = (e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K');
+
+    // 2. Single 'c' key when NOT typing in an editable field or holding modifier keys
+    const activeEl = document.activeElement as HTMLElement | null;
+    const isEditing = activeEl && (
+      activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      activeEl.isContentEditable
+    );
+    const isPlainC = !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'c' || e.key === 'C') && !isEditing;
+
+    if (isCtrlK || isPlainC) {
       e.preventDefault();
       const overlay = document.getElementById('palette-overlay');
       if (overlay && overlay.style.display !== 'none') {

@@ -4,18 +4,21 @@
   font-weight: 400;
   font-style: normal;
 }
+
 @font-face {
   font-family: 'Manrope';
   src: url('/fonts/manrope-500.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
 }
+
 @font-face {
   font-family: 'Manrope';
   src: url('/fonts/manrope-600.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
 }
+
 @font-face {
   font-family: 'Manrope';
   src: url('/fonts/manrope-700.woff2') format('woff2');
@@ -60,15 +63,24 @@
 [data-theme="light"] .metric-value {
   color: #1f2421;
 }
-[data-theme="light"] .metric-label.work { color: #2d6a4f; }
-[data-theme="light"] .metric-label.rest { color: #059669; }
+
+[data-theme="light"] .metric-label.work {
+  color: #2d6a4f;
+}
+
+[data-theme="light"] .metric-label.rest {
+  color: #059669;
+}
+
 [data-theme="light"] .focus-hero-card {
   background: linear-gradient(135deg, rgba(45, 106, 79, 0.12), rgba(22, 163, 74, 0.08));
   border-color: rgba(45, 106, 79, 0.25);
 }
+
 [data-theme="light"] .focus-box.running.work {
   background: rgba(45, 106, 79, 0.06);
 }
+
 [data-theme="light"] .focus-hero-badge {
   background: rgba(0, 0, 0, 0.07);
   color: #4b5563;
@@ -91,7 +103,10 @@ body {
   line-height: 1.5;
 }
 
-input, button, textarea, select {
+input,
+button,
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -105,13 +120,16 @@ input, button, textarea, select {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
 }
@@ -138,10 +156,10 @@ input, button, textarea, select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 32px;
+  height: 42px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 0 10px;
+  padding: 0 12px;
   -webkit-app-region: drag;
   flex-shrink: 0;
 }
@@ -149,18 +167,18 @@ input, button, textarea, select {
 .titlebar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   -webkit-app-region: no-drag;
 }
 
 .brand {
   font-weight: 800;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 1.2px;
   color: var(--primary);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 .brand span {
@@ -169,9 +187,9 @@ input, button, textarea, select {
 }
 
 .brand-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
 }
 
 .space-tabs {
@@ -180,18 +198,17 @@ input, button, textarea, select {
   gap: 2px;
   background: var(--card);
   padding: 2px;
-  border-radius: 5px;
+  border-radius: 6px;
   border: 1px solid var(--border);
 }
 
 .space-tab {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  height: 22px;
-  border-radius: 3px;
-  font-size: 11px;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
@@ -199,36 +216,41 @@ input, button, textarea, select {
   max-width: 150px;
   border: 1px solid transparent;
   user-select: none;
-  box-sizing: border-box;
 }
+
 .space-tab-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .space-tab-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
-  font-size: 8.5px;
+  font-size: 9px;
   opacity: 0.45;
   transition: all 0.15s ease;
 }
+
 .space-tab:hover .space-tab-close {
   opacity: 0.8;
 }
+
 .space-tab-close:hover {
   opacity: 1;
   background: rgba(239, 68, 68, 0.25);
   color: #ef4444;
 }
+
 .space-tab:hover {
   color: var(--text);
   background: var(--hover);
 }
+
 .space-tab.active {
   color: #ffffff;
   background: rgba(99, 102, 241, 0.2);
@@ -236,6 +258,7 @@ input, button, textarea, select {
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
   font-weight: 700;
 }
+
 [data-theme="light"] .space-tab.active {
   color: #ffffff;
   background: var(--primary);
@@ -243,18 +266,17 @@ input, button, textarea, select {
   box-shadow: 0 0 8px rgba(45, 106, 79, 0.35);
 }
 
+.btn-more-spaces,
 .btn-add-space {
-  padding: 0 6px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 14px;
   color: var(--text-dim);
   cursor: pointer;
   transition: all 0.15s ease;
 }
+
+.btn-more-spaces:hover,
 .btn-add-space:hover {
   color: var(--text);
   background: var(--hover);
@@ -263,13 +285,13 @@ input, button, textarea, select {
 .titlebar-right {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   -webkit-app-region: no-drag;
 }
 
 .window-btn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -277,12 +299,13 @@ input, button, textarea, select {
   cursor: pointer;
   color: var(--text-muted);
   transition: background 0.15s ease;
-  font-size: 11px;
 }
+
 .window-btn:hover {
   background: var(--hover);
   color: var(--text);
 }
+
 .window-btn.close:hover {
   background: var(--danger);
   color: #fff;
@@ -338,9 +361,11 @@ input, button, textarea, select {
   transition: all 0.15s ease;
   cursor: text;
 }
+
 .space-name-input:hover {
   background: var(--hover);
 }
+
 .space-name-input:focus {
   background: var(--card);
   border-color: var(--primary);
@@ -369,15 +394,18 @@ input, button, textarea, select {
   border-radius: 4px;
   transition: background 0.15s ease, color 0.15s ease;
 }
+
 .path-display:hover {
   background: var(--hover);
   color: var(--text);
 }
+
 .path-display .path-icon {
   font-size: 12px;
   flex-shrink: 0;
   opacity: 0.85;
 }
+
 .path-display .path-text {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -402,6 +430,7 @@ input, button, textarea, select {
   cursor: pointer;
   transition: all 0.15s ease;
 }
+
 .btn-secondary:hover {
   background: var(--hover);
   color: var(--text);
@@ -418,11 +447,13 @@ input, button, textarea, select {
   cursor: pointer;
   transition: all 0.15s ease;
 }
+
 .btn-danger:hover {
   background: rgba(239, 68, 68, 0.25);
   border-color: #ef4444;
   color: #fff;
 }
+
 .btn-confirm-delete {
   background: #ef4444 !important;
   color: #ffffff !important;
@@ -431,9 +462,17 @@ input, button, textarea, select {
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.75; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 /* Full-Height 5-Slot Note Workbench Canvas */
@@ -491,10 +530,12 @@ input, button, textarea, select {
   gap: 4px;
   border: 1px solid transparent;
 }
+
 .slot-tab:hover {
   color: var(--text);
   background: var(--hover);
 }
+
 .slot-tab.active {
   color: #ffffff;
   background: rgba(99, 102, 241, 0.2);
@@ -502,6 +543,7 @@ input, button, textarea, select {
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
   font-weight: 700;
 }
+
 [data-theme="light"] .slot-tab.active {
   color: #ffffff;
   background: var(--primary);
@@ -529,6 +571,7 @@ input, button, textarea, select {
   font-size: 12px;
   transition: all 0.15s ease;
 }
+
 .btn-icon-subtle:hover {
   color: var(--text);
   background: var(--hover);
@@ -583,6 +626,7 @@ input, button, textarea, select {
   color: var(--text);
   letter-spacing: -0.2px;
 }
+
 .note-preview h1:first-child {
   margin-top: 0;
 }
@@ -601,7 +645,9 @@ input, button, textarea, select {
   color: var(--text);
 }
 
-.note-preview h4, .note-preview h5, .note-preview h6 {
+.note-preview h4,
+.note-preview h5,
+.note-preview h6 {
   font-size: 12.5px;
   font-weight: 600;
   margin: 10px 0 4px 0;
@@ -627,6 +673,7 @@ input, button, textarea, select {
   cursor: pointer;
   transition: all 0.15s ease;
 }
+
 .note-preview a:hover {
   text-decoration: underline;
 }
@@ -652,6 +699,7 @@ input, button, textarea, select {
   border-bottom: 1px solid var(--border);
   border-right: 1px solid var(--border);
 }
+
 .note-preview th:last-child {
   border-right: none;
 }
@@ -662,23 +710,28 @@ input, button, textarea, select {
   border-right: 1px solid var(--border);
   color: var(--text-muted);
 }
+
 .note-preview td:last-child {
   border-right: none;
 }
+
 .note-preview tr:last-child td {
   border-bottom: none;
 }
+
 .note-preview tr:hover td {
   background: var(--hover);
   color: var(--text);
 }
 
 /* Lists & Tasks */
-.note-preview ul, .note-preview ol {
+.note-preview ul,
+.note-preview ol {
   margin-bottom: 10px;
   padding-left: 22px;
   color: var(--text);
 }
+
 .note-preview li {
   margin-bottom: 3px;
   color: var(--text);
@@ -693,7 +746,9 @@ input, button, textarea, select {
   margin-right: 6px;
   vertical-align: middle;
 }
-.note-preview li.task-done, .note-preview li:has(input[type="checkbox"]:checked) {
+
+.note-preview li.task-done,
+.note-preview li:has(input[type="checkbox"]:checked) {
   text-decoration: line-through;
   opacity: 0.55;
 }
@@ -710,12 +765,16 @@ input, button, textarea, select {
   font-size: 12.5px;
   color: var(--text);
 }
+
 .note-preview code {
   font-family: 'Consolas', 'Cascadia Code', monospace;
   font-size: 12px;
   color: var(--text);
 }
-.note-preview p code, .note-preview li code, .note-preview td code {
+
+.note-preview p code,
+.note-preview li code,
+.note-preview td code {
   background: var(--hover);
   padding: 2px 6px;
   border-radius: 4px;
@@ -774,8 +833,14 @@ input, button, textarea, select {
   font-weight: 800;
   color: var(--text-muted);
 }
-.metric-label.work { color: #a5b4fc; }
-.metric-label.rest { color: #6ee7b7; }
+
+.metric-label.work {
+  color: #a5b4fc;
+}
+
+.metric-label.rest {
+  color: #6ee7b7;
+}
 
 .metric-value {
   font-size: 18px;
@@ -808,6 +873,7 @@ input, button, textarea, select {
   border-color: var(--primary);
   background: rgba(99, 102, 241, 0.07);
 }
+
 .focus-box.running.rest {
   border-color: var(--success);
   background: rgba(16, 185, 129, 0.07);
@@ -834,13 +900,16 @@ input, button, textarea, select {
   text-align: center;
   transition: all 0.15s ease;
 }
+
 .mode-btn:hover {
   color: var(--text);
 }
+
 .mode-btn.active.work {
   background: var(--primary);
   color: #fff;
 }
+
 .mode-btn.active.rest {
   background: var(--success);
   color: #fff;
@@ -865,9 +934,11 @@ input, button, textarea, select {
   padding: 2px 8px;
   transition: background 0.15s ease;
 }
+
 .focus-timer-text:hover:not(.running) {
   background: rgba(255, 255, 255, 0.06);
 }
+
 .focus-timer-text.running {
   cursor: default;
 }
@@ -885,6 +956,7 @@ input, button, textarea, select {
   padding: 2px 4px;
   outline: none;
 }
+
 .focus-timer-input::-webkit-outer-spin-button,
 .focus-timer-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -905,6 +977,7 @@ input, button, textarea, select {
   width: 0%;
   transition: width 0.3s ease;
 }
+
 .focus-progress-fill.rest {
   background: var(--success);
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
@@ -926,9 +999,11 @@ input, button, textarea, select {
   text-align: center;
   cursor: pointer;
 }
+
 .preset-btn:hover {
   background: var(--hover);
 }
+
 .preset-btn.active {
   border-color: var(--primary);
   color: var(--primary);
@@ -951,12 +1026,15 @@ input, button, textarea, select {
   text-align: center;
   transition: background 0.15s ease;
 }
+
 .btn-primary:hover {
   background: var(--primary-hover);
 }
+
 .btn-primary.rest-active {
   background: var(--success);
 }
+
 .btn-primary.rest-active:hover {
   background: #059669;
 }
@@ -1001,6 +1079,7 @@ input, button, textarea, select {
   user-select: text;
   flex-shrink: 0;
 }
+
 .quick-log-input:focus {
   border-color: var(--primary);
 }
@@ -1062,9 +1141,17 @@ input, button, textarea, select {
   z-index: 1000;
   animation: paletteFadeIn 0.12s ease-out;
 }
+
 @keyframes paletteFadeIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .palette-box {
@@ -1110,10 +1197,12 @@ input, button, textarea, select {
   color: var(--text);
   transition: background 0.1s ease;
 }
+
 .palette-item:hover,
 .palette-item.selected {
   background: var(--hover);
 }
+
 .palette-item.selected {
   color: var(--primary);
   font-weight: 600;
