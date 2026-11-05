@@ -31,7 +31,6 @@ let activeSlot: NoteSlot = 'main';
 let activeNoteContent = '';
 let isNotePreview = false;
 let isViewingLogsInCanvas = false;
-let saveNoteTimeout: any = null;
 let timerInterval: any = null;
 
 // Configure marked
@@ -261,21 +260,12 @@ async function loadNoteForActiveSlot() {
   updateNoteCanvas();
 }
 
-async function flushSaveNote() {
+async function saveActiveNote() {
   if (isViewingLogsInCanvas) return;
-  if (saveNoteTimeout) {
-    clearTimeout(saveNoteTimeout);
-    saveNoteTimeout = null;
-  }
   const path = getSlotPath(activeSlot);
   await window.senku.writeNote(path, activeNoteContent);
 }
-
-function scheduleSaveNote() {
-  if (isViewingLogsInCanvas) return;
-  if (saveNoteTimeout) clearTimeout(saveNoteTimeout);
-  saveNoteTimeout = setTimeout(flushSaveNote, 400);
-}
+const flushSaveNote = saveActiveNote;
 
 async function switchSlot(newSlot: NoteSlot) {
   await flushSaveNote();
@@ -819,12 +809,12 @@ function updateNoteCanvas() {
       preview.innerHTML = renderMarkdownWithTasks(activeNoteContent);
 
       preview.querySelectorAll('.interactive-task').forEach((cb) => {
-        cb.addEventListener('change', (e) => {
+        cb.addEventListener('change', async (e) => {
           const input = e.target as HTMLInputElement;
           const idx = Number(input.getAttribute('data-task-idx'));
           if (!isNaN(idx)) {
             toggleTaskInMemory(idx, input.checked);
-            scheduleSaveNote();
+            await saveActiveNote();
             const parentLi = input.closest('li');
             if (parentLi) {
               if (input.checked) parentLi.classList.add('task-done');
@@ -1218,7 +1208,10 @@ function bindPersistentEvents() {
   });
 
   // Note Toggle Edit / Preview
-  document.getElementById('toggle-note-mode')?.addEventListener('click', () => {
+  document.getElementById('toggle-note-mode')?.addEventListener('click', async () => {
+    if (!isNotePreview) {
+      await saveActiveNote();
+    }
     isNotePreview = !isNotePreview;
     updateNoteCanvas();
   });
@@ -1254,15 +1247,14 @@ function bindPersistentEvents() {
   if (noteArea) {
     noteArea.addEventListener('input', () => {
       activeNoteContent = noteArea.value;
-      scheduleSaveNote();
     });
 
     noteArea.addEventListener('blur', () => {
-      flushSaveNote();
+      saveActiveNote();
     });
 
     window.addEventListener('blur', () => {
-      flushSaveNote();
+      saveActiveNote();
     });
 
     noteArea.addEventListener('keydown', (e) => {
@@ -1282,7 +1274,6 @@ function bindPersistentEvents() {
           noteArea.selectionStart = noteArea.selectionEnd = start + 2;
         }
         activeNoteContent = noteArea.value;
-        scheduleSaveNote();
         return;
       }
 
@@ -1300,7 +1291,6 @@ function bindPersistentEvents() {
             noteArea.value = noteArea.value.substring(0, lineStart) + noteArea.value.substring(cursor);
             noteArea.selectionStart = noteArea.selectionEnd = lineStart;
             activeNoteContent = noteArea.value;
-            scheduleSaveNote();
             return;
           }
           e.preventDefault();
@@ -1308,7 +1298,6 @@ function bindPersistentEvents() {
           noteArea.value = noteArea.value.substring(0, cursor) + insert + noteArea.value.substring(cursor);
           noteArea.selectionStart = noteArea.selectionEnd = cursor + insert.length;
           activeNoteContent = noteArea.value;
-          scheduleSaveNote();
           return;
         }
 
@@ -1320,7 +1309,6 @@ function bindPersistentEvents() {
             noteArea.value = noteArea.value.substring(0, lineStart) + noteArea.value.substring(cursor);
             noteArea.selectionStart = noteArea.selectionEnd = lineStart;
             activeNoteContent = noteArea.value;
-            scheduleSaveNote();
             return;
           }
           e.preventDefault();
@@ -1328,7 +1316,6 @@ function bindPersistentEvents() {
           noteArea.value = noteArea.value.substring(0, cursor) + insert + noteArea.value.substring(cursor);
           noteArea.selectionStart = noteArea.selectionEnd = cursor + insert.length;
           activeNoteContent = noteArea.value;
-          scheduleSaveNote();
           return;
         }
       }
@@ -1458,25 +1445,11 @@ function bindPersistentEvents() {
 // ---------------------------------------------------------------------------
 
 window.addEventListener('keydown', (e) => {
-  const target = e.target as HTMLElement;
-  const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-
-  if (!isInput) {
-    // 1-9 switch spaces (ONLY affects Left Hemisphere)
-    if (e.key >= '1' && e.key <= '9') {
-      const index = parseInt(e.key, 10) - 1;
-      if (state.spaces[index] && state.spaces[index].id !== state.activeSpaceId) {
-        state.activeSpaceId = state.spaces[index].id;
-        saveCurrentState();
-        updateSpaceTabs();
-        updateSpaceHeader();
-        loadNoteForActiveSlot();
-      }
-    }
-  }
-
   // Ctrl+Enter toggles preview anywhere
   if (e.ctrlKey && e.key === 'Enter') {
+    if (!isNotePreview) {
+      saveActiveNote();
+    }
     isNotePreview = !isNotePreview;
     updateNoteCanvas();
   }
