@@ -1,7 +1,7 @@
-# Senku — Creator Innovations & Concept Ledger
-> **Author & Creator:** Vivek Gundu  
+# Senku — Experimental Ideas & Concept Ledger
+> **Author:** Vivek Gundu  
 > **Repository:** `senku`  
-> **Document Purpose:** An immutable record of original design concepts, architectural breakthroughs, and high-impact product ideas conceived by the creator for Senku.
+> **Document Purpose:** An immutable record of experimental design concepts, architectural breakthroughs, and high-impact product ideas explored for Senku.
 
 ---
 
@@ -9,7 +9,7 @@
 * **Date Conceived:** October 23, 2026
 * **The Problem:** 
   In standard note apps (Notion, Obsidian, VS Code), starting a new topic under the same project requires either creating clutter with dozens of small files or enduring an endless, messy scroll. Users lack a "clean slate" feel without deleting or moving existing thoughts.
-* **The Creator's Innovation:**
+* **The Innovation:**
   - Introduce **pages inside a single Markdown note** using clean invisible delimiters (`<!-- page -->`).
   - Keep the physical storage as **one single, unified `.md` file** so it remains 100% compliant with Notion, VS Code, and standard file systems without proprietary database lock-in.
   - Break traditional renumbering complexity: by using unnumbered page delimiters, pages can be created, deleted, or jumped between with zero renumbering overhead.
@@ -21,7 +21,7 @@
 * **Date Conceived:** October 23, 2026
 * **The Problem:**
   Minimalist frameless floating overlay windows suffer from severe move-friction because the only draggable region is a razor-thin border edge, while the badge area was overloaded with mode switching.
-* **The Creator's Innovation:**
+* **The Innovation:**
   - Disentangle mode toggling from window dragging by converting the pencil icon into a dedicated, tactile **window drag handle** (`-webkit-app-region: drag; cursor: grab;`).
   - Keep the active title pill strictly for toggling between Notes and Logs.
   - Yields an effortless micro-interaction where users can grab the pencil to reposition anywhere on the screen without mis-triggering mode changes.
@@ -47,7 +47,7 @@
 
 ### 5. Unified Space Notes & The Death of Redundant Sidebar Hierarchy
 * **Date Conceived:** October 23, 2026
-* **The Creator's Discovery (Dogfooding):**
+* **The Discovery (Dogfooding):**
   - By pointing a Senku Space directly to the AppData `notes/` directory, Senku's clean File Manager instantly turned into a native, high-speed note browser on the Home screen.
   - With the advent of **Pages within a single note**, users no longer need dozens of fragmented files or nested folder trees just to separate topics. One note ("DSA", "Startup", "Lab") houses all related pages neatly.
   - This reveals a key architectural truth: nested folder sidebars inside note managers are largely legacy clutter that eat screen space. Clean notes plus multi-page pagination eliminate the need for rigid folder bureaucracy.
@@ -55,8 +55,8 @@
 ---
 
 ### 6. The Organic Origin Principle (Personal Utility over Market Mimicry)
-* **Creator Statement of Record:**
-  - Senku is not a commercial product or a replica of tools like Notion or Obsidian; the creator does not research or study commercial note apps for feature ideas.
+* **Statement of Record:**
+  - Senku is not a commercial product or a replica of tools like Notion or Obsidian; it was developed without researching or studying commercial note apps for feature ideas.
   - Every innovation—including multi-page Markdown notes—was conceived organically through direct, daily personal use ("dogfooding") when hitting real barriers and inventing frictionless solutions on the fly.
   - Senku exists to serve real human work with absolute minimum friction.
 
@@ -69,7 +69,7 @@
   - **Senku v2:** Iterated across 4 versions. Served as the daily working driver for over two months of continuous real-world use.
   - **Senku v3 (The Great Overhaul):** Aggressive trimming of bloated, low-utility features accumulated in earlier iterations. Re-engineered almost entirely from the ground up to be lean, blazing fast, and purpose-built.
 * **The "Three Diamonds" (90% of Senku):**
-  Through 2+ months of daily dogfooding, the creator identified that productivity doesn't need 50 features—it relies on three fundamental pillars working in unison:
+  Through 2+ months of daily dogfooding, it became clear that productivity doesn't need 50 features—it relies on three fundamental pillars working in unison:
   1. 💎 **Spaces (File Manager & Work Context):** Fast context-switching between folders, project directories, and launchpads without Explorer friction.
   2. 💎 **Logs (Action Capture & Timeline):** Frictionless micro-logging to track what was just done and preserve momentum.
   3. 💎 **Notes (Distraction-Free Markdown Canvas):** Raw, local Markdown notes with instant pagination (`<!-- page -->`) to capture deep thoughts without context fragmentation.
