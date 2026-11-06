@@ -1,39 +1,83 @@
 # SENKU
 
-> **A quiet, ultra-minimalist desktop companion built to eliminate the friction between thinking and doing.**
+> **A simple, ultra-fast desktop app to help you focus and get work done.**
 
-Senku replaces nothing. It does not replace your IDE, your terminal, or your browser. It sits beside you as an ambient cockpit—giving your focus a place to anchor, your thoughts a place to land, and your momentum a place to breathe.
-
----
-
-### The Two Hemispheres
-
-Senku is designed as two independent, frictionless halves working in quiet harmony:
-
-#### 1. The Context Cockpit *(Left)*
-- **Spaces:** Effortless context-switching between your projects, studies, and workspaces.
-- **5-Slot Workbench:** Instant plain-text canvases ready the moment you open a space:
-  - `Notes` & `Tasks` — Project documentation and interactive task checklists.
-  - `Scratch` — Fleeting thoughts and temporary WIP scraps.
-  - `Links` & `Global` — Universal pinned references shared across everything you do.
-- **Native Hand-Off:** Jump directly into VS Code, Terminal, or File Explorer in one click when real work begins.
-
-#### 2. The Flow Engine *(Right)*
-- **Work & Rest Pacing:** An ambient timer calibrated for genuine human rhythm (15m, 30m, 45m, or custom). Work hard, rest deliberately.
-- **The Master Log (`logs.md`):** Instant timeline capture. Type a line, hit Enter, or let completed sessions log automatically under today's date.
-- **Command Palette:** Summon quick actions and jump between spaces with `Ctrl+K` or a single keystroke `c`.
+Senku replaces nothing. It does not replace your favorite apps, browser, or tools. It sits beside you on your desktop—giving you a clean place to organize your project folders, write plain-text notes, track your focus, and log your daily progress.
 
 ---
 
-### Pure Plain Text. Zero Lock-In.
+### Layout: Two Simple Sides
 
-- **No Databases:** Your notes and logs live as clean, standard Markdown files on your local drive. You own them forever.
-- **Zero Friction:** One-click installer. No configuration. Launches in a blink and stays ambient with a global hotkey (`Ctrl+Alt+Space`).
-- **Dark & Light:** Obsidian Dark for night flow, and Warm Paper Light for daytime clarity.
+Senku is cleanly split into two sides:
+
+```
+┌───────────────────────────────────────────────┬─────────────────────────────┐
+│              WORKSPACE & NOTES                │        FOCUS & LOGS         │
+│  [Space Tabs]   (Clean Pinned Folders)        │  Today: 2h 15m (5 sessions) │
+│  ───────────────────────────────────────────  │  ─────────────────────────  │
+│  Notes · Tasks · Scratch · Links · Global     │  [Work / Rest]  30:00       │
+│  (Plain Markdown · Clickable Checkboxes)      │  ─────────────────────────  │
+│                                               │  logs.md (Quick Input)      │
+└───────────────────────────────────────────────┴─────────────────────────────┘
+```
+
+#### 1. Workspace & Notes (Left Side)
+* **Spaces (Organized Pinned Folders):** In Windows Explorer, pinned folders are hard to organize. In Senku, your important work, study, or project folders sit as clean tabs on the top bar so you can switch between them in one click.
+* **5 Note Tabs:** Each space has quick reference tabs ready to write:
+  * `Notes` & `Tasks` — General notes and todo checklists with clickable `[ ]` checkboxes.
+  * `Scratch` — A quick scratchpad to dump rough thoughts and clipboard text.
+  * `Links` & `Global` — Important bookmarks and shared notes accessible across all your spaces.
+  * *(The tab names are just starter suggestions—all of them are plain `.md` files you can use however you like).*
+* **Edit & Preview:** Toggle between typing and Markdown preview anytime with `Ctrl+Enter` or the Preview button.
+
+#### 2. Focus & Logs (Right Side)
+* **Focus Timer:** Built-in timer for Work and Rest (15m, 30m, 45m presets, or click to enter custom minutes).
+* **Daily Stats:** Shows how much time you spent working and resting today.
+* **logs.md:** A simple daily log. Type what you did in the input box and press Enter to save a timestamped note:
+  ```markdown
+  ## 2026-11-06
+  - 14:30 (Work 30m) Finished reading Chapter 3
+  - 15:15 Prepared slides for presentation
+  ```
+* **Command Palette:** Press `c` or `Ctrl+K` to quickly switch spaces, open folders in explorer, launch tools, or open notes in your editor.
+* **Show/Hide Shortcut:** Press `Ctrl+Alt+Space` from anywhere to instantly show or hide Senku.
+
+---
+
+### Local Files Only (No Database)
+
+* All notes and logs are plain `.md` files saved directly on your computer (inside your project folders and `Documents/Senku Notes`).
+* No databases, no accounts, and no cloud logins. You can open and edit your files in any text editor.
+* **Super Fast:** No heavy frameworks. It opens instantly, has zero typing lag, and builds in under a second.
+
+---
+
+### Installation
+
+Download the latest installer (`.exe`) from the [Releases](https://github.com/vivekgundu99/senku-codebase/releases) page and run it. No setup needed.
+
+> **Note on Windows SmartScreen:** Because Senku is a free open-source project without a paid certificate, Windows might show a blue popup (*"Windows protected your PC"*). Click **More info** &rarr; **Run anyway** to install.
+
+---
+
+### Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run app in dev mode
+npm run dev
+
+# Build app
+npm run build
+
+# Create Windows installer (.exe)
+npm run package:win
+```
 
 ---
 
 <p align="center">
-  <sub>Built for the builder &middot; Designed by Vivek Gundu &middot; <i>Jai Senku!</i></sub>
+  <sub>Designed and built by Vivek Gundu</sub>
 </p>
-

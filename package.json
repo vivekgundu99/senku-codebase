@@ -2,6 +2,7 @@
   "name": "senku",
   "version": "4.0.0",
   "author": "Vivek Gundu",
+  "license": "MIT",
   "description": "Senku Reborn — Ultra-minimalist personal work cockpit",
   "main": "dist/electron/main.js",
   "scripts": {
